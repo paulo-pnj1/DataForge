@@ -3,6 +3,7 @@ DataForge EDU - Comparador de Modelos
 Treina até 3 algoritmos lado a lado e compara métricas
 """
 
+import time
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -113,10 +114,9 @@ def render_comparador(username: str):
     page_header("Comparador de Modelos",
                 "Treina até 3 algoritmos lado a lado e compara resultados", "")
 
-    teoria_box("Porquê comparar algoritmos?",
-        "Não existe um algoritmo universalmente melhor. O melhor depende dos dados, "
-        "do problema e das métricas que importam. Comparar permite escolher com evidências, "
-        "não com suposições. Este é o workflow real de um Data Scientist.")
+    teoria_box("Porquê comparar?",
+        "Não existe um algoritmo que seja sempre o melhor. É como escolher um carro: depende da estrada. "
+        "Aqui pões até 3 algoritmos a fazer <b>a mesma prova</b> e vês qual se sai melhor com os teus dados.")
 
     tipo = st.radio("Tipo de problema", ["Classificação", "Regressão"], horizontal=True, key="cmp_tipo")
 
@@ -130,7 +130,7 @@ def render_comparador(username: str):
                 opcoes = ["Iris - Classificação de flores", "Vinho - Qualidade",
                           "Cancro - Diagnóstico", "Titanic - Sobrevivência"]
             else:
-                opcoes = ["Diabetes - Progressão", "Boston Housing - Preços"]
+                opcoes = ["Casas em Luanda (fictício) - Preços", "Diabetes - Progressão", "Boston Housing - Preços"]
             nm = st.selectbox("Dataset", opcoes, key="cmp_ds")
             df, desc, _ = carregar_dataset_embutido(nm)
             if df is not None and desc:
@@ -149,6 +149,7 @@ def render_comparador(username: str):
             cv_folds  = st.slider("Cross-validation (folds)", 3, 10, 5, key="cmp_cv")
 
             section_title("Algoritmos (escolhe até 3)")
+            st.caption("Dica: escolhe algoritmos de famílias diferentes (ex.: KNN, Árvore e Random Forest) para ver diferenças reais.")
             models_dict = CLF_MODELS if tipo == "Classificação" else REG_MODELS
             algos = st.multiselect("Algoritmos", list(models_dict.keys()),
                                    default=list(models_dict.keys())[:3],
@@ -191,8 +192,10 @@ def _run_comparison(df, features, target, algos, models_dict, tipo, test_size, c
 
         for i, algo_name in enumerate(algos):
             with st.spinner(f"A treinar {algo_name}..."):
+                t0 = time.perf_counter()
                 m = models_dict[algo_name]()
                 m.fit(X_train_sc, y_train)
+                tempo = time.perf_counter() - t0
                 y_pred = m.predict(X_test_sc)
 
                 if tipo == "Classificação":
@@ -204,7 +207,8 @@ def _run_comparison(df, features, target, algos, models_dict, tipo, test_size, c
                         "Algoritmo": algo_name,
                         "Accuracy":  acc,
                         "F1 Score":  f1,
-                        "CV Accuracy": cv
+                        "CV Accuracy": cv,
+                        "Tempo (s)": tempo
                     })
                 else:
                     r2   = r2_score(y_test, y_pred)
@@ -215,7 +219,8 @@ def _run_comparison(df, features, target, algos, models_dict, tipo, test_size, c
                         "Algoritmo": algo_name,
                         "R²":  r2,
                         "RMSE": rmse,
-                        "CV R²": cv
+                        "CV R²": cv,
+                        "Tempo (s)": tempo
                     })
             progress.progress((i + 1) / len(algos))
 
@@ -238,16 +243,23 @@ def _show_comparison_result(tipo):
 
     section_title("Tabela de Resultados")
 
-    # Tabela estilizada
-    st.markdown(f"""<div style="background:{C_SURFACE};border:2px solid {C_BORDER};border-radius:12px; padding:1rem;overflow-x:auto;">""", unsafe_allow_html=True)
-    st.dataframe(df_res.style.format("{:.4f}"), width='stretch')
-    st.markdown("</div>", unsafe_allow_html=True)
+    col_cfg = {
+        "Accuracy": st.column_config.NumberColumn("Accuracy", help="Percentagem de acertos na prova (teste)."),
+        "F1 Score": st.column_config.NumberColumn("F1 Score", help="Nota que junta Precision e Recall."),
+        "CV Accuracy": st.column_config.NumberColumn("CV Accuracy", help="Média de várias provas diferentes. Mais fiável."),
+        "R²": st.column_config.NumberColumn("R²", help="Quanto da variação dos dados o modelo explica (1 = perfeito)."),
+        "RMSE": st.column_config.NumberColumn("RMSE", help="Erro típico, na unidade do alvo. Menor é melhor."),
+        "CV R²": st.column_config.NumberColumn("CV R²", help="R² médio em várias provas. Mais fiável."),
+        "Tempo (s)": st.column_config.NumberColumn("Tempo (s)", help="Tempo que demorou a treinar."),
+    }
+    st.dataframe(df_res.style.format("{:.4f}"), width='stretch', column_config=col_cfg)
+
+    _veredicto(df_res, tipo)
 
     # Melhor modelo
     if tipo == "Classificação":
         melhor_idx = df_res["Accuracy"].idxmax()
         melhor_val = df_res.loc[melhor_idx, "Accuracy"]
-        sucesso_box(f"Melhor modelo: <strong>{melhor_idx}</strong> com Accuracy de {melhor_val:.1%}")
 
         # Gráficos
         st.plotly_chart(_bar_comparison(nomes, df_res["Accuracy"].tolist(),
@@ -267,7 +279,6 @@ def _show_comparison_result(tipo):
     else:
         melhor_idx = df_res["R²"].idxmax()
         melhor_val = df_res.loc[melhor_idx, "R²"]
-        sucesso_box(f"Melhor modelo: <strong>{melhor_idx}</strong> com R² de {melhor_val:.4f}")
 
         st.plotly_chart(_bar_comparison(nomes, df_res["R²"].tolist(),
                                          "R² - Conjunto de Teste", "R²"),
@@ -276,8 +287,34 @@ def _show_comparison_result(tipo):
                                          "RMSE - quanto menor melhor", "RMSE"),
                          width='stretch')
 
-    teoria_box("Qual escolher?",
-        "Não há resposta única. Considera: "
-        "<strong>CV Score</strong> é mais fiável que o score de teste único. "
-        "Prefere o modelo com melhor equilíbrio entre performance e complexidade. "
-        "Um modelo simples com 1% menos de accuracy é preferível se for muito mais rápido e interpretável.")
+    teoria_box("Como decidir?",
+        "Olha primeiro para a coluna <b>CV</b>: é a média de várias provas, por isso é mais honesta do que uma só nota. "
+        "Se dois modelos estiverem quase empatados, escolhe o <b>mais simples e mais rápido</b>: é mais fácil de explicar e de pôr a funcionar.")
+
+
+def _veredicto(df_res, tipo):
+    """Resumo em linguagem simples: quem ganhou, se houve empate e qual o mais rápido."""
+    col_cv = "CV Accuracy" if tipo == "Classificação" else "CV R²"
+    col_teste = "Accuracy" if tipo == "Classificação" else "R²"
+    fmt = (lambda v: f"{v:.1%}") if tipo == "Classificação" else (lambda v: f"{v:.2f}")
+    ordem = df_res.sort_values(col_cv, ascending=False)
+    campeao, segundo = ordem.index[0], (ordem.index[1] if len(ordem) > 1 else None)
+    rapido = df_res["Tempo (s)"].idxmin()
+    dif = (ordem[col_cv].iloc[0] - ordem[col_cv].iloc[1]) if segundo else 1.0
+
+    if segundo is None:
+        msg = f"<b>{campeao}</b> teve {fmt(ordem[col_cv].iloc[0])} nas provas. Escolhe mais algoritmos para comparar."
+    elif dif < 0.01:
+        msg = (f"<b>Empate técnico.</b> {campeao} e {segundo} ficaram praticamente iguais ({fmt(ordem[col_cv].iloc[0])}). "
+               f"Quando é assim, escolhe o mais simples ou o mais rápido (<b>{rapido}</b>).")
+    else:
+        msg = (f"<b>{campeao}</b> ganhou com {fmt(ordem[col_cv].iloc[0])} nas provas, à frente de {segundo} ({fmt(ordem[col_cv].iloc[1])}). "
+               f"O mais rápido a treinar foi <b>{rapido}</b>.")
+    sucesso_box(msg)
+
+    if tipo == "Classificação" and (df_res[col_teste] >= 0.999).all():
+        st.info("Todos tiveram 100% na prova. Isto quer dizer que os dados são **fáceis demais** para distinguir os algoritmos "
+                "(acontece muito com o Iris). Experimenta o Vinho ou o Titanic para ver diferenças a sério.")
+    gap = (df_res[col_teste] - df_res[col_cv]).max()
+    if gap > 0.08:
+        st.warning("Um dos modelos tem nota bem mais alta na prova do que nas provas repetidas. Pode ter sido sorte: confia mais na coluna CV.")
