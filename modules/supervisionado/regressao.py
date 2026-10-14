@@ -37,6 +37,7 @@ from modules.utils import (
     carregar_dataset_embutido, save_user_progress,
     add_pontos, save_historico_modelo
 )
+from modules.diagnostico import mostrar_diagnostico
 from modules.explicacoes import explicar_regressao, AJUDA_METRICAS
 
 try:
@@ -271,6 +272,7 @@ def render_regressao(username: str):
     # Dados
     catalogo_reg = [
         "Casas em Luanda (fictício) - Preços",
+        "Banca de rua (fictício) - Vendas",
         "Boston Housing - Preços",
         "Diabetes - Progressão",
     ]
@@ -288,6 +290,7 @@ def render_regressao(username: str):
             try:
                 df = pd.read_csv(f)
                 sucesso_box(f"{df.shape[0]} linhas × {df.shape[1]} colunas")
+                mostrar_diagnostico(df, expandido=False)
             except Exception as e:
                 erro_box(str(e))
 

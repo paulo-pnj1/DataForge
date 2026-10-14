@@ -36,6 +36,16 @@ PROBLEMAS = {
         "texto": "400 casas fictícias com bairro, quartos, área, distância ao centro, gerador e quintal. "
                  "O modelo aprende a estimar o preço. Funciona sem internet.",
     },
+    "Prever se um aluno passa de ano": {
+        "dataset": "Alunos em Angola (fictício) - Aprovação", "tipo": "clf", "alvo": "passou_de_ano",
+        "pergunta": "Este aluno passa de ano?",
+        "texto": "500 alunos fictícios com horas de estudo, faltas, nota anterior, se trabalha e se tem internet em casa. Funciona sem internet.",
+    },
+    "Prever as vendas de uma banca de rua": {
+        "dataset": "Banca de rua (fictício) - Vendas", "tipo": "reg", "alvo": "vendas_kz",
+        "pergunta": "Quanto vai vender a banca hoje?", "unidade": "Kz",
+        "texto": "365 dias fictícios com dia da semana, chuva, fim de mês, temperatura e preço. Funciona sem internet.",
+    },
     "Descobrir se um tumor é benigno ou maligno": {
         "dataset": "Cancro - Diagnóstico", "tipo": "clf", "alvo": "target",
         "pergunta": "Este tumor é benigno ou maligno?",

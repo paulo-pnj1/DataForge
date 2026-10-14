@@ -3,99 +3,70 @@
 **Aprende Machine Learning do zero, em português, com experiências que podes mexer.**
 Feita em Angola para o contexto universitário lusófono.
 
----
+## Por onde começar
+1. Cria uma conta (separador **Criar conta**) ou usa a conta demo (só em modo local: `aluno` / `aluno123`).
+2. Menu **COMEÇAR AQUI**: Escola de ML (14 lições), O Meu Primeiro Modelo, Que algoritmo uso?, Dicionário de ML.
+3. O **Início** mostra sempre o teu próximo passo.
 
-## Por onde começar (3 minutos)
-
-1. Abre a app e entra com a conta demo (`aluno` / `aluno123`).
-2. No menu, secção **COMEÇAR AQUI**:
-   - **Escola de ML**: 11 lições de ~5 minutos, cada uma com analogia do dia-a-dia, uma demonstração interactiva e um mini-teste.
-   - **O Meu Primeiro Modelo**: escolhes um problema, carregas num botão e o computador aprende. O resultado vem explicado em palavras simples.
-   - **Que algoritmo uso?**: respondes a 1 a 3 perguntas e recebes uma recomendação.
-   - **Dicionário de ML**: 54 termos explicados com exemplos.
-3. O **Início** mostra sempre o teu **próximo passo** recomendado.
-
----
-
-## O que há de novo
-
-| Novidade | Para que serve |
+## O que tem
+| Área | O que faz |
 |---|---|
-| Escola de ML (11 lições) | Ensina desde "o que é ML" até redes neuronais, com sliders e jogos |
-| O Meu Primeiro Modelo | Treino em 1 clique, sem configurar nada, com 6 problemas (incl. preços de casas em Luanda) |
-| "Explica-me estes números" | Painel em Classificação e Regressão que traduz Accuracy, Recall, R², etc. para linguagem simples |
-| Tooltips nas métricas | Passa o rato sobre cada métrica e lê o que significa |
-| Que algoritmo uso? | Assistente de decisão com receita de 3 passos |
-| Dicionário de ML | Pesquisável, com categorias e exemplos |
-| Início com "próximo passo" | O sistema diz-te o que fazer a seguir |
-| Comparador educativo (8 abas) | Palpite antes do resultado, porquê ganhou, onde cada modelo erra, fronteiras de decisão, "mexer e ver", curva de aprendizagem, custo real, relatório PDF |
-| Dataset local de casas em Luanda | Funciona sem internet (o da Califórnia precisa de descarregar) |
-
-### Correcções
-- O progresso do percurso nunca avançava (nenhum módulo ficava "concluído"). Agora treinar num módulo marca-o como concluído.
-- O módulo **Aprendizagem por Reforço** (Q-Learning e DQN) já existia mas o menu mostrava "Em breve". Está ligado.
-- O DQN dava erro sem PyTorch; agora mostra um aviso amigável.
-- No Comparador, a Regressão com Gradient Boosting usava um classificador por engano; e trocar de dataset esvaziava a lista de colunas.
-- A "Dica do Dia" mudava a cada reinício; agora muda por dia.
-- Módulos já não ficam "bloqueados": mostram "recomendado fazer antes" mas podes abrir qualquer um.
-- Removido um `<script>` que o Streamlit nunca executava.
+| Escola de ML | 14 lições com analogia, demonstração interactiva e mini-teste (inclui limpeza de dados, escalas e fuga de informação) |
+| O Meu Primeiro Modelo | Treino em 1 clique, com 8 problemas (alguns angolanos e sem internet) e resultado em linguagem simples |
+| Comparador de Modelos | Palpite, porquê ganhou, onde erram, fronteiras de decisão, "mexer e ver", curva de aprendizagem, custo real, relatório PDF |
+| Diagnóstico de CSV | Ao carregar dados, avisa de valores em falta, IDs, outliers, classes desequilibradas... |
+| Revisão do dia | Repete as perguntas que falhaste ao fim de 1, 3, 7, 14 e 30 dias |
+| Projecto Final | Projecto guiado em 5 passos com relatório em PDF |
+| Conquistas | Medalhas, sequência de dias, desafio da semana e ranking opcional da turma |
+| Certificados | PDF com QR code e página pública de verificação (`?verificar=CODIGO`) |
+| Painel do Professor | Turmas com código, progresso dos alunos, lições mais difíceis, CSV, repor palavra-passe |
+| Contas | Registo, turma, mudar palavra-passe, papéis (aluno/professor/admin), Google opcional |
+| Pesquisa global | Caixa no menu que encontra lições, termos e páginas |
 
 ---
 
-## Instalação
-
+## Instalação local
 ```bash
-python -m venv venv
-source venv/bin/activate        # Linux/Mac
-venv\Scripts\activate           # Windows
-
-pip install -r requirements.txt           # núcleo (Classificação, Regressão, Clustering, Escola...)
-pip install -r requirements-dl.txt        # opcional: Deep Learning e Reforço (PyTorch, gymnasium)
-
+python -m venv venv && source venv/bin/activate     # Windows: venv\Scripts\activate
+pip install -r requirements.txt                     # núcleo
+pip install -r requirements-dl.txt                  # opcional: Deep Learning e Reforço (PyTorch)
 streamlit run app.py
 ```
+Sem credenciais Supabase a app usa uma base local (`data/db.json`) e liga as contas demo.
 
-Abre em **http://localhost:8501**. O ficheiro `config.yaml` de utilizadores já vem incluído (e é recriado automaticamente se faltar).
+## Pôr online com Supabase (progresso que não se perde)
+1. Cria um projecto em supabase.com e abre o **SQL Editor**. Cola e executa o ficheiro `schema.sql`.
+2. Em **Project Settings > API** copia o URL e a chave **service_role**.
+3. No Streamlit Cloud: **App > Settings > Secrets**. Cola o conteúdo de `.streamlit/secrets.toml.example` e preenche
+   `supabase_url`, `supabase_key`, `cookie_key`, `professor_code`, `admin_code` e `app_url`.
+4. Faz **Reboot app**. Cria a tua conta no separador **Criar conta** com o código de administrador.
+5. Cria turmas no **Painel do Professor** e partilha o código com os alunos.
 
-## Contas de demonstração
+Segurança: a chave `service_role` fica só no servidor (nos secrets). As tabelas têm RLS activo sem políticas,
+por isso a chave pública não consegue ler nada. Nunca ponhas o `secrets.toml` no GitHub.
 
-| Utilizador | Password | Papel |
-|-----------|----------|-------|
-| `aluno` | `aluno123` | Aluno |
-| `professor` | `prof123` | Professor |
-| `admin` | `admin123` | Administrador |
+> Nota: os projectos gratuitos do Supabase podem ser pausados após um período sem actividade. Confirma as regras actuais no site deles.
 
-> Antes de pôr em produção, muda estas palavras-passe e a `cookie.key` do `config.yaml`.
-
----
+## Testes
+```bash
+pip install -r requirements-dev.txt
+pytest -q
+```
 
 ## Estrutura
-
 ```
-app.py                       # Entrada, menu e roteador
-config.yaml                  # Utilizadores
-requirements.txt / requirements-dl.txt
-
+app.py                     # Entrada, menu e roteador (com tratamento de erros)
+schema.sql                 # Tabelas do Supabase
 modules/
-├── escola.py                # NOVO  Escola de ML (11 lições interactivas + quizzes)
-├── primeiro_modelo.py       # NOVO  Treino em 1 clique com explicação simples
-├── ajuda.py                 # NOVO  Dicionário de ML + assistente "Que algoritmo uso?"
-├── explicacoes.py           # NOVO  Métricas traduzidas para linguagem simples
-├── utils.py                 # Paleta, CSS, datasets, teoria, progresso
-├── auth.py   dashboard.py   comparador.py
-├── supervisionado/          # classificacao.py, regressao.py
-├── nao_supervisionado/      # clustering.py, reducao.py, anomalias.py
-├── redes_neurais/           # mlp.py
-├── deep_learning/           # visao.py, nlp.py, series_temporais.py, generativo.py
-└── reforco/                 # q_learning.py, dqn.py
+├── settings.py  db.py     # Configuração e camada de dados (Supabase ou TinyDB local)
+├── auth.py                # Login, registo, perfil, Google opcional
+├── escola.py  revisao.py  gamificacao.py  projeto.py  certificados.py  professor.py
+├── primeiro_modelo.py  comparador.py  explicacoes.py  diagnostico.py  ajuda.py  pesquisa.py
+├── utils.py  dashboard.py
+├── supervisionado/ nao_supervisionado/ redes_neurais/ deep_learning/ reforco/
+tests/test_smoke.py
 ```
 
-## Como acrescentar uma lição
-
-Em `modules/escola.py`, cria uma função `_licao_N()` com a analogia e a demonstração, e acrescenta
-um dicionário à lista `LICOES` (título, ideia numa frase, resumo, botão de prática e perguntas do quiz).
-A primeira resposta de cada pergunta é a certa; o sistema mistura as opções automaticamente.
-
-## Por fazer
-- Certificados em PDF com QR code (a página ainda mostra "Em desenvolvimento").
-- Modo professor: acompanhar o progresso dos alunos.
+## O que ainda não existe
+- Versão em inglês e tema claro (a interface está toda escrita em português, com tema escuro).
+- Recuperação de palavra-passe por email (hoje é o professor ou o administrador que repõe).
