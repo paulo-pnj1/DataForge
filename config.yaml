@@ -1,0 +1,32 @@
+credentials:
+  usernames:
+    admin:
+      email: admin@dataforge.ao
+      name: Administrador
+      password: $2b$12$EdJgPM3gnr1zC7dGrF7qweCAeowRkNAmMN1adPInvOhpASH7KkdC6
+      role: admin
+      progress: {}
+      completed: []
+    professor:
+      email: prof@dataforge.ao
+      name: Professor Demo
+      password: $2b$12$uMyYWvCKYb80ab76XEldB.BkMLe8btKx/.1fGuL8u41NAloq3nwN.
+      role: professor
+      progress: {}
+      completed: []
+    aluno:
+      email: aluno@dataforge.ao
+      name: Aluno Demo
+      password: $2b$12$6aJ/JZ7kGgL2Xhc.AuuetuM6gflwty1jsjvyLZlFLXDdwt3J310b6
+      role: aluno
+      progress: {}
+      completed: []
+
+cookie:
+  expiry_days: 7
+  key: dataforge_edu_secret_key_2024
+  name: dataforge_edu_cookie
+
+preauthorized:
+  emails:
+    - novoutilizador@universidade.ao

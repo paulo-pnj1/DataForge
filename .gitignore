@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.pkl
+env_IA/
+venv/
+data/db.json
