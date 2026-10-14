@@ -97,7 +97,7 @@ with st.sidebar:
     MENU = [
         # (label, key, secção, ícone_svg)
         ("Início",                    "dashboard",   "COMEÇAR AQUI",     icon("home",    16, "#6BA3FF")),
-        ("Escola de ML (aprende do zero)", "escola",  None,              icon("school",  16, "#4ADE80")),
+        ("Escola de ML", "escola",  None,              icon("school",  16, "#4ADE80")),
         ("O Meu Primeiro Modelo",    "primeiro_modelo", None,           icon("rocket",  16, "#4ADE80")),
         ("Que algoritmo uso?",       "assistente",  None,              icon("compass2",16, "#4ADE80")),
         ("Dicionário de ML",         "dicionario",  None,              icon("book",    16, "#4ADE80")),

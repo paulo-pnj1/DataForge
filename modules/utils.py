@@ -129,14 +129,27 @@ def inject_css():
         background: {C_SURFACE} !important;
         color: {C_TEXT} !important;
     }}
-    section[data-testid="stSidebar"] {{
+    [data-testid="stSidebar"] {{
         border-right: 1px solid {C_BORDER} !important;
-        /* Garante que a sidebar nunca desaparece */
+        /* Garante que a sidebar nunca desaparece nem fica estreita demais */
         display: block !important;
         transform: none !important;
-        min-width: 240px !important;
+        width: 290px !important;
+        min-width: 290px !important;
+        max-width: 290px !important;
+        flex: 0 0 290px !important;
         visibility: visible !important;
         opacity: 1 !important;
+    }}
+    [data-testid="stSidebarContent"],
+    [data-testid="stSidebarUserContent"] {{
+        width: 100% !important;
+        min-width: 0 !important;
+    }}
+    [data-testid="stSidebar"] .stButton > button {{
+        white-space: normal !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
     }}
     section[data-testid="stSidebar"] p,
     section[data-testid="stSidebar"] span,
@@ -168,6 +181,7 @@ def inject_css():
             height: 100vh !important;
             z-index: 1000 !important;
             transform: none !important;
+            width: 80vw !important;
             min-width: 260px !important;
             max-width: 80vw !important;
             overflow-y: auto !important;
