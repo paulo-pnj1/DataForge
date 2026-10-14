@@ -28,12 +28,14 @@ Feita em Angola para o contexto universitário lusófono.
 | Que algoritmo uso? | Assistente de decisão com receita de 3 passos |
 | Dicionário de ML | Pesquisável, com categorias e exemplos |
 | Início com "próximo passo" | O sistema diz-te o que fazer a seguir |
+| Comparador educativo (8 abas) | Palpite antes do resultado, porquê ganhou, onde cada modelo erra, fronteiras de decisão, "mexer e ver", curva de aprendizagem, custo real, relatório PDF |
 | Dataset local de casas em Luanda | Funciona sem internet (o da Califórnia precisa de descarregar) |
 
 ### Correcções
 - O progresso do percurso nunca avançava (nenhum módulo ficava "concluído"). Agora treinar num módulo marca-o como concluído.
 - O módulo **Aprendizagem por Reforço** (Q-Learning e DQN) já existia mas o menu mostrava "Em breve". Está ligado.
 - O DQN dava erro sem PyTorch; agora mostra um aviso amigável.
+- No Comparador, a Regressão com Gradient Boosting usava um classificador por engano; e trocar de dataset esvaziava a lista de colunas.
 - A "Dica do Dia" mudava a cada reinício; agora muda por dia.
 - Módulos já não ficam "bloqueados": mostram "recomendado fazer antes" mas podes abrir qualquer um.
 - Removido um `<script>` que o Streamlit nunca executava.
