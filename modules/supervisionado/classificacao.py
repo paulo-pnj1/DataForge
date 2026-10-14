@@ -42,6 +42,7 @@ from modules.utils import (
     C_BG, PALETTE, TEORIA, carregar_dataset_embutido,
     save_user_progress, add_pontos, save_historico_modelo
 )
+from modules.diagnostico import mostrar_diagnostico
 from modules.explicacoes import explicar_classificacao, AJUDA_METRICAS
 
 try:
@@ -404,6 +405,7 @@ def _render_step_header(n: int, titulo: str, step_actual: int):
 
 def _step1_dataset(username: str):
     catalogo = [
+        "Alunos em Angola (fictício) - Aprovação",
         "Iris - Classificação de flores",
         "Titanic - Sobrevivência",
         "Vinho - Qualidade",
@@ -425,6 +427,7 @@ def _step1_dataset(username: str):
             try:
                 df = pd.read_csv(ficheiro)
                 sucesso_box(f"CSV carregado: {df.shape[0]} linhas × {df.shape[1]} colunas")
+                mostrar_diagnostico(df, expandido=False)
             except Exception as e:
                 erro_box(f"Erro ao ler CSV: {e}")
 
@@ -558,6 +561,7 @@ def _render_modo_livre(username: str):
     df, desc = None, ""
     if fonte == "Dataset embutido":
         catalogo_clf = [k for k in [
+            "Alunos em Angola (fictício) - Aprovação",
             "Iris - Classificação de flores",
             "Titanic - Sobrevivência",
             "Vinho - Qualidade",
@@ -573,6 +577,7 @@ def _render_modo_livre(username: str):
         if f:
             try:
                 df = pd.read_csv(f)
+                mostrar_diagnostico(df, expandido=False)
             except Exception as e:
                 erro_box(str(e))
 

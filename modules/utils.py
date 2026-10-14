@@ -7,9 +7,11 @@ Design profissional: tema escuro consistente, WCAG AA/AAA
 import streamlit as st
 import pandas as pd
 import numpy as np
-from tinydb import TinyDB, Query
 import os
+import copy
+import time
 import datetime
+from modules import db as _db
 
 # ══════════════════════════════════════════════════════
 # PALETA DE CORES - Design System
@@ -833,31 +835,40 @@ def inject_css():
 
 
 # ══════════════════════════════════════════════════════
-# BASE DE DADOS LOCAL (TinyDB)
+# PROGRESSO E HISTORIAL (Supabase ou TinyDB local, via modules/db.py)
 # ══════════════════════════════════════════════════════
-def get_db():
-    os.makedirs("data", exist_ok=True)
-    return TinyDB("data/db.json")
+_CACHE_TTL = 45  # segundos: evita 1 pedido à base de dados por cada interacção
+
+
+def _cache() -> dict:
+    return st.session_state.setdefault("_prog_cache", {})
+
 
 def get_user_progress(username: str) -> dict:
-    db = get_db()
-    User = Query()
-    result = db.table("progress").search(User.username == username)
-    if result:
-        return result[0]
-    return {"username": username, "modulos": {}, "pontos": 0, "completados": []}
+    c = _cache()
+    e = c.get(username)
+    if e and time.time() - e[0] < _CACHE_TTL:
+        return copy.deepcopy(e[1])
+    data = _db.get_progress(username)
+    data["username"] = username
+    data.setdefault("modulos", {})
+    data.setdefault("pontos", 0)
+    data.setdefault("completados", [])
+    c[username] = (time.time(), data)
+    return copy.deepcopy(data)
+
+
+def _gravar_progress(username: str, progress: dict):
+    _db.save_progress(username, progress)
+    _cache()[username] = (time.time(), copy.deepcopy(progress))
+
 
 def save_user_progress(username: str, modulo: str, dados: dict):
-    db = get_db()
-    User = Query()
     progress = get_user_progress(username)
     progress["modulos"][modulo] = dados
     progress["ultima_actividade"] = datetime.datetime.now().isoformat()
-    table = db.table("progress")
-    if table.search(User.username == username):
-        table.update(progress, User.username == username)
-    else:
-        table.insert(progress)
+    _gravar_progress(username, progress)
+
 
 # Página do menu → módulo do percurso (para marcar como concluído)
 PAGINA_PARA_MODULO = {
@@ -884,8 +895,6 @@ def ir_para(pagina: str):
 
 
 def add_pontos(username: str, pontos: int, motivo: str = ""):
-    db = get_db()
-    User = Query()
     progress = get_user_progress(username)
     progress["pontos"] = progress.get("pontos", 0) + pontos
     # Treinar algo numa página conta como módulo concluído (desbloqueia o percurso)
@@ -894,21 +903,27 @@ def add_pontos(username: str, pontos: int, motivo: str = ""):
         completados = progress.setdefault("completados", [])
         if modulo_id not in completados:
             completados.append(modulo_id)
-    if "historico_pontos" not in progress:
-        progress["historico_pontos"] = []
-    progress["historico_pontos"].append({
-        "pontos": pontos,
-        "motivo": motivo,
-        "data": datetime.datetime.now().isoformat()
-    })
-    table = db.table("progress")
-    if table.search(User.username == username):
-        table.update(progress, User.username == username)
-    else:
-        table.insert(progress)
+    hist = progress.setdefault("historico_pontos", [])
+    hist.append({"pontos": pontos, "motivo": motivo, "data": datetime.datetime.now().isoformat()})
+    progress["historico_pontos"] = hist[-300:]
+    progress["ultima_actividade"] = datetime.datetime.now().isoformat()
+    _gravar_progress(username, progress)
+
+
+def marcar_marco(username: str, nome: str) -> bool:
+    """Regista que um marco foi atingido (ex.: 'comparador'). True se foi a 1ª vez."""
+    progress = get_user_progress(username)
+    marcos = progress.setdefault("marcos", {})
+    if nome in marcos:
+        return False
+    marcos[nome] = datetime.datetime.now().isoformat()
+    _gravar_progress(username, progress)
+    return True
+
 
 def get_licoes_concluidas(username: str) -> list:
     return get_user_progress(username).get("licoes", [])
+
 
 def concluir_licao(username: str, licao_id: str, titulo: str, pontos: int = 5) -> bool:
     """Marca uma lição da Escola de ML como concluída. Devolve True se foi a 1ª vez."""
@@ -917,26 +932,34 @@ def concluir_licao(username: str, licao_id: str, titulo: str, pontos: int = 5) -
     if licao_id in licoes:
         return False
     licoes.append(licao_id)
-    db = get_db()
-    User = Query()
-    table = db.table("progress")
-    if table.search(User.username == username):
-        table.update(progress, User.username == username)
-    else:
-        table.insert(progress)
+    _gravar_progress(username, progress)
     add_pontos(username, pontos, f"Lição concluída: {titulo}")
     return True
 
+
+def registar_quiz(username: str, licao_id: str, erradas: list):
+    """Guarda as perguntas falhadas (para o professor ver e para a revisão espaçada)."""
+    if not erradas:
+        return
+    progress = get_user_progress(username)
+    erros = progress.setdefault("quiz_erros", {})
+    erros[licao_id] = erros.get(licao_id, 0) + len(erradas)
+    rev = progress.setdefault("revisao", {})
+    amanha = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    for q in erradas:
+        rev.setdefault(f"{licao_id}:{q}", {"proxima": amanha, "intervalo": 1})
+    _gravar_progress(username, progress)
+
+
 def save_historico_modelo(username: str, entrada: dict):
-    db = get_db()
+    entrada = dict(entrada)
     entrada["username"] = username
     entrada["data"] = datetime.datetime.now().isoformat()
-    db.table("historico_modelos").insert(entrada)
+    _db.add_historico(username, entrada)
+
 
 def get_historico_modelos(username: str) -> list:
-    db = get_db()
-    User = Query()
-    return db.table("historico_modelos").search(User.username == username)
+    return _db.get_historico(username)
 
 
 # ══════════════════════════════════════════════════════
@@ -1012,6 +1035,37 @@ def _gerar_casas_luanda(n: int = 400, seed: int = 42) -> pd.DataFrame:
     })
 
 
+def _gerar_banca(n: int = 365, seed: int = 7) -> pd.DataFrame:
+    """Vendas diárias de uma banca de rua (fictício, sem internet)."""
+    rng = np.random.default_rng(seed)
+    dias = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"]
+    idx = np.arange(n)
+    dia = np.array([dias[i % 7] for i in idx])
+    dia_mes = (idx % 30) + 1
+    fim_mes = (dia_mes >= 25).astype(int)
+    chuva = (rng.random(n) < 0.25).astype(int)
+    temp = np.round(rng.normal(29, 3, n), 1)
+    preco = rng.integers(200, 401, n)
+    fds = np.isin(dia, ["Sab", "Dom"]).astype(int)
+    vendas = 30000 + 9000 * fds + 6000 * fim_mes - 12000 * chuva + 900 * (temp - 28) - 55 * (preco - 300) + rng.normal(0, 3500, n)
+    return pd.DataFrame({"dia_semana": dia, "chuva": chuva, "fim_de_mes": fim_mes, "temperatura_c": temp,
+                         "preco_do_kg_kz": preco, "vendas_kz": np.clip(vendas, 5000, None).round(-2)})
+
+
+def _gerar_alunos(n: int = 500, seed: int = 11) -> pd.DataFrame:
+    """Alunos fictícios e se passaram de ano (sem internet)."""
+    rng = np.random.default_rng(seed)
+    horas = rng.uniform(0, 25, n).round(1)
+    faltas = rng.integers(0, 21, n)
+    nota_ant = np.clip(rng.normal(11, 3, n), 0, 20).round(1)
+    trabalha = (rng.random(n) < 0.35).astype(int)
+    internet = (rng.random(n) < 0.5).astype(int)
+    score = 0.22 * horas - 0.17 * faltas + 0.35 * nota_ant - 0.9 * trabalha + 0.6 * internet + rng.normal(0, 1.3, n) - 4.6
+    return pd.DataFrame({"horas_estudo_semana": horas, "faltas": faltas, "nota_anterior": nota_ant,
+                         "trabalha": trabalha, "tem_internet": internet,
+                         "passou_de_ano": np.where(score > 0, "sim", "nao")})
+
+
 def carregar_dataset_embutido(nome: str) -> tuple:
     """Retorna (df, descricao, tipo_problema)"""
     from sklearn import datasets
@@ -1023,6 +1077,8 @@ def carregar_dataset_embutido(nome: str) -> tuple:
         "Vinho - Qualidade":                     ("wine",       "classificacao"),
         "Cancro - Diagnóstico":                 ("breast",     "classificacao"),
         "Casas em Luanda (fictício) - Preços":   ("luanda",     "regressao"),
+        "Banca de rua (fictício) - Vendas":      ("banca",      "regressao"),
+        "Alunos em Angola (fictício) - Aprovação": ("alunos_ao", "classificacao"),
         "Boston Housing - Preços":               ("boston",     "regressao"),
         "Diabetes - Progressão":                ("diabetes",   "regressao"),
         "Dígitos - Reconhecimento":              ("digits",     "classificacao"),
@@ -1053,6 +1109,12 @@ def carregar_dataset_embutido(nome: str) -> tuple:
         df = d.frame
         df["target"] = df["target"].map({0: "maligno", 1: "benigno"})
         desc = "569 tumores com 30 features. Classifica tumores como malignos ou benignos."
+    elif chave == "banca":
+        df = _gerar_banca()
+        desc = "365 dias de vendas de uma banca de rua fictícia (dia da semana, chuva, fim de mês, temperatura, preço). Prevê as vendas do dia em Kz."
+    elif chave == "alunos_ao":
+        df = _gerar_alunos()
+        desc = "500 alunos fictícios (horas de estudo, faltas, nota anterior, trabalha, internet em casa). Prevê se passa de ano."
     elif chave == "luanda":
         df = _gerar_casas_luanda()
         desc = ("400 casas fictícias de Luanda (bairro, quartos, área, distância ao centro, gerador, quintal). "

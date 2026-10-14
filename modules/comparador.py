@@ -26,8 +26,10 @@ from modules.utils import (
     inject_css, page_header, section_title, teoria_box,
     aviso_box, sucesso_box, erro_box, info_box,
     C_ACCENT, C_GREEN, C_AMBER, C_RED, C_SURFACE, C_BORDER, C_SURFACE2,
-    PALETTE, carregar_dataset_embutido, add_pontos, TEORIA
+    PALETTE, carregar_dataset_embutido, add_pontos, TEORIA, marcar_marco
 )
+from modules.settings import PONTOS_COMPARACAO, PONTOS_PALPITE
+from modules.diagnostico import mostrar_diagnostico
 
 try:
     from xgboost import XGBClassifier, XGBRegressor
@@ -270,10 +272,11 @@ def _run_comparison(df, features, target, algos, models_dict, tipo, test_size, c
             "preds": preds, "modelos": modelos, "cv": cv,
             "n_linhas": len(X), "n_feat": X.shape[1], "corr_media": corr_media,
         }
-        add_pontos(username, 20, f"Comparação de {len(algos)} modelos")
+        add_pontos(username, PONTOS_COMPARACAO, f"Comparação de {len(algos)} modelos")
+        marcar_marco(username, "comparador")
         an = _analise(res)
         if palpite and palpite != "(sem palpite)" and palpite == an["campeao"]:
-            add_pontos(username, 5, "Acertou no palpite do comparador")
+            add_pontos(username, PONTOS_PALPITE, "Acertou no palpite do comparador")
             res["ganhou_palpite"] = True
         st.session_state.cmp_result = res
         st.session_state.pop("cmp_sweep", None)
@@ -780,9 +783,9 @@ def render_comparador(username: str):
             fonte = st.radio("Fonte", ["Embutido", "Upload"], horizontal=True, key="cmp_fonte")
             if fonte == "Embutido":
                 if tipo == "Classificação":
-                    opcoes = ["Iris - Classificação de flores", "Vinho - Qualidade", "Cancro - Diagnóstico", "Titanic - Sobrevivência"]
+                    opcoes = ["Alunos em Angola (fictício) - Aprovação", "Iris - Classificação de flores", "Vinho - Qualidade", "Cancro - Diagnóstico", "Titanic - Sobrevivência"]
                 else:
-                    opcoes = ["Casas em Luanda (fictício) - Preços", "Diabetes - Progressão", "Boston Housing - Preços"]
+                    opcoes = ["Casas em Luanda (fictício) - Preços", "Banca de rua (fictício) - Vendas", "Diabetes - Progressão", "Boston Housing - Preços"]
                 nm = st.selectbox("Dataset", opcoes, key="cmp_ds")
                 try:
                     df, desc, _ = carregar_dataset_embutido(nm)
@@ -795,6 +798,8 @@ def render_comparador(username: str):
                 f = st.file_uploader("CSV", type=["csv"], key="cmp_up")
                 df = pd.read_csv(f) if f else None
                 nm = f.name if f else "Upload"
+                if df is not None:
+                    mostrar_diagnostico(df, expandido=False)
 
             if df is not None:
                 cols = df.columns.tolist()

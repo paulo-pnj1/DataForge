@@ -20,6 +20,12 @@ from modules.auth import render_login_page, render_sidebar_user, get_user_role
 
 inject_css()
 
+# ── PÁGINA PÚBLICA DE VERIFICAÇÃO DE CERTIFICADOS (?verificar=CODIGO) ──
+if "verificar" in st.query_params:
+    from modules.certificados import render_verificacao
+    render_verificacao(st.query_params["verificar"])
+    st.stop()
+
 # ── ÍCONES SVG PROFISSIONAIS (Phosphor Icons) ────────
 # Inline SVG - sem dependência externa, carrega instantaneamente
 def icon(name: str, size: int = 18, color: str = "currentColor") -> str:
@@ -89,33 +95,57 @@ if auth_status is not True:
 name = st.session_state.get("name", username)
 role = get_user_role(username, config)
 
+_ZOOM = {"Pequeno": 90, "Normal": 100, "Grande": 115, "Muito grande": 130}
+_z = _ZOOM.get(st.session_state.get("tamanho_texto", "Normal"), 100)
+if _z != 100:
+    st.markdown(f"<style>html {{ font-size: {_z}% !important; }}</style>", unsafe_allow_html=True)
+
 # ── SIDEBAR ──────────────────────────────────────────
 with st.sidebar:
     render_sidebar_user(name, username, role, authenticator)
 
-    # Secções e itens com ícones SVG profissionais
+    # Revisões pendentes (mostra o número no menu)
+    try:
+        from modules.revisao import pendentes
+        from modules.utils import get_user_progress
+        n_rev = len(pendentes(get_user_progress(username)))
+    except Exception:
+        n_rev = 0
+    rotulo_rev = f"Revisão do dia ({n_rev})" if n_rev else "Revisão do dia"
+
     MENU = [
         # (label, key, secção, ícone_svg)
-        ("Início",                    "dashboard",   "COMEÇAR AQUI",     icon("home",    16, "#6BA3FF")),
-        ("Escola de ML", "escola",  None,              icon("school",  16, "#4ADE80")),
-        ("O Meu Primeiro Modelo",    "primeiro_modelo", None,           icon("rocket",  16, "#4ADE80")),
-        ("Que algoritmo uso?",       "assistente",  None,              icon("compass2",16, "#4ADE80")),
-        ("Dicionário de ML",         "dicionario",  None,              icon("book",    16, "#4ADE80")),
-        ("Classificação",             "classificacao","SUPERVISIONADO",  icon("chart-bar",16,"#6BA3FF")),
-        ("Regressão",                 "regressao",   None,              icon("trend-up", 16,"#6BA3FF")),
-        ("Clustering",                "clustering",  "NÃO SUPERVISIONADO", icon("circles",16,"#6BA3FF")),
-        ("Redução Dimensionalidade",  "reducao",     None,              icon("network", 16,"#6BA3FF")),
-        ("Detecção de Anomalias",     "anomalias",   None,              icon("warning", 16,"#6BA3FF")),
-        ("MLP / Redes Neurais",       "mlp",         "REDES NEURAIS",   icon("brain",   16,"#6BA3FF")),
-        ("Visão Computacional",       "visao",       "DEEP LEARNING",   icon("eye",     16,"#6BA3FF")),
-        ("NLP",                       "nlp",         None,              icon("text",    16,"#6BA3FF")),
-        ("Séries Temporais",          "series",      None,              icon("clock",   16,"#6BA3FF")),
-        ("Modelos Generativos",       "generativo",  None,              icon("sparkle", 16,"#6BA3FF")),
-        ("Aprendizagem por Reforço",  "reforco",     "REFORÇO",         icon("game",    16,"#6BA3FF")),
-        ("Comparador de Modelos",     "comparador",  "FERRAMENTAS",     icon("compare", 16,"#6BA3FF")),
-        ("Meu Historial",             "historico",   None,              icon("history", 16,"#6BA3FF")),
-        ("Certificados",              "certificados",None,              icon("trophy",  16,"#6BA3FF")),
+        ("Início",                    "dashboard",       "COMEÇAR AQUI",      icon("home",    16, "#6BA3FF")),
+        ("Escola de ML",              "escola",          None,                icon("school",  16, "#4ADE80")),
+        ("O Meu Primeiro Modelo",     "primeiro_modelo", None,                icon("rocket",  16, "#4ADE80")),
+        ("Que algoritmo uso?",        "assistente",      None,                icon("compass2",16, "#4ADE80")),
+        ("Dicionário de ML",          "dicionario",      None,                icon("book",    16, "#4ADE80")),
+        (rotulo_rev,                  "revisao",         "A MINHA JORNADA",   icon("history", 16, "#FFC107")),
+        ("Projecto Final",            "projeto",         None,                icon("rocket",  16, "#FFC107")),
+        ("Conquistas e Desafios",     "conquistas",      None,                icon("trophy",  16, "#FFC107")),
+        ("Certificados",              "certificados",    None,                icon("trophy",  16, "#FFC107")),
+        ("Perfil",                    "perfil",          None,                icon("menu",    16, "#FFC107")),
+        ("Classificação",             "classificacao",   "SUPERVISIONADO",    icon("chart-bar",16,"#6BA3FF")),
+        ("Regressão",                 "regressao",       None,                icon("trend-up", 16,"#6BA3FF")),
+        ("Clustering",                "clustering",      "NÃO SUPERVISIONADO", icon("circles",16,"#6BA3FF")),
+        ("Redução Dimensionalidade",  "reducao",         None,                icon("network", 16,"#6BA3FF")),
+        ("Detecção de Anomalias",     "anomalias",       None,                icon("warning", 16,"#6BA3FF")),
+        ("MLP / Redes Neurais",       "mlp",             "REDES NEURAIS",     icon("brain",   16,"#6BA3FF")),
+        ("Visão Computacional",       "visao",           "DEEP LEARNING",     icon("eye",     16,"#6BA3FF")),
+        ("NLP",                       "nlp",             None,                icon("text",    16,"#6BA3FF")),
+        ("Séries Temporais",          "series",          None,                icon("clock",   16,"#6BA3FF")),
+        ("Modelos Generativos",       "generativo",      None,                icon("sparkle", 16,"#6BA3FF")),
+        ("Aprendizagem por Reforço",  "reforco",         "REFORÇO",           icon("game",    16,"#6BA3FF")),
+        ("Comparador de Modelos",     "comparador",      "FERRAMENTAS",       icon("compare", 16,"#6BA3FF")),
+        ("Meu Historial",             "historico",       None,                icon("history", 16,"#6BA3FF")),
     ]
+    if role in ("professor", "admin"):
+        MENU.append(("Painel do Professor", "professor", "ENSINAR", icon("school", 16, "#F778BA")))
+    if role == "admin":
+        MENU.append(("Utilizadores", "admin_users", None, icon("menu", 16, "#F778BA")))
+
+    from modules.pesquisa import render_pesquisa_sidebar
+    render_pesquisa_sidebar([(l, k) for l, k, _, _ in MENU])
 
     if "pagina" not in st.session_state:
         st.session_state.pagina = "dashboard"
@@ -148,95 +178,132 @@ with st.sidebar:
                 st.rerun()
 
     st.markdown("---")
-    st.markdown(f'<div style="font-size:11px;font-weight:600;color:#7A8BA8;text-align:center;padding:4px;">DataForge EDU v1.0 · Angola 🇦🇴</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-size:11px;font-weight:600;color:#7A8BA8;text-align:center;padding:4px;">DataForge EDU v2.0 · Angola 🇦🇴</div>', unsafe_allow_html=True)
 
 
 # ── ROTEADOR ─────────────────────────────────────────
 pagina = st.session_state.get("pagina", "dashboard")
 
-if pagina == "dashboard":
-    from modules.dashboard import render_dashboard
-    render_dashboard(name, username)
+try:
 
-elif pagina == "escola":
-    from modules.escola import render_escola
-    render_escola(username)
+    if pagina == "dashboard":
+        from modules.dashboard import render_dashboard
+        render_dashboard(name, username)
 
-elif pagina == "primeiro_modelo":
-    from modules.primeiro_modelo import render_primeiro_modelo
-    render_primeiro_modelo(username)
+    elif pagina == "escola":
+        from modules.escola import render_escola
+        render_escola(username)
 
-elif pagina == "assistente":
-    from modules.ajuda import render_assistente
-    render_assistente(username)
+    elif pagina == "primeiro_modelo":
+        from modules.primeiro_modelo import render_primeiro_modelo
+        render_primeiro_modelo(username)
 
-elif pagina == "dicionario":
-    from modules.ajuda import render_dicionario
-    render_dicionario(username)
+    elif pagina == "assistente":
+        from modules.ajuda import render_assistente
+        render_assistente(username)
 
-elif pagina == "classificacao":
-    from modules.supervisionado.classificacao import render_classificacao
-    render_classificacao(username)
+    elif pagina == "dicionario":
+        from modules.ajuda import render_dicionario
+        render_dicionario(username)
 
-elif pagina == "regressao":
-    from modules.supervisionado.regressao import render_regressao
-    render_regressao(username)
+    elif pagina == "classificacao":
+        from modules.supervisionado.classificacao import render_classificacao
+        render_classificacao(username)
 
-elif pagina == "clustering":
-    from modules.nao_supervisionado.clustering import render_clustering
-    render_clustering(username)
+    elif pagina == "regressao":
+        from modules.supervisionado.regressao import render_regressao
+        render_regressao(username)
 
-elif pagina == "reducao":
-    from modules.nao_supervisionado.reducao import render_reducao
-    render_reducao(username)
+    elif pagina == "clustering":
+        from modules.nao_supervisionado.clustering import render_clustering
+        render_clustering(username)
 
-elif pagina == "anomalias":
-    from modules.nao_supervisionado.anomalias import render_anomalias
-    render_anomalias(username)
+    elif pagina == "reducao":
+        from modules.nao_supervisionado.reducao import render_reducao
+        render_reducao(username)
 
-elif pagina == "mlp":
-    from modules.redes_neurais.mlp import render_mlp
-    render_mlp(username)
+    elif pagina == "anomalias":
+        from modules.nao_supervisionado.anomalias import render_anomalias
+        render_anomalias(username)
 
-elif pagina == "visao":
-    from modules.deep_learning.visao import render_visao
-    render_visao(username)
+    elif pagina == "mlp":
+        from modules.redes_neurais.mlp import render_mlp
+        render_mlp(username)
 
-elif pagina == "nlp":
-    from modules.deep_learning.nlp import render_nlp
-    render_nlp(username)
+    elif pagina == "visao":
+        from modules.deep_learning.visao import render_visao
+        render_visao(username)
 
-elif pagina == "series":
-    from modules.deep_learning.series_temporais import render_series_temporais
-    render_series_temporais(username)
+    elif pagina == "nlp":
+        from modules.deep_learning.nlp import render_nlp
+        render_nlp(username)
 
-elif pagina == "generativo":
-    from modules.deep_learning.generativo import render_generativo
-    render_generativo(username)
+    elif pagina == "series":
+        from modules.deep_learning.series_temporais import render_series_temporais
+        render_series_temporais(username)
 
-elif pagina == "reforco":
-    tab_q, tab_dqn = st.tabs(["Q-Learning (GridWorld)", "DQN (CartPole)"])
-    with tab_q:
-        from modules.reforco.q_learning import render_q_learning
-        render_q_learning(username)
-    with tab_dqn:
-        try:
-            from modules.reforco.dqn import render_dqn
-            render_dqn(username)
-        except ImportError:
-            st.info("O DQN precisa do PyTorch. Instala com: pip install torch")
+    elif pagina == "generativo":
+        from modules.deep_learning.generativo import render_generativo
+        render_generativo(username)
 
-elif pagina == "comparador":
-    from modules.comparador import render_comparador
-    render_comparador(username)
+    elif pagina == "reforco":
+        tab_q, tab_dqn = st.tabs(["Q-Learning (GridWorld)", "DQN (CartPole)"])
+        with tab_q:
+            from modules.reforco.q_learning import render_q_learning
+            render_q_learning(username)
+        with tab_dqn:
+            try:
+                from modules.reforco.dqn import render_dqn
+                render_dqn(username)
+            except ImportError:
+                st.info("O DQN precisa do PyTorch. Instala com: pip install torch")
 
-elif pagina == "historico":
-    _render_historico(username)
+    elif pagina == "comparador":
+        from modules.comparador import render_comparador
+        render_comparador(username)
 
-elif pagina == "certificados":
-    _render_em_breve("Certificados", "Certificados PDF com QR code verificável",
-                     icon("trophy", 32, "#FFC107"))
+    elif pagina == "historico":
+        _render_historico(username)
 
-else:
-    from modules.dashboard import render_dashboard
-    render_dashboard(name, username)
+    elif pagina == "revisao":
+        from modules.revisao import render_revisao
+        render_revisao(username)
+
+    elif pagina == "projeto":
+        from modules.projeto import render_projeto
+        render_projeto(username, name)
+
+    elif pagina == "conquistas":
+        from modules.gamificacao import render_conquistas
+        render_conquistas(username)
+
+    elif pagina == "certificados":
+        from modules.certificados import render_certificados
+        render_certificados(username, name)
+
+    elif pagina == "perfil":
+        from modules.auth import render_perfil
+        render_perfil(username, name, role)
+
+    elif pagina == "professor" and role in ("professor", "admin"):
+        from modules.professor import render_painel_professor
+        render_painel_professor(username, role)
+
+    elif pagina == "admin_users" and role == "admin":
+        from modules.professor import render_admin_utilizadores
+        render_admin_utilizadores(username)
+
+    else:
+        from modules.dashboard import render_dashboard
+        render_dashboard(name, username)
+except Exception as _e:  # nunca mostrar uma página partida ao aluno
+    import traceback
+    from modules import db as _db
+    _db.log_erro(username, pagina, traceback.format_exc())
+    st.error("Algo correu mal nesta página. O erro foi registado e não perdeste o teu progresso. "
+             "Tenta voltar ao Início ou recarregar a página.")
+    with st.expander("Detalhes técnicos (para o professor ou programador)"):
+        st.code(traceback.format_exc())
+    if st.button("Voltar ao Início", key="err_home"):
+        st.session_state.pagina = "dashboard"
+        st.rerun()

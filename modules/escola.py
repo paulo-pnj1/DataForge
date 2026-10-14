@@ -17,8 +17,9 @@ from sklearn.metrics import silhouette_score
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 
+from modules.settings import PONTOS_LICAO, PONTOS_LICAO_FINAL
 from modules.utils import (
-    page_header, progresso_bar, get_licoes_concluidas, concluir_licao, ir_para,
+    page_header, progresso_bar, get_licoes_concluidas, concluir_licao, ir_para, registar_quiz,
     C_BG, C_SURFACE, C_SURFACE2, C_BORDER, C_ACCENT, C_GREEN, C_AMBER, C_RED,
     C_TEAL, C_TEXT, C_TEXT_SEC, C_TEXT_MUTE,
 )
@@ -626,6 +627,134 @@ def _licao_10():
 """)
 
 
+
+# ══════════════════════════════════════════════════════
+# LIÇÃO 12 - Limpar os dados: valores em falta e outliers
+# ══════════════════════════════════════════════════════
+def _licao_12():
+    import pandas as pd
+    _caixa("Analogia",
+           "Antes de cozinhar, lavas e escolhes os ingredientes: tiras o que está estragado e cortas o que não presta. "
+           "Com dados é igual: <b>limpar os dados</b> costuma ocupar mais de metade do tempo de um projecto de ML.", C_TEAL)
+
+    _secao(1, "Valores em falta: o que fazer?")
+    st.markdown("Esta tabela de alunos tem **idades em falta** (células vazias). Escolhe uma estratégia e vê o efeito.")
+    base = pd.DataFrame({"Aluno": [f"A{i}" for i in range(1, 11)],
+                         "Idade": [19, 20, np.nan, 21, 19, np.nan, 22, 20, np.nan, 40]})
+    est = st.radio("Estratégia", ["Apagar as linhas com falta", "Preencher com a média", "Preencher com a mediana", "Preencher com 0"],
+                   key="l12_est", horizontal=True)
+    df = base.copy()
+    if est.startswith("Apagar"):
+        df = df.dropna()
+    elif "média" in est:
+        df["Idade"] = df["Idade"].fillna(base["Idade"].mean())
+    elif "mediana" in est:
+        df["Idade"] = df["Idade"].fillna(base["Idade"].median())
+    else:
+        df["Idade"] = df["Idade"].fillna(0)
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Linhas que ficam", len(df), delta=f"{len(df) - len(base)}" if len(df) != len(base) else None)
+    c2.metric("Idade média resultante", f"{df['Idade'].mean():.1f}")
+    c3.metric("Idade mediana", f"{df['Idade'].median():.1f}")
+    st.dataframe(df, width="stretch", hide_index=True, height=200)
+    if est.startswith("Apagar"):
+        st.warning("Apagar é simples, mas perdeste exemplos. Com poucos dados, isto custa caro.")
+    elif est.endswith("0"):
+        st.error("Preencher com 0 inventa alunos de idade 0 e estraga a média. Quase nunca é boa ideia.")
+    else:
+        st.success("Preencher com um valor típico mantém os exemplos todos. A mediana é mais segura quando há valores extremos.")
+
+    _secao(2, "Outliers: o valor que foge a tudo")
+    st.markdown("Salários de uma pequena empresa (milhares de Kz). Liga e desliga o valor extremo.")
+    salarios = [180, 200, 210, 220, 230, 240, 250, 260]
+    incluir = st.checkbox("Incluir o valor extremo (3.500)", value=True, key="l12_out")
+    vals = salarios + ([3500] if incluir else [])
+    fig, ax = _fig(7, 2.8)
+    ax.scatter(vals, [0] * len(vals), c=[C_RED if v > 1000 else COR_A for v in vals], s=90, edgecolor="white", linewidth=.5)
+    ax.axvline(np.mean(vals), color=C_AMBER, lw=2, label=f"Média = {np.mean(vals):.0f}")
+    ax.axvline(np.median(vals), color=C_GREEN, lw=2, ls="--", label=f"Mediana = {np.median(vals):.0f}")
+    ax.set_yticks([])
+    ax.set_xlabel("Salário (milhares de Kz)")
+    _legenda(ax, loc="upper right")
+    _mostrar(fig)
+    st.markdown("Um só valor extremo **puxa a média** para longe do que é normal, mas quase não mexe na mediana. "
+                "Um outlier pode ser um erro de escrita ou um caso real raro: **investiga antes de apagar**.")
+
+
+# ══════════════════════════════════════════════════════
+# LIÇÃO 13 - Categorias e escalas
+# ══════════════════════════════════════════════════════
+def _licao_13():
+    import pandas as pd
+    _caixa("Analogia",
+           "O computador só lê números. Se lhe deres a palavra \"Talatona\", ele não percebe. "
+           "E se compararmos <b>metros quadrados</b> com <b>número de quartos</b> sem cuidado, os metros gritam tão alto que ninguém ouve os quartos.", C_TEAL)
+
+    _secao(1, "Transformar palavras em números (encoding)")
+    bairros = pd.DataFrame({"Bairro": ["Talatona", "Viana", "Cazenga", "Talatona", "Kilamba"]})
+    met = st.radio("Método", ["Um número por bairro (label encoding)", "Uma coluna por bairro (one-hot)"], key="l13_met")
+    if met.startswith("Um número"):
+        cod = {b: i for i, b in enumerate(sorted(bairros["Bairro"].unique()))}
+        out = bairros.assign(Número=bairros["Bairro"].map(cod))
+        st.dataframe(out, width="stretch", hide_index=True)
+        st.warning("Problema: o modelo pode pensar que Viana (3) é \"maior\" do que Kilamba (2) ou que Cazenga é a média de dois bairros. "
+                   "Os bairros não têm ordem! Serve para categorias com ordem natural (pequeno, médio, grande).")
+    else:
+        out = pd.get_dummies(bairros, columns=["Bairro"]).astype(int)
+        st.dataframe(out, width="stretch", hide_index=True)
+        st.success("Cada bairro tem a sua coluna (1 = é este bairro). Não inventa ordem nenhuma. É o mais seguro para categorias sem ordem.")
+
+    _secao(2, "Pôr as colunas na mesma escala")
+    st.markdown("Casa **A**: 100 m², 2 quartos. Casa **B**: 110 m², **5 quartos**. Casa **C**: 180 m², 2 quartos. Qual é a mais parecida com A?")
+    esc = st.checkbox("Normalizar as colunas (pôr na mesma escala)", key="l13_esc")
+    A, B, Cc = np.array([100., 2.]), np.array([110., 5.]), np.array([180., 2.])
+    if esc:
+        sd = np.array([50., 1.2])  # desvio padrão típico de cada coluna
+        A, B, Cc = A / sd, B / sd, Cc / sd
+    dAB, dAC = float(np.linalg.norm(A - B)), float(np.linalg.norm(A - Cc))
+    c1, c2 = st.columns(2)
+    c1.metric("Distância A até B", f"{dAB:.1f}")
+    c2.metric("Distância A até C", f"{dAC:.1f}")
+    if dAB < dAC:
+        st.error("Sem normalizar: o modelo acha **B** mais parecida, apesar de ter 5 quartos contra 2. Os metros esmagaram os quartos.")
+    else:
+        st.success("Normalizado: agora os quartos pesam o mesmo que a área, e **C** (mesmos quartos) é mais parecida com A.")
+    st.caption("Isto importa para KNN, SVM e redes neuronais. Árvores e florestas não se importam com a escala.")
+
+
+# ══════════════════════════════════════════════════════
+# LIÇÃO 14 - Fuga de informação
+# ══════════════════════════════════════════════════════
+def _licao_14():
+    _caixa("Analogia",
+           "Imagina um aluno que consegue ver o <b>gabarito</b> da prova enquanto estuda. Tira 20, mas não aprendeu nada. "
+           "Quando uma coluna já contém a resposta (ou espreita o futuro), o modelo faz batota. Isto chama-se <b>fuga de informação</b> (data leakage).", C_TEAL)
+
+    rng = np.random.default_rng(14)
+    n = 400
+    horas = rng.uniform(0, 10, n)
+    faltas = rng.integers(0, 15, n).astype(float)
+    nota_final = np.clip(4 + 1.0 * horas - 0.25 * faltas + rng.normal(0, 2.2, n), 0, 20)
+    aprovado = (nota_final >= 10).astype(int)
+
+    _secao(1, "Prever se um aluno é aprovado")
+    st.markdown("Colunas disponíveis: **horas de estudo**, **faltas** e **nota do exame final**.")
+    leak = st.checkbox("Usar também a 'nota do exame final' para prever a aprovação", key="l14_leak")
+    X = np.column_stack([horas, faltas] + ([nota_final] if leak else []))
+    X_tr, X_te, y_tr, y_te = train_test_split(X, aprovado, test_size=.3, random_state=1)
+    clf = DecisionTreeClassifier(max_depth=4, random_state=0).fit(X_tr, y_tr)
+    acc = clf.score(X_te, y_te)
+    st.metric("Accuracy na prova", f"{acc:.0%}")
+    if leak:
+        st.error("Quase perfeito... e é batota! A nota final é exactamente o que **decide** a aprovação. "
+                 "Na vida real, quando queres prever, ainda **não tens** essa nota. O modelo ficaria inútil.")
+    else:
+        st.success("Uma nota mais baixa e **honesta**: só usa o que se sabe antes do exame. É este o modelo que serve na prática.")
+
+    _caixa("Regra de bolso",
+           "Se o resultado parece <b>bom demais para ser verdade</b>, desconfia. Pergunta de cada coluna: "
+           "<b>\"vou ter esta informação no momento em que preciso de prever?\"</b> Se não, tira-a.", C_AMBER)
+
 # ══════════════════════════════════════════════════════
 # LIÇÃO 11 - A receita completa
 # ══════════════════════════════════════════════════════
@@ -768,6 +897,36 @@ LICOES = [
                "Diz quanta importância tem cada entrada", ["Guarda os dados", "Desliga o neurónio"]),
               ("Como aprende uma rede neuronal?",
                "Ajustando os pesos automaticamente para errar menos", ["Alguém escreve os pesos à mão", "Não aprende, só repete"])]},
+    {"id": "l12", "titulo": "Limpar os dados: valores em falta e outliers", "tempo": "6 min", "render": _licao_12,
+     "ideia": "Antes de treinar, limpa os dados: trata o que falta e investiga o que foge ao normal.",
+     "resumo": ["Apagar linhas perde exemplos; preencher com média ou mediana mantém-nos.",
+                "Preencher com 0 quase nunca é boa ideia.",
+                "Um outlier puxa a média; a mediana resiste. Investiga antes de apagar."],
+     "pratica": None,
+     "quiz": [("Tens poucos dados e algumas idades em falta. O que costuma ser mais seguro?",
+               "Preencher com a mediana (ou média) em vez de apagar as linhas", ["Apagar todas as linhas com falta", "Preencher tudo com 0"]),
+              ("Um valor extremo apareceu nos salários. Que medida mexe menos com ele?",
+               "A mediana", ["A média", "A soma"])]},
+    {"id": "l13", "titulo": "Categorias e escalas", "tempo": "6 min", "render": _licao_13,
+     "ideia": "Os modelos só lêem números, e colunas em escalas muito diferentes enganam-nos.",
+     "resumo": ["One-hot cria uma coluna por categoria, sem inventar ordem.",
+                "Label encoding só serve quando as categorias têm ordem natural.",
+                "KNN, SVM e redes neuronais precisam de colunas na mesma escala."],
+     "pratica": None,
+     "quiz": [("Para a coluna Bairro (sem ordem natural), que transformação é mais segura?",
+               "One-hot (uma coluna por bairro)", ["Dar um número a cada bairro e usar como ordem", "Apagar a coluna sempre"]),
+              ("Porque se normalizam as colunas antes do KNN?",
+               "Para uma coluna com números grandes não dominar as outras", ["Para os dados ocuparem menos espaço", "Porque o KNN não lê números pequenos"])]},
+    {"id": "l14", "titulo": "Fuga de informação: a batota escondida", "tempo": "5 min", "render": _licao_14,
+     "ideia": "Uma coluna que já contém a resposta faz o modelo parecer genial, mas inútil na vida real.",
+     "resumo": ["Fuga de informação = usar dados que não vais ter no momento da previsão.",
+                "Resultados bons demais devem fazer-te desconfiar.",
+                "Pergunta de cada coluna: vou ter isto quando precisar de prever?"],
+     "pratica": None,
+     "quiz": [("Queres prever se um cliente vai cancelar, mas usas a coluna 'data de cancelamento'. Qual o problema?",
+               "Fuga de informação: essa coluna só existe depois do cancelamento", ["Nenhum, quanto mais colunas melhor", "A coluna está em falta"]),
+              ("Um modelo tem 99% logo à primeira. O que deves fazer?",
+               "Desconfiar e procurar colunas que contenham a resposta", ["Publicar já", "Apagar os dados de teste"])]},
     {"id": "l11", "titulo": "A receita completa e o teu próximo passo", "tempo": "3 min", "render": _licao_11,
      "ideia": "Todo o projecto de ML segue a mesma receita de 7 passos.",
      "resumo": ["Problema → Dados → Limpeza → Treino/Teste → Treinar → Avaliar → Melhorar e usar."],
@@ -791,7 +950,7 @@ def _render_quiz(username: str, licao: dict):
     quiz = licao["quiz"]
     if not quiz:
         if st.button("Concluir a Escola de ML", type="primary", key=f"fim_{licao['id']}"):
-            if concluir_licao(username, licao["id"], licao["titulo"], 10):
+            if concluir_licao(username, licao["id"], licao["titulo"], PONTOS_LICAO_FINAL):
                 st.balloons()
             st.rerun()
         return
@@ -803,25 +962,28 @@ def _render_quiz(username: str, licao: dict):
         opcoes = _opcoes_embaralhadas(chave, certa, erradas)
         respostas.append(st.radio(f"{i + 1}. {pergunta}", opcoes, index=None, key=chave))
 
+    chave_res = f"res_quiz_{licao['id']}"
     if st.button("Verificar respostas", key=f"ver_{licao['id']}", type="primary"):
-        st.session_state[f"verificado_{licao['id']}"] = True
+        estados = []
+        for i, (_, certa, _) in enumerate(quiz):
+            estados.append("vazio" if respostas[i] is None else ("certa" if respostas[i] == certa else "errada"))
+        st.session_state[chave_res] = estados
+        registar_quiz(username, licao["id"], [i for i, e in enumerate(estados) if e == "errada"])
+        if all(e == "certa" for e in estados):
+            if concluir_licao(username, licao["id"], licao["titulo"], PONTOS_LICAO):
+                st.balloons()
 
-    if st.session_state.get(f"verificado_{licao['id']}"):
-        certas = 0
+    estados = st.session_state.get(chave_res)
+    if estados:
         for i, (pergunta, certa, _) in enumerate(quiz):
-            if respostas[i] == certa:
-                certas += 1
+            if estados[i] == "certa":
                 st.success(f"Pergunta {i + 1}: certo!")
-            elif respostas[i] is None:
+            elif estados[i] == "vazio":
                 st.warning(f"Pergunta {i + 1}: ainda sem resposta.")
             else:
-                st.error(f"Pergunta {i + 1}: não é bem isso. Resposta certa: **{certa}**.")
-        if certas == len(quiz):
-            if concluir_licao(username, licao["id"], licao["titulo"], 8):
-                st.balloons()
-                st.success("Lição concluída! +8 pontos.")
-            else:
-                st.success("Lição já concluída anteriormente.")
+                st.error(f"Pergunta {i + 1}: não é bem isso. Resposta certa: **{certa}**. Vou voltar a perguntar-te isto na Revisão do dia.")
+        if all(e == "certa" for e in estados):
+            st.success("Lição concluída! +%d pontos (só da primeira vez)." % PONTOS_LICAO)
 
 
 # ══════════════════════════════════════════════════════

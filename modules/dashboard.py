@@ -113,7 +113,11 @@ CAT_ICONS = {
 
 
 MODULO_PARA_PAGINA = {v: k for k, v in PAGINA_PARA_MODULO.items()}
-TOTAL_LICOES = 11
+
+
+def _total_licoes() -> int:
+    from modules.escola import LICOES
+    return len(LICOES)
 
 
 def _proximo_passo(progress: dict, completados: list) -> dict:
@@ -132,8 +136,8 @@ def _proximo_passo(progress: dict, completados: list) -> dict:
                 "texto": "Já viste a teoria. Agora experimenta na prática: escolhes um problema, carregas num botão e o computador aprende.",
                 "botao": "Treinar o meu primeiro modelo", "pagina": "primeiro_modelo",
                 "botao2": "Continuar a Escola de ML", "pagina2": "escola"}
-    if len(licoes) < TOTAL_LICOES:
-        return {"titulo": f"Continua a Escola de ML ({len(licoes)}/{TOTAL_LICOES} lições)",
+    if len(licoes) < _total_licoes():
+        return {"titulo": f"Continua a Escola de ML ({len(licoes)}/{_total_licoes()} lições)",
                 "texto": "Cada lição leva uns 5 minutos e tem uma experiência interactiva. Há mais conceitos para dominares.",
                 "botao": "Continuar a aprender", "pagina": "escola",
                 "botao2": "Que algoritmo devo usar?", "pagina2": "assistente"}
@@ -203,7 +207,7 @@ def render_dashboard(name: str, username: str):
     # ── PROGRESSO ────────────────────────────────────
     st.markdown("<div style='margin:1.4rem 0 .2rem;'>", unsafe_allow_html=True)
     progresso_bar(pct, "Progresso geral do percurso")
-    progresso_bar(len(progress.get("licoes", [])) / TOTAL_LICOES, "Escola de ML (lições)")
+    progresso_bar(len(progress.get("licoes", [])) / _total_licoes(), "Escola de ML (lições)")
     st.markdown("</div>", unsafe_allow_html=True)
 
     # ── PERCURSO ─────────────────────────────────────
