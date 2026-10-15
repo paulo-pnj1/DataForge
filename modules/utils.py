@@ -72,11 +72,11 @@ C_TEXT_MUTE  = _cor("text_mute")   # texto muted
 PALETTE = [C_ACCENT, C_TEAL, C_AMBER, C_RED, C_ACCENT2, C_GREEN]
 
 def tema_actual() -> str:
-    """'escuro' (por omissão) ou 'claro', conforme a escolha guardada na sessão."""
+    """'claro' (por omissão) ou 'escuro', conforme a escolha guardada na sessão."""
     try:
-        return "claro" if st.session_state.get("tema") == "claro" else "escuro"
+        return "escuro" if st.session_state.get("tema") == "escuro" else "claro"
     except Exception:
-        return "escuro"
+        return "claro"
 
 
 def paleta(tema: str = None) -> dict:
@@ -1003,7 +1003,7 @@ def instalar_tema_graficos():
 # ESCOLHA DO TEMA (fica guardada na conta)
 # ══════════════════════════════════════════════════════
 def definir_tema(username: str, tema: str):
-    tema = "claro" if tema == "claro" else "escuro"
+    tema = "escuro" if tema == "escuro" else "claro"
     st.session_state["tema"] = tema
     st.session_state["tema_toggle"] = tema == "claro"
     st.session_state["perfil_tema"] = "Claro" if tema == "claro" else "Escuro"
@@ -1016,7 +1016,7 @@ def definir_tema(username: str, tema: str):
 
 
 def carregar_tema(username: str) -> bool:
-    """Ao entrar, aplica o tema guardado na conta (escuro se nunca escolheu). True se mudou: fazer st.rerun()."""
+    """Ao entrar, aplica o tema guardado na conta (claro se nunca escolheu). True se mudou: fazer st.rerun()."""
     chave = f"_tema_lido_{username}"
     if st.session_state.get(chave):
         return False
@@ -1025,7 +1025,7 @@ def carregar_tema(username: str) -> bool:
         guardado = get_user_progress(username).get("tema")
     except Exception:
         guardado = None
-    alvo = guardado if guardado in ("claro", "escuro") else "escuro"
+    alvo = guardado if guardado in ("claro", "escuro") else "claro"
     st.session_state["tema_toggle"] = alvo == "claro"
     st.session_state["perfil_tema"] = "Claro" if alvo == "claro" else "Escuro"
     if alvo != tema_actual():

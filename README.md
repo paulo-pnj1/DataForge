@@ -87,7 +87,7 @@ tests/test_smoke.py
 
 ## Tema claro (branco)
 
-- Interruptor **Tema claro** no menu lateral (por cima de *Sair*) e escolha **Escuro / Claro** em *Perfil*. A escolha fica guardada na conta e aplica-se ao entrar; o ecrã de login é sempre escuro.
+- Interruptor **Tema claro** no menu lateral (por cima de *Sair*) e escolha **Escuro / Claro** em *Perfil*. A escolha fica guardada na conta e aplica-se ao entrar. **O tema por omissão é o claro (branco)**, incluindo no ecrã de login.
 - Como funciona: as cores da paleta (`C_BG`, `C_TEXT`...) continuam a ser hex em Python (gráficos) e passam a variáveis CSS `--df-*` dentro de HTML, por isso o mesmo código serve os dois temas. As duas paletas estão em `TEMAS` (`modules/utils.py`); para ajustar uma cor, muda-a aí.
 - Gráficos: `st.pyplot` e `st.plotly_chart` são envolvidos por `instalar_tema_graficos()` (chamado em `app.py`) e adaptam fundo, eixos, legenda e texto ao tema; as cores dos dados não mudam. Tabelas (`st.dataframe`) e gráficos nativos (`st.bar_chart`) convertem-se por filtro CSS no tema claro.
 - Texto novo em HTML: usa `{C_TEXT}`, `{C_TEXT_SEC}`... ou `color:var(--df-text)`; evita `#FFFFFF` e `#161B27` fixos, porque ficam errados num dos temas.

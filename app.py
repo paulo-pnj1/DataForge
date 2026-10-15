@@ -97,7 +97,7 @@ if auth_status is not True:
 name = st.session_state.get("name", username)
 role = get_user_role(username, config)
 
-# Tema guardado na conta (escuro por omissão): se for diferente do actual, volta a desenhar já com ele
+# Tema guardado na conta (claro por omissão): se for diferente do actual, volta a desenhar já com ele
 if carregar_tema(username):
     st.rerun()
 

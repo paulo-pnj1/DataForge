@@ -1,15 +1,15 @@
 [theme]
-base = "dark"
-backgroundColor = "#0D1117"
-secondaryBackgroundColor = "#161B27"
-primaryColor = "#58A6FF"
-textColor = "#E6EDF3"
-linkColor = "#58A6FF"
-codeTextColor = "#39D0C0"
-codeBackgroundColor = "#1C2333"
-borderColor = "#30363D"
-dataframeBorderColor = "#30363D"
-dataframeHeaderBackgroundColor = "#1C2333"
+base = "light"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F6F8FA"
+primaryColor = "#0969DA"
+textColor = "#1F2328"
+linkColor = "#0969DA"
+codeTextColor = "#1B7C83"
+codeBackgroundColor = "#EAEEF2"
+borderColor = "#D0D7DE"
+dataframeBorderColor = "#D0D7DE"
+dataframeHeaderBackgroundColor = "#EAEEF2"
 showWidgetBorder = false
 
 [server]
