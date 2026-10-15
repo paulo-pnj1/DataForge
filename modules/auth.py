@@ -82,6 +82,43 @@ def _tinha_cookie(config) -> bool:
         return False
 
 
+def _login_por_cookie_do_navegador(authenticator, config) -> bool:
+    """Restaura a sessão a partir do cookie guardado no navegador.
+
+    O streamlit-authenticator 0.4.x lê o cookie no servidor (st.context.cookies), mas no Streamlit Cloud o
+    proxy não o reencaminha: o cookie existe no navegador e o servidor nunca o vê, por isso cada
+    recarregamento caía no login. Aqui o cookie é lido no próprio navegador (componente) e validado
+    com a mesma chave (JWT), e a sessão é aberta como se o authenticator o tivesse lido."""
+    if st.session_state.get("_df_saiu"):
+        return False
+    try:
+        import extra_streamlit_components as stx
+        import jwt
+        nome = config["cookie"]["name"]
+        cookies = stx.CookieManager(key="df_leitor_cookie").get_all() or {}
+        bruto = cookies.get(nome)
+        if not bruto:
+            return False
+        token = jwt.decode(bruto, config["cookie"]["key"], algorithms=["HS256"])
+        if not token.get("username") or float(token.get("exp_date", 0)) <= time.time():
+            return False
+        utilizador = config["credentials"]["usernames"].get(token["username"])
+        if not utilizador:
+            return False
+        try:
+            authenticator.authentication_controller.login(token=token)
+        except Exception:
+            pass
+        if st.session_state.get("authentication_status") is not True:
+            st.session_state["authentication_status"] = True
+            st.session_state["username"] = token["username"]
+            st.session_state["name"] = utilizador.get("name", token["username"])
+            st.session_state["email"] = utilizador.get("email", "")
+        return st.session_state.get("authentication_status") is True
+    except Exception:
+        return False
+
+
 def _google_activo() -> bool:
     try:
         return "auth" in st.secrets and hasattr(st, "login")
@@ -252,6 +289,9 @@ def render_login_page():
             st.session_state["username"], st.session_state["name"] = g
             auth_status = True
 
+    if auth_status is not True and _login_por_cookie_do_navegador(authenticator, config):
+        auth_status = True
+
     if auth_status is not True:
         # Ainda não autenticado: desenha o ecrã de login completo (cabeçalho,
         # formulário - que também tenta o cookie guardado - e mensagens).
@@ -276,6 +316,8 @@ def render_login_page():
                 except Exception:
                     authenticator.login(location="main")
                 auth_status = st.session_state.get("authentication_status")
+                if auth_status is True:
+                    st.session_state.pop("_df_saiu", None)
                 if auth_status is True and not _tinha_cookie(config):
                     # Login novo pelo formulário: o cookie é escrito no navegador por um componente que só
                     # executa se a página ainda existir. Qualquer st.rerun() logo a seguir (tema, etc.)
@@ -319,6 +361,7 @@ def render_sidebar_user(name: str, username: str, role: str, authenticator, prod
     st.markdown(f"""<div class="sidebar-brand"><div class="sidebar-brand-icon" style="font-size:15px;font-weight:900;color:var(--df-on-accent,#0D1117);letter-spacing:-1px;font-family:Inter,sans-serif;">DF</div><div><div class="sidebar-brand-name">{produto}</div><div class="sidebar-brand-sub">Machine Learning</div></div></div><div class="user-pill"><div class="user-avatar">{initial}</div><div style="flex:1;min-width:0;"><div class="user-name">{name}</div><div class="user-role">{badge(role_label, role_color)} &nbsp;⭐ {pontos} pts</div></div></div>""", unsafe_allow_html=True)
     render_seletor_tema(username)
     if st.button("Sair", key="logout_btn", use_container_width=True):
+        st.session_state["_df_saiu"] = True     # impede que o cookie ainda por apagar reabra a sessão
         authenticator.logout(location="unrendered")
         try:
             if _google_activo() and st.user.is_logged_in:
