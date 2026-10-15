@@ -206,8 +206,7 @@ with st.sidebar:
             if st.button(
                 f"  {label}",
                 key=f"nav_{key}",
-                width='stretch',
-                help=label
+                width='stretch'
             ):
                 st.session_state.pagina = key
                 if "guiado_step" in st.session_state:

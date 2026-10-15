@@ -915,6 +915,24 @@ section[data-testid="stSidebar"] [data-testid^="stBaseButton"]:hover {
     border-color: var(--df-accent) !important;
 }
 
+/* Interruptor (toggle): barra visível nos dois temas, azul quando ligado */
+[data-testid="stToggle"] label:has(input[type="checkbox"]) > span:first-of-type,
+[data-testid="stToggle"] label:has(input[type="checkbox"]) > div:first-of-type:not(:last-child) {
+    background: var(--df-border2) !important;
+}
+[data-testid="stToggle"] label:has(input:checked) > span:first-of-type,
+[data-testid="stToggle"] label:has(input:checked) > div:first-of-type:not(:last-child) {
+    background: var(--df-accent) !important;
+}
+
+/* Dicas flutuantes (tooltips) */
+[data-testid="stTooltipContent"], [role="tooltip"], [role="tooltip"] > div {
+    background: var(--df-surface3) !important;
+    color: var(--df-text) !important;
+    border: 1px solid var(--df-border) !important;
+}
+[data-testid="stTooltipContent"] *, [role="tooltip"] * { color: var(--df-text) !important; }
+
 /* Listas de escolha (selectbox, multiselect) e menus */
 [data-baseweb="popover"] > div, [data-baseweb="popover"] ul, [data-baseweb="menu"],
 [data-baseweb="popover"] li, [data-baseweb="menu"] li, [role="listbox"], [role="option"] {
@@ -928,7 +946,7 @@ section[data-testid="stSidebar"] [data-testid^="stBaseButton"]:hover {
 # Só no tema escuro: tabelas em canvas e gráficos nativos são desenhados claros e convertem-se por filtro.
 _CSS_ESCURO = """
 <style>
-[data-testid="stDataFrame"], [data-testid="stArrowVegaLiteChart"] { filter: invert(1) hue-rotate(180deg); }
+[data-testid="stDataFrame"], [data-testid="stArrowVegaLiteChart"] { filter: invert(.91) hue-rotate(180deg); }   /* .91: fundo cinzento-escuro em vez de preto puro */
 </style>
 """
 

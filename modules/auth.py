@@ -96,17 +96,15 @@ def _login_por_cookie_do_navegador(authenticator, config) -> bool:
         import jwt
         nome = config["cookie"]["name"]
         cookies = stx.CookieManager(key="df_leitor_cookie").get_all() or {}
-        if not cookies and not st.session_state.get("_df_cookie_esperou"):
-            # O navegador ainda não respondeu (ao responder, o componente volta a executar a página).
-            # Mostra "A carregar" em vez do login, para não piscar; se não houver resposta (sem cookies),
-            # passa ao login depois de 1 segundo.
-            st.session_state["_df_cookie_esperou"] = True
+        # Espera pelo navegador durante os primeiros 5 s da sessão (não só na primeira execução: a ligação
+        # ao servidor pode cair e voltar, e a página volta a executar antes do cookie chegar).
+        inicio = st.session_state.setdefault("_df_cookie_t0", time.time())
+        restante = 5.0 - (time.time() - inicio)
+        if not cookies and restante > 0:
             aviso = st.empty()
-            aviso.markdown(f"<div style='text-align:center;padding:30vh 0 0;color:{C_TEXT_SEC};font-size:15px;'>A carregar…</div>",
-                           unsafe_allow_html=True)
-            # Espera até 5 s em passos curtos. Cada actualização do aviso é um comando do Streamlit, que
-            # interrompe a espera logo que o navegador responde (a página volta a executar com o cookie).
-            for i in range(25):
+            # Cada actualização do aviso é um comando do Streamlit, que interrompe a espera logo que o
+            # navegador responde (a página volta a executar já com o cookie).
+            for i in range(int(restante / 0.2) + 1):
                 time.sleep(0.2)
                 aviso.markdown(f"<div style='text-align:center;padding:30vh 0 0;color:{C_TEXT_SEC};font-size:15px;'>A carregar{'.' * (i % 4)}</div>",
                                unsafe_allow_html=True)
