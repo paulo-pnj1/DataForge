@@ -101,7 +101,7 @@ def _utilizador_google():
         return None
 
 
-def _registar(nome, utilizador, email, pw, pw2, turma, cod_prof) -> tuple:
+def _registar(nome, utilizador, email, pw, pw2, turma, cod_prof, cod_org="") -> tuple:
     """Valida e cria a conta. Devolve (ok, mensagem)."""
     utilizador = (utilizador or "").strip().lower()
     nome = (nome or "").strip()
@@ -118,6 +118,12 @@ def _registar(nome, utilizador, email, pw, pw2, turma, cod_prof) -> tuple:
     turma = (turma or "").strip().upper()
     if turma and not db.get_turma(turma):
         return False, "Não encontrei nenhuma turma com esse código. Confirma com o teu professor ou deixa vazio."
+    cod_org = (cod_org or "").strip().upper()
+    org = None
+    if cod_org:
+        org = db.get_org_por_codigo(cod_org)
+        if not org or not org.get("activa", True):
+            return False, "Não encontrei nenhuma escola ou empresa com esse código. Confirma-o ou deixa vazio."
     role = "aluno"
     cod_prof = (cod_prof or "").strip()
     if cod_prof:
@@ -129,6 +135,9 @@ def _registar(nome, utilizador, email, pw, pw2, turma, cod_prof) -> tuple:
             return False, "Código de professor inválido."
     db.create_user({"username": utilizador, "name": nome, "email": (email or "").strip().lower(), "password_hash": _hash(pw),
                     "role": role, "turma": turma or None})
+    if org:
+        from modules.admin import adicionar_membro_por_codigo
+        adicionar_membro_por_codigo(utilizador, cod_org, "professor" if role == "professor" else "aluno")
     get_authenticator(force=True)
     return True, f"Conta criada ({role}). Já podes entrar no separador 'Entrar'."
 
@@ -177,11 +186,12 @@ def render_login_page():
                     r_pw = st.text_input("Palavra-passe (mínimo 6 caracteres)", type="password")
                     r_pw2 = st.text_input("Repete a palavra-passe", type="password")
                     r_turma = st.text_input("Código da turma (opcional, dado pelo teu professor)")
+                    r_org = st.text_input("Código da escola ou empresa (opcional)")
                     r_prof = st.text_input("Código de professor (só para professores)", type="password")
                     enviar = st.form_submit_button("Criar conta", type="primary")
                 if enviar:
                     try:
-                        ok, msg = _registar(r_nome, r_user, r_mail, r_pw, r_pw2, r_turma, r_prof)
+                        ok, msg = _registar(r_nome, r_user, r_mail, r_pw, r_pw2, r_turma, r_prof, r_org)
                     except db.DBError as e:
                         ok, msg = False, f"Erro na base de dados: {e}"
                     (st.success if ok else st.error)(msg)
@@ -205,13 +215,13 @@ def render_login_page():
     return authenticator, auth_status, username, config
 
 
-def render_sidebar_user(name: str, username: str, role: str, authenticator):
+def render_sidebar_user(name: str, username: str, role: str, authenticator, produto: str = "DataForge EDU"):
     initial = name[0].upper() if name else "U"
     role_labels = {"admin": ("Admin", "red"), "professor": ("Professor", "amber"), "aluno": ("Aluno", "blue")}
     role_label, role_color = role_labels.get(role, ("Utilizador", "blue"))
     progress = get_user_progress(username)
     pontos = progress.get("pontos", 0)
-    st.markdown(f"""<div class="sidebar-brand"><div class="sidebar-brand-icon" style="font-size:15px;font-weight:900;color:#0D1117;letter-spacing:-1px;font-family:Inter,sans-serif;">DF</div><div><div class="sidebar-brand-name">DataForge EDU</div><div class="sidebar-brand-sub">Machine Learning</div></div></div><div class="user-pill"><div class="user-avatar">{initial}</div><div style="flex:1;min-width:0;"><div class="user-name">{name}</div><div class="user-role">{badge(role_label, role_color)} &nbsp;⭐ {pontos} pts</div></div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div class="sidebar-brand"><div class="sidebar-brand-icon" style="font-size:15px;font-weight:900;color:#0D1117;letter-spacing:-1px;font-family:Inter,sans-serif;">DF</div><div><div class="sidebar-brand-name">{produto}</div><div class="sidebar-brand-sub">Machine Learning</div></div></div><div class="user-pill"><div class="user-avatar">{initial}</div><div style="flex:1;min-width:0;"><div class="user-name">{name}</div><div class="user-role">{badge(role_label, role_color)} &nbsp;⭐ {pontos} pts</div></div></div>""", unsafe_allow_html=True)
     if st.button("Sair", key="logout_btn", use_container_width=True):
         authenticator.logout(location="unrendered")
         try:
@@ -270,6 +280,19 @@ def render_perfil(username: str, name: str, role: str):
     if atual and c2.button("Sair da turma", key="perfil_sair_turma"):
         db.update_user(username, {"turma": None})
         st.rerun()
+
+    st.markdown("### Escola ou empresa")
+    for m in db.membros_do_utilizador(username):
+        st.markdown(f"- **{m['nome']}** ({m['tipo']}, {m['papel']})")
+    cod_o = st.text_input("Juntar-me a uma escola ou empresa (código de convite)", key="perfil_cod_org").strip().upper()
+    if st.button("Juntar-me", key="perfil_org_btn") and cod_o:
+        from modules.admin import adicionar_membro_por_codigo
+        ok_o, msg_o = adicionar_membro_por_codigo(username, cod_o)
+        if ok_o:
+            st.session_state.pop("_membros_cache", None)
+            st.success(msg_o + " Sai e volta a entrar para ver o painel novo.")
+        else:
+            st.error(msg_o)
 
     st.markdown("### Ranking da turma")
     rank = st.toggle("Aparecer no ranking da minha turma", value=bool(registo.get("ranking")), key="perfil_rank")

@@ -39,7 +39,8 @@ def render_painel_professor(username: str, role: str):
         nome = st.text_input("Nome da turma (ex.: Engenharia Informática 3.º ano)", key="prof_nome_turma")
         if st.button("Criar turma", type="primary", key="prof_criar") and nome.strip():
             codigo = _codigo_novo()
-            db.create_turma(codigo, nome.strip(), username)
+            escolas = [m for m in db.membros_do_utilizador(username) if m["tipo"] == "escola"]
+            db.create_turma(codigo, nome.strip(), username, escolas[0]["org_id"] if escolas else None)
             st.success(f"Turma criada! Código para os alunos: **{codigo}** (usam-no ao criar conta ou em Perfil).")
             st.rerun()
 
