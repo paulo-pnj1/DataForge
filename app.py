@@ -95,6 +95,19 @@ if auth_status is not True:
 name = st.session_state.get("name", username)
 role = get_user_role(username, config)
 
+# Aluno criado pelo professor: tem de trocar a palavra-passe temporária antes de usar a plataforma
+if st.session_state.get("_pw_ok") != username:
+    try:
+        from modules import db as _db0
+        _precisa_pw = bool((_db0.get_user(username) or {}).get("must_change_pw"))
+    except Exception:
+        _precisa_pw = False
+    if _precisa_pw:
+        from modules.auth import render_mudar_pw_obrigatoria
+        render_mudar_pw_obrigatoria(username)
+        st.stop()
+    st.session_state["_pw_ok"] = username
+
 _ZOOM = {"Pequeno": 90, "Normal": 100, "Grande": 115, "Muito grande": 130}
 _z = _ZOOM.get(st.session_state.get("tamanho_texto", "Normal"), 100)
 if _z != 100:
@@ -121,6 +134,20 @@ def _membros_do(user: str) -> list:
 
 _tem_turma = bool(config["credentials"]["usernames"].get(username, {}).get("turma"))
 _disponiveis = paineis_disponiveis(role, _membros_do(username), _tem_turma)
+_empresa_pendente = None
+if role != "admin" and "business" not in _disponiveis:
+    try:
+        from modules import acesso as _acesso
+        _empresa_pendente = _acesso.empresa_do_dono(username)
+    except Exception:
+        _empresa_pendente = None
+if _empresa_pendente:      # dono de uma empresa ainda não aprovada: só vê o estado do pedido
+    with st.sidebar:
+        render_sidebar_user(name, username, role, authenticator, produto="DataForge Business")
+    from modules.admin import render_empresa_pendente
+    render_empresa_pendente(username, _empresa_pendente)
+    st.stop()
+
 painel = resolver_painel(st.session_state.get("painel"), _disponiveis)
 st.session_state["painel"] = painel
 
@@ -289,7 +316,7 @@ try:
         from modules.auth import render_perfil
         render_perfil(username, name, role)
 
-    elif pagina == "professor" and role in ("professor", "admin"):
+    elif pagina == "professor" and role == "professor" and painel == "professor":
         from modules.professor import render_painel_professor
         render_painel_professor(username, role)
 
@@ -305,6 +332,14 @@ try:
         from modules.admin import render_admin_orgs
         render_admin_orgs(username)
 
+    elif pagina == "admin_convites" and role == "admin":
+        from modules.admin import render_admin_convites
+        render_admin_convites(username)
+
+    elif pagina == "admin_email" and role == "admin":
+        from modules.admin import render_admin_email
+        render_admin_email(username)
+
     elif pagina == "admin_conteudos" and role == "admin":
         from modules.admin import render_admin_conteudos
         render_admin_conteudos(username)
@@ -313,7 +348,7 @@ try:
         from modules.admin import render_admin_erros
         render_admin_erros(username)
 
-    elif pagina == "business_home":
+    elif pagina == "business_home" and painel == "business" and role != "admin":
         from modules.admin import render_business_home
         render_business_home(username, name)
 

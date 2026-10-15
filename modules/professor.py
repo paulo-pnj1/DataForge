@@ -8,7 +8,7 @@ import secrets
 import pandas as pd
 import streamlit as st
 
-from modules import db
+from modules import acesso, db, email_service
 from modules.auth import _hash
 from modules.utils import page_header, C_ACCENT, C_SURFACE, C_TEXT
 
@@ -23,17 +23,17 @@ def _dias_desde(iso: str):
 
 
 def _codigo_novo() -> str:
-    while True:
-        c = secrets.token_hex(3).upper()
-        if not db.get_turma(c):
-            return c
+    return acesso.codigo_novo()
 
 
 def render_painel_professor(username: str, role: str):
     from modules.escola import LICOES, LICAO_POR_ID
+    if role == "admin":   # o admin do sistema não tem acesso ao painel do professor
+        st.error("O administrador do sistema não tem acesso ao painel do professor.")
+        return
     page_header("Painel do Professor", "Turmas, progresso dos alunos e onde eles têm mais dificuldades")
 
-    turmas = db.list_turmas() if role == "admin" else db.list_turmas(username)
+    turmas = db.list_turmas(username)
 
     with st.expander("Criar uma turma nova", expanded=not turmas):
         nome = st.text_input("Nome da turma (ex.: Engenharia Informática 3.º ano)", key="prof_nome_turma")
@@ -51,6 +51,8 @@ def render_painel_professor(username: str, role: str):
     opcoes = {f"{t['nome']} ({t['codigo']})": t for t in turmas}
     turma = opcoes[st.selectbox("Turma", list(opcoes.keys()), key="prof_turma")]
     st.caption(f"Código de convite: **{turma['codigo']}** · professor: {turma['professor']}")
+
+    _render_gestao_turma(username, turma)
 
     alunos = [u for u in db.list_users(turma=turma["codigo"]) if u.get("role", "aluno") == "aluno"]
     if not alunos:
@@ -99,8 +101,57 @@ def render_painel_professor(username: str, role: str):
     if st.button("Gerar palavra-passe temporária", key="prof_reset"):
         uname = quem.rsplit("(", 1)[1].rstrip(")")
         temp = secrets.token_urlsafe(6)
-        db.update_user(uname, {"password_hash": _hash(temp)})
-        st.success(f"Nova palavra-passe de **{uname}**: `{temp}`. Entrega-a ao aluno; ele pode mudá-la em Perfil.")
+        db.update_user(uname, {"password_hash": _hash(temp), "must_change_pw": True})
+        st.success(f"Nova palavra-passe de **{uname}**: `{temp}`. Entrega-a ao aluno; no primeiro acesso ele escolhe uma nova.")
+
+
+def _render_gestao_turma(username: str, turma: dict):
+    """Pedidos de entrada, aprovação ligada/desligada e criação de alunos em lote."""
+    cod = turma["codigo"]
+
+    pedidos = db.list_pedidos_turma(codigo=cod)
+    if pedidos:
+        st.warning(f"{len(pedidos)} aluno(s) a pedir para entrar nesta turma.")
+        nomes = {u["username"]: u["name"] for u in db.list_users()}
+        for p in pedidos:
+            c1, c2, c3 = st.columns([3, 1, 1])
+            c1.markdown(f"**{nomes.get(p['username'], p['username'])}** ({p['username']})")
+            if c2.button("Aceitar", key=f"ped_ok_{cod}_{p['username']}"):
+                acesso.aceitar_pedido(cod, p["username"])
+                st.rerun()
+            if c3.button("Recusar", key=f"ped_no_{cod}_{p['username']}"):
+                acesso.recusar_pedido(cod, p["username"])
+                st.rerun()
+
+    aprov = st.toggle("Quem usa o código só entra depois de eu aceitar", value=bool(turma.get("aprovacao", True)),
+                      key=f"prof_aprov_{cod}")
+    if aprov != bool(turma.get("aprovacao", True)):
+        db.update_turma(cod, {"aprovacao": aprov})
+        st.rerun()
+
+    with st.expander("Criar contas de alunos"):
+        st.caption("Um aluno por linha: `Nome completo` ou `Nome completo, email`. O sistema gera o utilizador e uma "
+                   f"palavra-passe temporária (o aluno escolhe a sua no primeiro acesso). Máximo {acesso.MAX_ALUNOS_POR_LOTE} por vez.")
+        texto = st.text_area("Lista de alunos", key=f"prof_lote_{cod}", height=140,
+                             placeholder="Ana Silva\nJoão Pedro Costa, joao@exemplo.com")
+        por_email = st.checkbox("Enviar os dados por email aos alunos que tenham email", value=False,
+                                key=f"prof_lote_mail_{cod}", disabled=not email_service.configurado())
+        if st.button("Criar contas", type="primary", key=f"prof_lote_btn_{cod}") and texto.strip():
+            try:
+                res = acesso.criar_alunos(username, cod, texto.splitlines(), por_email)
+            except db.DBError as e:
+                st.error(str(e))
+            else:
+                st.session_state[f"_lote_{cod}"] = res
+        res = st.session_state.get(f"_lote_{cod}")
+        if res:
+            criados = [r for r in res if not r["erro"]]
+            st.success(f"{len(criados)} conta(s) criada(s). Guarda esta lista agora: as palavras-passe não voltam a aparecer.")
+            df = pd.DataFrame([{"Nome": r["nome"], "Utilizador": r["utilizador"], "Palavra-passe temporária": r["palavra_passe"],
+                                "Erro": r["erro"]} for r in res])
+            st.dataframe(df, width="stretch", hide_index=True)
+            st.download_button("Descarregar lista (CSV)", df.to_csv(index=False).encode("utf-8-sig"),
+                               file_name=f"alunos_{cod}.csv", mime="text/csv", key=f"prof_lote_csv_{cod}")
 
 
 def render_admin_utilizadores(username: str):

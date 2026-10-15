@@ -13,7 +13,7 @@ PAGINAS = ["dashboard", "escola", "primeiro_modelo", "assistente", "dicionario",
            "certificados", "perfil", "classificacao", "regressao", "clustering", "reducao", "anomalias", "mlp",
            "reforco", "comparador", "historico"]                      # painel do aluno
 PAGINAS_PROFESSOR = ["professor", "escola", "dicionario", "perfil"]
-PAGINAS_ADMIN = ["admin_home", "admin_orgs", "admin_users", "admin_conteudos", "admin_erros", "perfil"]
+PAGINAS_ADMIN = ["admin_home", "admin_orgs", "admin_convites", "admin_users", "admin_email", "admin_conteudos", "admin_erros", "perfil"]
 
 
 @pytest.fixture(autouse=True)
@@ -83,6 +83,35 @@ def test_professor_nao_acede_ao_admin_nem_ao_menu_do_aluno():
         assert at.session_state["pagina"] == "professor", pagina
 
 
+def test_admin_so_tem_o_painel_de_administracao():
+    from modules.navegacao import paineis_disponiveis, paginas_permitidas
+    assert paineis_disponiveis("admin", [], False) == ["admin"]
+    assert paineis_disponiveis("admin", [{"tipo": "empresa"}], True) == ["admin"]
+    proibidas = {"professor", "business_home", "dashboard", "escola", "primeiro_modelo", "classificacao",
+                 "regressao", "projeto", "certificados", "conquistas", "revisao", "historico", "dicionario"}
+    assert not (paginas_permitidas("admin") & proibidas)
+
+
+def test_admin_nao_entra_em_paginas_de_outros_paineis():
+    for pagina in ("professor", "business_home", "dashboard", "escola", "classificacao"):
+        at = _app(pagina, "admin")
+        _sem_erros(at)
+        assert at.session_state["painel"] == "admin" and at.session_state["pagina"] == "admin_home", pagina
+
+
+def test_admin_nao_cria_turmas_nem_organizacoes_nem_entra_nelas():
+    from modules import db
+    from modules.admin import adicionar_membro_por_codigo
+    db.create_org("s1", "Escola A", "escola", "AAA111")
+    db.create_user({"username": "adm", "name": "Adm Teste", "password_hash": "x", "role": "admin"})
+    assert not adicionar_membro_por_codigo("adm", "AAA111")[0]
+    assert db.list_membros(username="adm") == []
+    at = _app("admin_orgs", "admin")
+    _sem_erros(at)
+    assert not [b for b in at.button if "Criar" in (b.label or "") or "Adicionar" in (b.label or "")]
+    assert not at.text_input                                   # sem formulário de criação
+
+
 def test_membro_de_empresa_ganha_painel_business():
     from modules import db
     db.create_org("e1", "Empresa Teste", "empresa", "ABC123")
@@ -145,3 +174,29 @@ def test_certificado_pdf():
     from modules.certificados import gerar_pdf
     pdf = gerar_pdf({"codigo": "DF-TESTE", "nome": "Ana Teste", "tipo": "fundamentos", "emitido_em": "2026-01-01"})
     assert pdf[:4] == b"%PDF"
+
+
+def test_formulario_criar_conta_abre_para_cada_papel():
+    at = AppTest.from_file(os.path.join(RAIZ, "app.py"), default_timeout=180).run()
+    _sem_erros(at)
+    for rotulo in ("Sou aluno", "Sou professor", "Sou uma empresa (Business)"):
+        at.radio(key="reg_papel").set_value(rotulo).run()
+        _sem_erros(at)
+
+
+def test_dono_de_empresa_pendente_so_ve_o_estado():
+    from modules import acesso, db
+    db.create_user({"username": "dono", "name": "Dono Teste", "password_hash": "x"})
+    acesso.criar_empresa_pendente("dono", "Empresa Y")
+    at = _app("dashboard", "dono")
+    _sem_erros(at)
+    assert any("aprovação" in i.value for i in at.info)
+    assert "painel" not in at.session_state                      # nunca chega a nenhum painel
+
+
+def test_aluno_com_palavra_passe_temporaria_tem_de_a_trocar():
+    from modules import db
+    db.create_user({"username": "novo", "name": "Novo Aluno", "password_hash": "x", "must_change_pw": True})
+    at = _app("dashboard", "novo")
+    _sem_erros(at)
+    assert "painel" not in at.session_state

@@ -216,11 +216,17 @@ TIPOS_ORG = {"escola": "edu", "empresa": "business"}                 # tipo -> p
 PAPEIS_ORG = {"escola": ["professor", "aluno", "gestor"], "empresa": ["gestor", "analista", "membro"]}
 
 
-def create_org(org_id: str, nome: str, tipo: str, codigo_convite: str):
+def create_org(org_id: str, nome: str, tipo: str, codigo_convite: str, dono=None, estado=None, activa: bool = True):
+    """estado: 'pendente' | 'aprovada' | 'recusada' (vazio = organização antiga, tratada como aprovada)."""
     if tipo not in TIPOS_ORG:
         raise DBError(f"Tipo de organização inválido: {tipo}")
-    _insert("organizacoes", {"id": org_id, "nome": nome, "tipo": tipo, "produto": TIPOS_ORG[tipo],
-                             "codigo_convite": codigo_convite, "activa": True, "created_at": _agora()})
+    row = {"id": org_id, "nome": nome, "tipo": tipo, "produto": TIPOS_ORG[tipo],
+           "codigo_convite": codigo_convite, "activa": activa, "created_at": _agora()}
+    if dono:
+        row["dono"] = dono
+    if estado:
+        row["estado"] = estado
+    _insert("organizacoes", row)
 
 
 def get_org(org_id: str):
@@ -279,5 +285,87 @@ def membros_do_utilizador(username: str) -> list:
         org = get_org(m["org_id"])
         if org and org.get("activa", True):
             out.append({"org_id": org["id"], "papel": m["papel"], "tipo": org["tipo"],
-                        "produto": org["produto"], "nome": org["nome"]})
+                        "produto": org["produto"], "nome": org["nome"],
+                        "codigo_convite": org["codigo_convite"]})
     return out
+
+
+# ══════════════════════════════════════════════════════
+# TURMAS (aprovação de entradas) E PEDIDOS
+# ══════════════════════════════════════════════════════
+def update_turma(codigo: str, campos: dict):
+    _update("turmas", {"codigo": codigo}, campos)
+
+
+def add_pedido_turma(codigo: str, username: str):
+    _upsert("pedidos_turma", {"id": f"{codigo}:{username}", "codigo": codigo, "username": username,
+                              "created_at": _agora()}, "id")
+
+
+def list_pedidos_turma(codigo=None, username=None) -> list:
+    eq = {}
+    if codigo:
+        eq["codigo"] = codigo
+    if username:
+        eq["username"] = username
+    return _select("pedidos_turma", order="created_at", **eq)
+
+
+def delete_pedido_turma(codigo: str, username: str):
+    _delete("pedidos_turma", {"id": f"{codigo}:{username}"})
+
+
+# ══════════════════════════════════════════════════════
+# CONVITES DE PROFESSOR (uso único)
+# ══════════════════════════════════════════════════════
+def create_convite(row: dict):
+    row = dict(row)
+    row.setdefault("created_at", _agora())
+    _insert("convites_professor", row)
+
+
+def get_convite(codigo: str):
+    r = _select("convites_professor", codigo=codigo)
+    return r[0] if r else None
+
+
+def list_convites(limite: int = 200) -> list:
+    return _select("convites_professor", order="created_at", desc=True, limit=limite)
+
+
+def update_convite(codigo: str, campos: dict):
+    _update("convites_professor", {"codigo": codigo}, campos)
+
+
+# ══════════════════════════════════════════════════════
+# REPOSIÇÃO DE PALAVRA-PASSE (só se guarda o hash do token)
+# ══════════════════════════════════════════════════════
+def save_reset(token_hash: str, username: str, expira_em: str):
+    _insert("reset_tokens", {"token_hash": token_hash, "username": username, "expira_em": expira_em,
+                             "usado": False, "created_at": _agora()})
+
+
+def get_reset(token_hash: str):
+    r = _select("reset_tokens", token_hash=token_hash)
+    return r[0] if r else None
+
+
+def update_reset(token_hash: str, campos: dict):
+    _update("reset_tokens", {"token_hash": token_hash}, campos)
+
+
+# ══════════════════════════════════════════════════════
+# EMAILS (registo, contador diário e fila)
+# ══════════════════════════════════════════════════════
+def log_email(row: dict):
+    row = dict(row)
+    row.setdefault("created_at", _agora())
+    _insert("emails", row)
+
+
+def list_emails(limite: int = 2000, **eq) -> list:
+    return _select("emails", order="created_at", desc=True, limit=limite, **eq)
+
+
+def update_email(email_id: str, campos: dict):
+    _update("emails", {"id": email_id}, campos)

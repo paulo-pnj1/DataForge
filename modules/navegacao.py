@@ -12,13 +12,14 @@ INICIO = {"admin": "admin_home", "professor": "professor", "aluno": "dashboard",
 def paineis_disponiveis(role: str, membros: list, tem_turma: bool = False) -> list:
     """Painéis a que a pessoa tem direito (o primeiro é o de entrada).
 
-    - admin global: todos (para poder gerir e ver como cada utilizador vê).
+    - admin global: SÓ o painel de Administração. Nunca acede aos painéis de
+      professor, aluno ou business (gere a plataforma, não usa os painéis dos utilizadores).
     - professor: Professor; aluno: Aluno.
     - membro de uma empresa: ganha também o painel Business (e entra nele
       se não pertencer a nenhuma turma).
     """
     if role == "admin":
-        return ["admin", "professor", "aluno", "business"]
+        return ["admin"]
     base = "professor" if role == "professor" else "aluno"
     em_empresa = any(m.get("tipo") == "empresa" for m in (membros or []))
     if em_empresa and base == "aluno" and not tem_turma:
@@ -33,7 +34,9 @@ def menu_do_painel(painel: str, rotulo_revisao: str = "Revisão do dia") -> list
         return [
             ("Visão geral",   "admin_home",      "ADMINISTRAÇÃO", "home",   RS),
             ("Organizações",  "admin_orgs",      None,            "school", RS),
+            ("Convites",      "admin_convites",  None,            "rocket", RS),
             ("Utilizadores",  "admin_users",     None,            "menu",   RS),
+            ("Email",         "admin_email",     None,            "text",   RS),
             ("Conteúdos",     "admin_conteudos", None,            "book",   RS),
             ("Erros",         "admin_erros",     None,            "warning", RS),
             ("Perfil",        "perfil",          None,            "menu",   RS),
