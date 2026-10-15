@@ -38,8 +38,8 @@ Sem credenciais Supabase a app usa uma base local (`data/db.json`) e liga as con
 1. Cria um projecto em supabase.com e abre o **SQL Editor**. Cola e executa o ficheiro `schema.sql`.
 2. Em **Project Settings > API** copia o URL e a chave **service_role**.
 3. No Streamlit Cloud: **App > Settings > Secrets**. Cola o conteúdo de `.streamlit/secrets.toml.example` e preenche
-   `supabase_url`, `supabase_key`, `cookie_key`, `professor_code`, `admin_code` e `app_url`.
-4. Faz **Reboot app**. Cria a tua conta no separador **Criar conta** com o código de administrador.
+   `supabase_url`, `supabase_key`, `cookie_key`, `admin_code`, `admin_email`, `app_url` e os dados de email (`smtp_*`).
+4. Faz **Reboot app**. Cria a tua conta no separador **Criar conta**, escolhe «Sou professor» e usa o `admin_code` como código de convite (só funciona para o primeiro administrador). Depois cria convites de professor em *Administração > Convites*.
 5. Cria turmas no **Painel do Professor** e partilha o código com os alunos.
 
 Segurança: a chave `service_role` fica só no servidor (nos secrets). As tabelas têm RLS activo sem políticas,
@@ -69,12 +69,17 @@ tests/test_smoke.py
 
 ## O que ainda não existe
 - Versão em inglês e tema claro (a interface está toda escrita em português, com tema escuro).
-- Recuperação de palavra-passe por email (hoje é o professor ou o administrador que repõe).
 
 ## Painéis e organizações (Fase 1)
 
 - Cada pessoa entra no seu painel: **Administração**, **Professor**, **Aluno** ou **Business** (menu próprio; páginas de outros painéis são recusadas).
-- **Escolas e empresas** são organizações (tabelas `organizacoes` e `membros`). O admin cria-as em *Organizações*; os membros entram com o código de convite (ao criar conta ou em *Perfil*).
-- Quem é membro de uma empresa ganha o painel Business; o administrador pode alternar entre todos os painéis.
+- **Escolas e empresas** são organizações (tabelas `organizacoes` e `membros`). As organizações não são criadas pelo admin; os membros entram com o código de convite (ao criar conta ou em *Perfil*).
+- Quem é membro de uma empresa ganha o painel Business; o **administrador do sistema só tem o painel de Administração**: não acede aos painéis de professor, aluno ou business, não cria turmas nem organizações e não entra nelas (em *Organizações* só vê totais e pode suspender/reactivar).
+- **Quem cria o quê:**
+  - **Professor:** recebe um **convite de uso único** do admin (por email, válido 7 dias, ligado ao seu email). Cria a sua **escola** em *Perfil* e as suas **turmas**.
+  - **Aluno:** regista-se com o código da turma, ou é **criado pelo professor** (em lote, com palavra-passe temporária que tem de trocar no primeiro acesso). Por defeito o professor tem de **aceitar** quem entra pelo código (pode desligar).
+  - **Empresa (Business):** o dono regista-se e a empresa fica **pendente até o admin aprovar**; depois recebe o código para os colegas.
+  - **Admin:** cria convites, aprova ou recusa empresas, suspende organizações. Não entra nos painéis dos utilizadores.
+- **Email (Brevo):** preenche `smtp_*`, `email_from` e `admin_email` nos segredos (ver `.streamlit/secrets.toml.example`). Em *Administração > Email* vês a quota diária, a fila e podes enviar um email de teste. Sem email configurado, tudo funciona: os códigos e links aparecem no ecrã para os enviares à mão. O código `admin_code` só serve para criar o primeiro administrador.
 - **Base de dados já existente:** volta a executar `schema.sql` no Supabase (é seguro repetir) para criar as tabelas novas e a coluna `turmas.org_id`.
 - O painel Business ainda é um marcador; o MVP vem na Fase 3.

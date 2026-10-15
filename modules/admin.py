@@ -8,7 +8,7 @@ import secrets
 import pandas as pd
 import streamlit as st
 
-from modules import db
+from modules import acesso, db, email_service
 from modules.utils import page_header
 
 
@@ -21,6 +21,9 @@ def _novo_codigo() -> str:
 
 def adicionar_membro_por_codigo(username: str, codigo: str, papel_preferido: str = "aluno"):
     """Junta uma pessoa a uma organização pelo código de convite. Devolve (ok, mensagem)."""
+    u = db.get_user(username)
+    if u and u.get("role") == "admin":
+        return False, "O administrador do sistema não pode juntar-se a escolas nem a empresas."
     org = db.get_org_por_codigo(codigo)
     if not org or not org.get("activa", True):
         return False, "Não encontrei nenhuma organização activa com esse código."
@@ -49,6 +52,10 @@ def render_admin_home(username: str):
     c3.metric("Turmas", len(turmas))
     c4.metric("Erros registados", len(erros))
 
+    pend = acesso.orgs_pendentes()
+    if pend:
+        st.warning(f"Há {len(pend)} organização(ões) a aguardar a tua aprovação, em Organizações.")
+
     st.markdown("### Os dois produtos")
     escolas = [o for o in orgs if o["produto"] == "edu"]
     empresas = [o for o in orgs if o["produto"] == "business"]
@@ -69,72 +76,131 @@ def render_admin_home(username: str):
 
 
 def render_admin_orgs(username: str):
-    page_header("Organizações", "Escolas e empresas, com os seus membros. Cada uma só vê os seus dados.")
+    """Supervisão: o admin NÃO cria organizações, NÃO entra nelas e NÃO vê os seus membros nem dados.
+    Só aprova/recusa empresas novas e suspende/reactiva as existentes."""
+    page_header("Organizações", "Aprovação e supervisão. Cada escola ou empresa só vê os seus dados.")
 
-    with st.expander("Criar uma organização", expanded=not db.list_orgs()):
-        c1, c2 = st.columns([2, 1])
-        nome = c1.text_input("Nome (ex.: Universidade X, Empresa Y)", key="org_nome")
-        tipo = c2.selectbox("Tipo", list(db.TIPOS_ORG.keys()), key="org_tipo",
-                            format_func=lambda t: {"escola": "Escola (EDU)", "empresa": "Empresa (Business)"}[t])
-        if st.button("Criar organização", type="primary", key="org_criar"):
-            if len(nome.strip()) < 3:
-                st.error("Escreve o nome da organização.")
-            else:
-                codigo = _novo_codigo()
-                db.create_org(secrets.token_hex(4), nome.strip(), tipo, codigo)
-                st.success(f"Criada! Código de convite: **{codigo}** (usado ao criar conta ou em Perfil).")
+    pend = acesso.orgs_pendentes()
+    st.markdown(f"### A aguardar aprovação ({len(pend)})")
+    if not pend:
+        st.caption("Não há pedidos pendentes.")
+    for o in pend:
+        dono = db.get_user(o.get("dono") or "") or {}
+        with st.container(border=True):
+            st.markdown(f"**{o['nome']}** ({o['tipo']})  \nResponsável: {dono.get('name', '?')} · "
+                        f"{o.get('dono', '?')} · {dono.get('email') or 'sem email'}")
+            c1, c2, c3 = st.columns([1, 2, 1])
+            if c1.button("Aprovar", type="primary", key=f"org_ok_{o['id']}"):
+                acesso.aprovar_org(o["id"])
+                st.rerun()
+            motivo = c2.text_input("Motivo da recusa (opcional)", key=f"org_mot_{o['id']}", label_visibility="collapsed",
+                                   placeholder="Motivo da recusa (opcional)")
+            if c3.button("Recusar", key=f"org_no_{o['id']}"):
+                acesso.recusar_org(o["id"], motivo)
                 st.rerun()
 
-    orgs = db.list_orgs()
+    st.info("O administrador do sistema não cria nem entra em organizações. Aqui só vê os totais, "
+            "aprova pedidos e suspende ou reactiva uma organização (por exemplo, por abuso ou falta de pagamento).")
+
+    orgs = [o for o in db.list_orgs() if o.get("estado") != "pendente"]
     if not orgs:
-        st.info("Ainda não há organizações. Cria a primeira acima.")
+        st.info("Ainda não há organizações aprovadas.")
         return
 
     contagem = {}
     for m in db.list_membros():
         contagem[m["org_id"]] = contagem.get(m["org_id"], 0) + 1
+    st.markdown("### Organizações")
     st.dataframe(pd.DataFrame([{
-        "Nome": o["nome"], "Tipo": o["tipo"], "Produto": o["produto"], "Código": o["codigo_convite"],
+        "Nome": o["nome"], "Tipo": o["tipo"], "Produto": o["produto"], "Estado": o.get("estado") or "aprovada",
         "Membros": contagem.get(o["id"], 0), "Activa": "Sim" if o.get("activa", True) else "Não"} for o in orgs]),
         width="stretch", hide_index=True)
 
-    st.markdown("### Gerir uma organização")
-    opcoes = {f"{o['nome']} ({o['codigo_convite']})": o for o in orgs}
+    gerivel = [o for o in orgs if o.get("estado") in (None, "", "aprovada")]      # recusadas não se reactivam aqui
+    if not gerivel:
+        return
+    st.markdown("### Suspender ou reactivar")
+    opcoes = {o["nome"]: o for o in gerivel}
     org = opcoes[st.selectbox("Organização", list(opcoes.keys()), key="org_sel")]
-
     activa = org.get("activa", True)
-    if st.button("Desactivar organização" if activa else "Reactivar organização", key="org_toggle"):
+    if st.button("Suspender organização" if activa else "Reactivar organização", key="org_toggle"):
         db.update_org(org["id"], {"activa": not activa})
         st.rerun()
     if not activa:
-        st.warning("Organização desactivada: os membros deixam de ter acesso ao painel desta organização.")
+        st.warning("Organização suspensa: os membros deixam de ter acesso ao painel desta organização.")
 
-    membros = db.list_membros(org_id=org["id"])
-    nomes = {u["username"]: u["name"] for u in db.list_users()}
-    st.markdown(f"**Membros ({len(membros)})**")
-    if membros:
-        st.dataframe(pd.DataFrame([{"Utilizador": m["username"], "Nome": nomes.get(m["username"], "?"), "Papel": m["papel"]}
-                                   for m in membros]), width="stretch", hide_index=True)
 
-    papeis = db.PAPEIS_ORG[org["tipo"]]
-    c1, c2, c3 = st.columns([2, 1, 1])
-    candidato = c1.selectbox("Adicionar utilizador", sorted(nomes.keys()) or [""], key="org_add_user")
-    papel = c2.selectbox("Papel", papeis, key="org_add_papel")
-    c3.markdown("<div style='height:1.9rem'></div>", unsafe_allow_html=True)
-    if c3.button("Adicionar", key="org_add") and candidato:
-        db.add_membro(org["id"], candidato, papel)
-        st.session_state.pop("_membros_cache", None)
-        st.success(f"{candidato} é agora {papel} em {org['nome']}. Deve sair e voltar a entrar.")
-        st.rerun()
+def render_admin_convites(username: str):
+    page_header("Convites de professor", "Cada convite é de uso único e expira em %d dias" % acesso.VALIDADE_CONVITE_DIAS)
 
-    if membros:
+    with st.form("form_convite", clear_on_submit=True):
+        email = st.text_input("Email do professor")
+        criar = st.form_submit_button("Criar convite e enviar", type="primary")
+    if criar:
+        try:
+            codigo, estado, msg = acesso.criar_convite_professor(email, username)
+        except db.DBError as e:
+            st.error(str(e))
+        else:
+            link = acesso.link_convite(codigo)
+            if estado == "enviado":
+                st.success(f"Convite {codigo} enviado para {email}.")
+            else:
+                st.warning(f"Convite {codigo} criado, mas o email não saiu ({msg}). Envia-o tu, por WhatsApp ou outro meio:")
+            st.code(link or codigo)
+
+    convites = db.list_convites()
+    if not convites:
+        st.info("Ainda não criaste convites.")
+        return
+    st.dataframe(pd.DataFrame([{
+        "Código": c["codigo"], "Email": c["email"], "Estado": acesso.estado_convite(c),
+        "Usado por": c.get("usado_por") or "", "Expira": (c.get("expira_em") or "")[:10]} for c in convites]),
+        width="stretch", hide_index=True)
+
+    pendentes = [c["codigo"] for c in convites if acesso.estado_convite(c) == "Pendente"]
+    if pendentes:
         c1, c2 = st.columns([3, 1])
-        quem = c1.selectbox("Remover membro", [m["username"] for m in membros], key="org_rm_user")
+        alvo = c1.selectbox("Cancelar um convite pendente", pendentes, key="conv_cancel_sel")
         c2.markdown("<div style='height:1.9rem'></div>", unsafe_allow_html=True)
-        if c2.button("Remover", key="org_rm"):
-            db.remove_membro(org["id"], quem)
-            st.session_state.pop("_membros_cache", None)
+        if c2.button("Cancelar", key="conv_cancel"):
+            acesso.cancelar_convite(alvo)
             st.rerun()
+
+
+def render_admin_email(username: str):
+    page_header("Email", "Estado do envio, quota diária e fila")
+    if email_service.configurado():
+        st.success("O envio de email está configurado.")
+    else:
+        st.warning("O envio de email ainda não está configurado. Preenche `smtp_host`, `smtp_user`, `smtp_password` "
+                   "e `email_from` nos segredos (ver `.streamlit/secrets.toml.example`). Até lá, os convites e códigos "
+                   "aparecem no ecrã para os enviares à mão.")
+
+    enviados, limite, fila = email_service.enviados_hoje(), email_service.limite_diario(), email_service.em_fila()
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Enviados hoje", f"{enviados} / {limite}")
+    c2.metric("Na fila", fila)
+    c3.metric("Quota restante", max(limite - enviados, 0))
+    if limite and enviados >= 0.8 * limite:
+        st.warning("Estás perto do limite diário. O que passar do limite fica na fila e sai quando houver quota.")
+
+    if fila and st.button("Enviar agora o que está na fila", key="mail_fila"):
+        r = email_service.processar_fila()
+        st.info(f"Enviados: {r['enviados']}. Ainda na fila: {r['restam']}.")
+
+    st.markdown("### Email de teste")
+    destino = st.text_input("Enviar para", key="mail_teste_dest")
+    if st.button("Enviar email de teste", key="mail_teste") and destino.strip():
+        estado, msg = email_service.enviar(destino.strip(), "Teste do DataForge", "Se estás a ler isto, o envio de email funciona.")
+        (st.success if estado == "enviado" else st.error)(msg)
+
+    recentes = db.list_emails(limite=30)
+    if recentes:
+        st.markdown("### Últimos emails")
+        st.dataframe(pd.DataFrame([{"Quando": (e.get("created_at") or "")[:16].replace("T", " "), "Para": e["para"],
+                                    "Assunto": e["assunto"], "Estado": e["estado"], "Erro": e.get("erro") or ""}
+                                   for e in recentes]), width="stretch", hide_index=True)
 
 
 def render_admin_conteudos(username: str):
@@ -166,6 +232,9 @@ def render_admin_erros(username: str):
 
 def render_business_home(username: str, name: str):
     """Marcador do painel Business (MVP na Fase 3)."""
+    if (db.get_user(username) or {}).get("role") == "admin":
+        st.error("O administrador do sistema não tem acesso ao painel Business.")
+        return
     page_header("DataForge Business", "Machine Learning nos dados da tua empresa")
     st.info("O painel Business está em construção. Vai permitir carregar dados (CSV ou Excel), fazer um diagnóstico "
             "automático, escolher o problema (prever vendas, clientes que vão sair, fraude, stock), treinar com "
@@ -175,3 +244,25 @@ def render_business_home(username: str, name: str):
         st.markdown("**As tuas organizações**")
         for m in membros:
             st.markdown(f"- {m['nome']} ({m['tipo']}, {m['papel']})")
+        for m in membros:
+            if m["tipo"] == "empresa" and m["papel"] == "gestor":
+                st.success(f"Código de convite de **{m['nome']}** para os teus colegas: **{m['codigo_convite']}**")
+
+
+def render_empresa_pendente(username: str, org: dict):
+    """Ecrã do dono enquanto a empresa aguarda aprovação (ou depois de recusada)."""
+    page_header("DataForge Business", org["nome"])
+    if org.get("estado") == "pendente":
+        st.info("O teu pedido está a aguardar a aprovação do administrador. Vais receber um email quando for aprovado. "
+                "Volta a entrar mais tarde para ver o estado.")
+        return
+    st.error(f"O pedido não foi aprovado. Motivo: {org.get('motivo') or 'não indicado'}.")
+    nome = st.text_input("Nome da empresa para um novo pedido", value=org["nome"], key="emp_novo_nome")
+    if st.button("Submeter novo pedido", type="primary", key="emp_novo_btn"):
+        try:
+            novo = acesso.novo_pedido_empresa(username, nome)
+            email_service.enviar_a_admins(*email_service.t_empresa_pendente_admin(
+                novo["nome"], (db.get_user(username) or {}).get("name", username), (db.get_user(username) or {}).get("email", "")))
+            st.rerun()
+        except db.DBError as e:
+            st.error(str(e))

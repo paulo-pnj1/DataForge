@@ -10,7 +10,7 @@ from yaml.loader import SafeLoader
 import os
 import re
 import bcrypt
-from modules import db
+from modules import acesso, db
 from modules.settings import secret, contas_demo
 from modules.utils import (
     inject_css, C_ACCENT, C_SURFACE, C_BORDER, C_TEXT, C_TEXT_SEC,
@@ -101,45 +101,108 @@ def _utilizador_google():
         return None
 
 
-def _registar(nome, utilizador, email, pw, pw2, turma, cod_prof, cod_org="") -> tuple:
-    """Valida e cria a conta. Devolve (ok, mensagem)."""
-    utilizador = (utilizador or "").strip().lower()
-    nome = (nome or "").strip()
-    if len(nome) < 3:
-        return False, "Escreve o teu nome completo."
-    if not UTILIZADOR_RE.match(utilizador):
-        return False, "O utilizador deve ter 3 a 20 caracteres: letras minúsculas, números ou _ (sem espaços nem acentos)."
-    if db.get_user(utilizador) or utilizador in _contas_demo():
-        return False, "Esse utilizador já existe. Escolhe outro."
-    if len(pw or "") < 6:
-        return False, "A palavra-passe deve ter pelo menos 6 caracteres."
-    if pw != pw2:
-        return False, "As palavras-passe não coincidem."
-    turma = (turma or "").strip().upper()
-    if turma and not db.get_turma(turma):
-        return False, "Não encontrei nenhuma turma com esse código. Confirma com o teu professor ou deixa vazio."
-    cod_org = (cod_org or "").strip().upper()
-    org = None
-    if cod_org:
-        org = db.get_org_por_codigo(cod_org)
-        if not org or not org.get("activa", True):
-            return False, "Não encontrei nenhuma escola ou empresa com esse código. Confirma-o ou deixa vazio."
-    role = "aluno"
-    cod_prof = (cod_prof or "").strip()
-    if cod_prof:
-        if secret("admin_code") and cod_prof == str(secret("admin_code")):
-            role = "admin"
-        elif secret("professor_code") and cod_prof == str(secret("professor_code")):
-            role = "professor"
+def _registar(papel, nome, utilizador, email, pw, pw2, **extra) -> tuple:
+    """Valida e cria a conta (regras em modules.acesso). Devolve (ok, mensagem)."""
+    ok, msg = acesso.registar(papel, nome, utilizador, email, pw, pw2, reservados=set(_contas_demo()), **extra)
+    if ok:
+        get_authenticator(force=True)
+    return ok, msg
+
+
+_PAPEIS_REGISTO = {"Sou aluno": "aluno", "Sou professor": "professor", "Sou uma empresa (Business)": "empresa"}
+
+
+def _render_registo():
+    convite_url = st.query_params.get("convite", "")
+    if convite_url:
+        st.session_state.setdefault("reg_papel", "Sou professor")
+        st.info("Recebeste um convite de professor. Preenche o formulário abaixo com o email que recebeu o convite.")
+    papel = _PAPEIS_REGISTO[st.radio("Quem és?", list(_PAPEIS_REGISTO), key="reg_papel", horizontal=True)]
+    modo = "nova"
+    if papel == "empresa":
+        modo = "nova" if st.radio("A tua empresa", ["Criar uma empresa nova", "Entrar numa empresa que já existe"],
+                                  key="reg_emp_modo").startswith("Criar") else "existente"
+        if modo == "nova":
+            st.caption("A empresa fica a aguardar a aprovação do administrador. Avisamos-te por email.")
+
+    extra = {}
+    with st.form("form_registo", clear_on_submit=False):
+        r_nome = st.text_input("Nome completo")
+        r_user = st.text_input("Utilizador (letras minúsculas, números ou _)")
+        r_mail = st.text_input("Email (obrigatório)" if papel != "aluno" else "Email (opcional)")
+        r_pw = st.text_input("Palavra-passe (mínimo 6 caracteres)", type="password")
+        r_pw2 = st.text_input("Repete a palavra-passe", type="password")
+        if papel == "aluno":
+            extra["turma"] = st.text_input("Código da turma (opcional, dado pelo teu professor)")
+            extra["cod_org"] = st.text_input("Código da escola (opcional)")
+        elif papel == "professor":
+            extra["cod_convite"] = st.text_input("Código de convite de professor", value=convite_url)
+            extra["cod_org"] = st.text_input("Código da escola (opcional, se a tua escola já existe)")
+        elif modo == "nova":
+            extra["empresa_nome"] = st.text_input("Nome da empresa")
         else:
-            return False, "Código de professor inválido."
-    db.create_user({"username": utilizador, "name": nome, "email": (email or "").strip().lower(), "password_hash": _hash(pw),
-                    "role": role, "turma": turma or None})
-    if org:
-        from modules.admin import adicionar_membro_por_codigo
-        adicionar_membro_por_codigo(utilizador, cod_org, "professor" if role == "professor" else "aluno")
-    get_authenticator(force=True)
-    return True, f"Conta criada ({role}). Já podes entrar no separador 'Entrar'."
+            extra["empresa_cod"] = st.text_input("Código da empresa (dado pelo responsável)")
+        enviar = st.form_submit_button("Criar conta", type="primary")
+    if enviar:
+        try:
+            ok, msg = _registar(papel, r_nome, r_user, r_mail, r_pw, r_pw2, empresa_modo=modo, **extra)
+        except db.DBError as e:
+            ok, msg = False, f"Erro na base de dados: {e}"
+        (st.success if ok else st.error)(msg)
+
+
+def _render_esqueci():
+    st.markdown("Escreve o teu **utilizador** ou **email**. Se a conta tiver email, enviamos-te um link para escolheres "
+                "uma palavra-passe nova (válido 1 hora).")
+    ident = st.text_input("Utilizador ou email", key="esq_ident")
+    if st.button("Enviar link", key="esq_btn") and ident.strip():
+        try:
+            acesso.pedir_reposicao(ident)
+        except Exception:
+            pass
+        st.success("Se a conta existir e tiver email, o link foi enviado. Confirma também o spam.")
+    st.caption("Não tens email na conta (por exemplo, alunos criados pelo professor)? Pede ao teu **professor** "
+               "(Painel do Professor > Repor palavra-passe) ou ao **administrador**.")
+
+
+def _render_reset(token: str):
+    st.markdown("### Escolhe uma palavra-passe nova")
+    if not acesso.validar_reposicao(token):
+        st.error("Este link já foi usado ou expirou. Pede um novo em «Esqueci a palavra-passe».")
+    else:
+        with st.form("form_reset"):
+            n1 = st.text_input("Nova palavra-passe (mínimo 6)", type="password")
+            n2 = st.text_input("Repete a nova", type="password")
+            ok = st.form_submit_button("Guardar", type="primary")
+        if ok:
+            if len(n1) < 6 or n1 != n2:
+                st.error("A palavra-passe deve ter 6+ caracteres e ser igual nas duas caixas.")
+            elif acesso.aplicar_reposicao(token, n1):
+                get_authenticator(force=True)
+                st.success("Palavra-passe alterada. Já podes entrar.")
+            else:
+                st.error("Não foi possível alterar. Pede um link novo.")
+    if st.button("Ir para o login", key="reset_voltar"):
+        st.query_params.clear()
+        st.rerun()
+
+
+def render_mudar_pw_obrigatoria(username: str):
+    """Primeiro acesso de um aluno criado pelo professor: tem de escolher a sua própria palavra-passe."""
+    from modules.utils import page_header
+    page_header("Escolhe a tua palavra-passe", "A palavra-passe que recebeste é temporária")
+    with st.form("form_pw_obrig"):
+        n1 = st.text_input("Nova palavra-passe (mínimo 6)", type="password")
+        n2 = st.text_input("Repete a nova", type="password")
+        ok = st.form_submit_button("Guardar e continuar", type="primary")
+    if ok:
+        if len(n1) < 6 or n1 != n2:
+            st.error("A palavra-passe deve ter 6+ caracteres e ser igual nas duas caixas.")
+        else:
+            db.update_user(username, {"password_hash": _hash(n1), "must_change_pw": False})
+            st.session_state["_pw_ok"] = username
+            get_authenticator(force=True)
+            st.rerun()
 
 
 def render_login_page():
@@ -163,6 +226,9 @@ def render_login_page():
         col1, col2, col3 = st.columns([1, 1.6, 1])
         with col2:
             st.markdown(f"""<div style=" display:flex; flex-direction:column; align-items:center; padding: 3rem 1rem 2rem; "><div style=" width:72px; height:72px; background: linear-gradient(135deg, {C_ACCENT}, #BC8CFF); border-radius:20px; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:900; color:#0D1117; letter-spacing:-1px; margin-bottom:1.2rem; box-shadow: 0 8px 32px rgba(88,166,255,0.3); font-family: Inter, sans-serif; ">DF</div><div style=" font-size:32px; font-weight:800; color:{C_TEXT}; letter-spacing:-.5px; margin-bottom:.4rem; ">DataForge EDU</div><div style=" font-size:15px; color:{C_TEXT_SEC}; font-weight:500; margin-bottom:2.4rem; ">Plataforma de Aprendizagem de Machine Learning</div><div style=" font-size:15px; font-weight:600; color:{C_TEXT_SEC}; margin-bottom:.8rem; text-transform:uppercase; letter-spacing:.06em; font-size:12px; ">Entra na tua conta</div></div>""", unsafe_allow_html=True)
+            if st.query_params.get("reset"):
+                _render_reset(st.query_params.get("reset"))
+                return authenticator, st.session_state.get("authentication_status"), st.session_state.get("username"), config
             tab_in, tab_novo, tab_esq = st.tabs(["Entrar", "Criar conta", "Esqueci a palavra-passe"])
             with tab_in:
                 try:
@@ -179,25 +245,9 @@ def render_login_page():
                 if auth_status is None and contas_demo():
                     st.markdown(f"""<div style=" background:rgba(88,166,255,0.08); border:1px solid rgba(88,166,255,0.2); border-radius:8px; padding:.65rem 1rem; font-size:13px; color:{C_TEXT_SEC}; text-align:center; margin-top:1rem; ">Conta demo: <code style=" background:rgba(88,166,255,0.15); color:{C_ACCENT}; padding:2px 6px; border-radius:4px; font-family:monospace; ">aluno</code>&nbsp;/&nbsp;<code style=" background:rgba(88,166,255,0.15); color:{C_ACCENT}; padding:2px 6px; border-radius:4px; font-family:monospace; ">aluno123</code></div>""", unsafe_allow_html=True)
             with tab_novo:
-                with st.form("form_registo", clear_on_submit=False):
-                    r_nome = st.text_input("Nome completo")
-                    r_user = st.text_input("Utilizador (letras minúsculas, números ou _)")
-                    r_mail = st.text_input("Email (opcional)")
-                    r_pw = st.text_input("Palavra-passe (mínimo 6 caracteres)", type="password")
-                    r_pw2 = st.text_input("Repete a palavra-passe", type="password")
-                    r_turma = st.text_input("Código da turma (opcional, dado pelo teu professor)")
-                    r_org = st.text_input("Código da escola ou empresa (opcional)")
-                    r_prof = st.text_input("Código de professor (só para professores)", type="password")
-                    enviar = st.form_submit_button("Criar conta", type="primary")
-                if enviar:
-                    try:
-                        ok, msg = _registar(r_nome, r_user, r_mail, r_pw, r_pw2, r_turma, r_prof, r_org)
-                    except db.DBError as e:
-                        ok, msg = False, f"Erro na base de dados: {e}"
-                    (st.success if ok else st.error)(msg)
+                _render_registo()
             with tab_esq:
-                st.markdown("Esqueceste a palavra-passe? Pede ao teu **professor** (Painel do Professor > Repor palavra-passe) "
-                            "ou ao **administrador** para a repor. Depois de entrares, podes mudá-la em **Perfil**.")
+                _render_esqueci()
 
         # Feature cards no rodapé (fora da coluna, largura própria)
         st.markdown(f"""<div style=" display:grid; grid-template-columns:repeat(3,1fr); gap:.8rem; max-width:420px; margin:2rem auto 0; "><div style=" background:{C_SURFACE}; border:1px solid {C_BORDER}; border-radius:12px; padding:.9rem .8rem; text-align:center; "><div style="margin-bottom:8px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#58A6FF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div><div style="font-size:11px; font-weight:700; color:{C_TEXT_SEC}; line-height:1.4;">Teoria<br>+ Prática</div></div><div style=" background:{C_SURFACE}; border:1px solid {C_BORDER}; border-radius:12px; padding:.9rem .8rem; text-align:center; "><div style="margin-bottom:8px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D29922" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg></div><div style="font-size:11px; font-weight:700; color:{C_TEXT_SEC}; line-height:1.4;">Certificados<br>Verificáveis</div></div><div style=" background:{C_SURFACE}; border:1px solid {C_BORDER}; border-radius:12px; padding:.9rem .8rem; text-align:center; "><div style="margin-bottom:8px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#39D0C0" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0;"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></div><div style="font-size:11px; font-weight:700; color:{C_TEXT_SEC}; line-height:1.4;">50+<br>Algoritmos</div></div></div><div style=" text-align:center; font-size:11px; color:{C_TEXT_MUTE}; margin-top:2rem; padding-bottom:1rem; ">DataForge EDU v1.0 · Feito em Angola 🇦🇴</div>""", unsafe_allow_html=True)
@@ -263,23 +313,46 @@ def render_perfil(username: str, name: str, role: str):
         st.info("As contas demo não podem ser alteradas. Cria uma conta real para gravar a turma, o ranking e a palavra-passe.")
         return
 
-    st.markdown("### Turma")
-    atual = registo.get("turma") or ""
-    if atual:
-        t = db.get_turma(atual)
-        st.success(f"Estás na turma **{t['nome'] if t else atual}** (código {atual}).")
-    cod = st.text_input("Entrar noutra turma (código dado pelo professor)", key="perfil_cod").strip().upper()
-    c1, c2 = st.columns(2)
-    if c1.button("Entrar na turma", key="perfil_turma_btn") and cod:
-        if db.get_turma(cod):
-            db.update_user(username, {"turma": cod})
-            st.success("Já estás na turma!")
+    if role == "admin":
+        _form_palavra_passe(registo)
+        return
+
+    if role == "aluno":
+        st.markdown("### Turma")
+        atual = registo.get("turma") or ""
+        if atual:
+            t = db.get_turma(atual)
+            st.success(f"Estás na turma **{t['nome'] if t else atual}** (código {atual}).")
+        for p in db.list_pedidos_turma(username=username):
+            t = db.get_turma(p["codigo"])
+            st.info(f"Pedido pendente para a turma **{t['nome'] if t else p['codigo']}**: aguarda a aprovação do professor.")
+        cod = st.text_input("Entrar noutra turma (código dado pelo professor)", key="perfil_cod").strip().upper()
+        c1, c2 = st.columns(2)
+        if c1.button("Entrar na turma", key="perfil_turma_btn") and cod:
+            estado, msg = acesso.entrar_na_turma(username, cod)
+            if estado == "erro":
+                st.error(msg)
+            else:
+                st.success(msg)
+                if estado == "ok":
+                    st.rerun()
+        if atual and c2.button("Sair da turma", key="perfil_sair_turma"):
+            db.update_user(username, {"turma": None})
             st.rerun()
-        else:
-            st.error("Código não encontrado.")
-    if atual and c2.button("Sair da turma", key="perfil_sair_turma"):
-        db.update_user(username, {"turma": None})
-        st.rerun()
+
+    if role == "professor":
+        st.markdown("### A minha escola")
+        for o in acesso.escolas_do_dono(username):
+            st.success(f"**{o['nome']}** · código de convite: **{o['codigo_convite']}** "
+                       "(dá-o aos outros professores e aos alunos).")
+        nome_escola = st.text_input("Criar uma escola nova", key="perfil_nova_escola", placeholder="Ex.: Instituto Politécnico X")
+        if st.button("Criar escola", key="perfil_criar_escola") and nome_escola.strip():
+            try:
+                org = acesso.criar_escola(username, nome_escola)
+                st.session_state.pop("_membros_cache", None)
+                st.success(f"Escola criada! Código de convite: **{org['codigo_convite']}**.")
+            except db.DBError as e:
+                st.error(str(e))
 
     st.markdown("### Escola ou empresa")
     for m in db.membros_do_utilizador(username):
@@ -287,19 +360,24 @@ def render_perfil(username: str, name: str, role: str):
     cod_o = st.text_input("Juntar-me a uma escola ou empresa (código de convite)", key="perfil_cod_org").strip().upper()
     if st.button("Juntar-me", key="perfil_org_btn") and cod_o:
         from modules.admin import adicionar_membro_por_codigo
-        ok_o, msg_o = adicionar_membro_por_codigo(username, cod_o)
+        ok_o, msg_o = adicionar_membro_por_codigo(username, cod_o, "professor" if role == "professor" else "aluno")
         if ok_o:
             st.session_state.pop("_membros_cache", None)
             st.success(msg_o + " Sai e volta a entrar para ver o painel novo.")
         else:
             st.error(msg_o)
 
-    st.markdown("### Ranking da turma")
-    rank = st.toggle("Aparecer no ranking da minha turma", value=bool(registo.get("ranking")), key="perfil_rank")
-    if rank != bool(registo.get("ranking")):
-        db.update_user(username, {"ranking": rank})
-        st.success("Preferência guardada.")
+    if role == "aluno":
+        st.markdown("### Ranking da turma")
+        rank = st.toggle("Aparecer no ranking da minha turma", value=bool(registo.get("ranking")), key="perfil_rank")
+        if rank != bool(registo.get("ranking")):
+            db.update_user(username, {"ranking": rank})
+            st.success("Preferência guardada.")
 
+    _form_palavra_passe(registo)
+
+
+def _form_palavra_passe(registo):
     st.markdown("### Mudar palavra-passe")
     with st.form("form_pw"):
         atual_pw = st.text_input("Palavra-passe actual", type="password")
