@@ -229,6 +229,14 @@ def render_login_page():
             if st.query_params.get("reset"):
                 _render_reset(st.query_params.get("reset"))
                 return authenticator, st.session_state.get("authentication_status"), st.session_state.get("username"), config
+            if st.query_params.get("convite"):
+                # Link de convite: abre logo o formulário (o Streamlit não muda de separador sozinho)
+                _render_registo()
+                if st.button("Já tenho conta: ir para o login", key="convite_login"):
+                    st.query_params.clear()
+                    st.session_state.pop("reg_papel", None)
+                    st.rerun()
+                return authenticator, st.session_state.get("authentication_status"), st.session_state.get("username"), config
             tab_in, tab_novo, tab_esq = st.tabs(["Entrar", "Criar conta", "Esqueci a palavra-passe"])
             with tab_in:
                 try:
