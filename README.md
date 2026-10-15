@@ -70,3 +70,11 @@ tests/test_smoke.py
 ## O que ainda não existe
 - Versão em inglês e tema claro (a interface está toda escrita em português, com tema escuro).
 - Recuperação de palavra-passe por email (hoje é o professor ou o administrador que repõe).
+
+## Painéis e organizações (Fase 1)
+
+- Cada pessoa entra no seu painel: **Administração**, **Professor**, **Aluno** ou **Business** (menu próprio; páginas de outros painéis são recusadas).
+- **Escolas e empresas** são organizações (tabelas `organizacoes` e `membros`). O admin cria-as em *Organizações*; os membros entram com o código de convite (ao criar conta ou em *Perfil*).
+- Quem é membro de uma empresa ganha o painel Business; o administrador pode alternar entre todos os painéis.
+- **Base de dados já existente:** volta a executar `schema.sql` no Supabase (é seguro repetir) para criar as tabelas novas e a coluna `turmas.org_id`.
+- O painel Business ainda é um marcador; o MVP vem na Fase 3.

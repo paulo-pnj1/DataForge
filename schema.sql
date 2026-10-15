@@ -1,4 +1,4 @@
--- DataForge EDU - esquema Supabase
+-- DataForge (EDU + Business) - esquema Supabase
 -- Cola este ficheiro no SQL Editor do Supabase e executa.
 
 create table if not exists users (
@@ -49,6 +49,32 @@ create table if not exists erros (
   created_at timestamptz not null default now()
 );
 
+
+-- ── Organizações (escolas e empresas) e os seus membros ──────────────
+-- Cada escola/empresa só vê os seus próprios dados. Uma pessoa (users) pode
+-- pertencer a várias organizações com papéis diferentes.
+create table if not exists organizacoes (
+  id             text primary key,
+  nome           text not null,
+  tipo           text not null,                   -- escola | empresa
+  produto        text not null,                   -- edu | business
+  codigo_convite text not null unique,
+  activa         boolean not null default true,
+  created_at     timestamptz not null default now()
+);
+
+create table if not exists membros (
+  org_id     text not null,
+  username   text not null,
+  papel      text not null,                       -- escola: professor | aluno | gestor; empresa: gestor | analista | membro
+  created_at timestamptz not null default now(),
+  primary key (org_id, username)
+);
+create index if not exists membros_user_idx on membros (username);
+
+-- Turmas passam a pertencer a uma escola (opcional, para turmas já existentes).
+alter table turmas add column if not exists org_id text;
+
 -- Segurança: activa RLS SEM políticas. A chave pública (anon) fica sem acesso;
 -- a app usa a chave service_role (guardada só em st.secrets, no servidor).
 alter table users         enable row level security;
@@ -57,3 +83,5 @@ alter table historico     enable row level security;
 alter table turmas        enable row level security;
 alter table certificados  enable row level security;
 alter table erros         enable row level security;
+alter table organizacoes  enable row level security;
+alter table membros       enable row level security;

@@ -9,7 +9,7 @@ import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 st.set_page_config(
-    page_title="DataForge EDU",
+    page_title="DataForge",
     page_icon="https://api.iconify.design/ph/brain-duotone.svg",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -100,55 +100,61 @@ _z = _ZOOM.get(st.session_state.get("tamanho_texto", "Normal"), 100)
 if _z != 100:
     st.markdown(f"<style>html {{ font-size: {_z}% !important; }}</style>", unsafe_allow_html=True)
 
+# ── PAINEL (cada pessoa vê só o menu do seu papel) ────
+from modules import db as _dbm
+from modules.navegacao import (PAINEIS, PRODUTO_DO_PAINEL, INICIO, paineis_disponiveis, menu_do_painel,
+                               paginas_permitidas, resolver_painel)
+
+
+def _membros_do(user: str) -> list:
+    """Pertenças a escolas/empresas (guardadas na sessão; renovam-se ao voltar a entrar)."""
+    cache = st.session_state.get("_membros_cache")
+    if not cache or cache[0] != user:
+        try:
+            lista = _dbm.membros_do_utilizador(user)
+        except Exception:
+            lista = []
+        cache = (user, lista)
+        st.session_state["_membros_cache"] = cache
+    return cache[1]
+
+
+_tem_turma = bool(config["credentials"]["usernames"].get(username, {}).get("turma"))
+_disponiveis = paineis_disponiveis(role, _membros_do(username), _tem_turma)
+painel = resolver_painel(st.session_state.get("painel"), _disponiveis)
+st.session_state["painel"] = painel
+
+if "pagina" not in st.session_state or st.session_state.pagina not in paginas_permitidas(painel):
+    st.session_state.pagina = INICIO[painel]
+
 # ── SIDEBAR ──────────────────────────────────────────
 with st.sidebar:
-    render_sidebar_user(name, username, role, authenticator)
+    render_sidebar_user(name, username, role, authenticator, produto=PRODUTO_DO_PAINEL[painel])
 
-    # Revisões pendentes (mostra o número no menu)
-    try:
-        from modules.revisao import pendentes
-        from modules.utils import get_user_progress
-        n_rev = len(pendentes(get_user_progress(username)))
-    except Exception:
-        n_rev = 0
-    rotulo_rev = f"Revisão do dia ({n_rev})" if n_rev else "Revisão do dia"
+    if len(_disponiveis) > 1:
+        escolhido = st.selectbox("Painel", _disponiveis, index=_disponiveis.index(painel),
+                                 format_func=PAINEIS.get, key="painel_sel")
+        if escolhido != painel:
+            st.session_state["painel"] = escolhido
+            st.session_state.pagina = INICIO[escolhido]
+            st.rerun()
 
-    MENU = [
-        # (label, key, secção, ícone_svg)
-        ("Início",                    "dashboard",       "COMEÇAR AQUI",      icon("home",    16, "#6BA3FF")),
-        ("Escola de ML",              "escola",          None,                icon("school",  16, "#4ADE80")),
-        ("O Meu Primeiro Modelo",     "primeiro_modelo", None,                icon("rocket",  16, "#4ADE80")),
-        ("Que algoritmo uso?",        "assistente",      None,                icon("compass2",16, "#4ADE80")),
-        ("Dicionário de ML",          "dicionario",      None,                icon("book",    16, "#4ADE80")),
-        (rotulo_rev,                  "revisao",         "A MINHA JORNADA",   icon("history", 16, "#FFC107")),
-        ("Projecto Final",            "projeto",         None,                icon("rocket",  16, "#FFC107")),
-        ("Conquistas e Desafios",     "conquistas",      None,                icon("trophy",  16, "#FFC107")),
-        ("Certificados",              "certificados",    None,                icon("trophy",  16, "#FFC107")),
-        ("Perfil",                    "perfil",          None,                icon("menu",    16, "#FFC107")),
-        ("Classificação",             "classificacao",   "SUPERVISIONADO",    icon("chart-bar",16,"#6BA3FF")),
-        ("Regressão",                 "regressao",       None,                icon("trend-up", 16,"#6BA3FF")),
-        ("Clustering",                "clustering",      "NÃO SUPERVISIONADO", icon("circles",16,"#6BA3FF")),
-        ("Redução Dimensionalidade",  "reducao",         None,                icon("network", 16,"#6BA3FF")),
-        ("Detecção de Anomalias",     "anomalias",       None,                icon("warning", 16,"#6BA3FF")),
-        ("MLP / Redes Neurais",       "mlp",             "REDES NEURAIS",     icon("brain",   16,"#6BA3FF")),
-        ("Visão Computacional",       "visao",           "DEEP LEARNING",     icon("eye",     16,"#6BA3FF")),
-        ("NLP",                       "nlp",             None,                icon("text",    16,"#6BA3FF")),
-        ("Séries Temporais",          "series",          None,                icon("clock",   16,"#6BA3FF")),
-        ("Modelos Generativos",       "generativo",      None,                icon("sparkle", 16,"#6BA3FF")),
-        ("Aprendizagem por Reforço",  "reforco",         "REFORÇO",           icon("game",    16,"#6BA3FF")),
-        ("Comparador de Modelos",     "comparador",      "FERRAMENTAS",       icon("compare", 16,"#6BA3FF")),
-        ("Meu Historial",             "historico",       None,                icon("history", 16,"#6BA3FF")),
-    ]
-    if role in ("professor", "admin"):
-        MENU.append(("Painel do Professor", "professor", "ENSINAR", icon("school", 16, "#F778BA")))
-    if role == "admin":
-        MENU.append(("Utilizadores", "admin_users", None, icon("menu", 16, "#F778BA")))
+    rotulo_rev = "Revisão do dia"
+    if painel == "aluno":
+        # Revisões pendentes (mostra o número no menu)
+        try:
+            from modules.revisao import pendentes
+            from modules.utils import get_user_progress
+            n_rev = len(pendentes(get_user_progress(username)))
+        except Exception:
+            n_rev = 0
+        rotulo_rev = f"Revisão do dia ({n_rev})" if n_rev else "Revisão do dia"
+
+    MENU = [(label, key, seccao, icon(ic, 16, cor))
+            for label, key, seccao, ic, cor in menu_do_painel(painel, rotulo_rev)]
 
     from modules.pesquisa import render_pesquisa_sidebar
     render_pesquisa_sidebar([(l, k) for l, k, _, _ in MENU])
-
-    if "pagina" not in st.session_state:
-        st.session_state.pagina = "dashboard"
 
     ultima_seccao = "__start__"
     for label, key, seccao, icone_svg in MENU:
@@ -158,8 +164,6 @@ with st.sidebar:
 
         ativo = st.session_state.pagina == key
         bg    = f"background:rgba(107,163,255,.15);border-left:3px solid {C_ACCENT};" if ativo else ""
-        cor   = "#FFFFFF" if ativo else "#B8C4D8"
-        peso  = "800" if ativo else "600"
 
         # Botão invisível com HTML de apresentação em cima
         st.markdown(f"""<div style="{bg}border-radius:8px;padding:0;margin-bottom:2px;"></div>""", unsafe_allow_html=True)
@@ -178,11 +182,11 @@ with st.sidebar:
                 st.rerun()
 
     st.markdown("---")
-    st.markdown(f'<div style="font-size:11px;font-weight:600;color:#7A8BA8;text-align:center;padding:4px;">DataForge EDU v2.0 · Angola 🇦🇴</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-size:11px;font-weight:600;color:#7A8BA8;text-align:center;padding:4px;">{PRODUTO_DO_PAINEL[painel]} v2.0 · Angola 🇦🇴</div>', unsafe_allow_html=True)
 
 
 # ── ROTEADOR ─────────────────────────────────────────
-pagina = st.session_state.get("pagina", "dashboard")
+pagina = st.session_state.get("pagina", INICIO[painel])
 
 try:
 
@@ -293,9 +297,29 @@ try:
         from modules.professor import render_admin_utilizadores
         render_admin_utilizadores(username)
 
-    else:
-        from modules.dashboard import render_dashboard
-        render_dashboard(name, username)
+    elif pagina == "admin_home" and role == "admin":
+        from modules.admin import render_admin_home
+        render_admin_home(username)
+
+    elif pagina == "admin_orgs" and role == "admin":
+        from modules.admin import render_admin_orgs
+        render_admin_orgs(username)
+
+    elif pagina == "admin_conteudos" and role == "admin":
+        from modules.admin import render_admin_conteudos
+        render_admin_conteudos(username)
+
+    elif pagina == "admin_erros" and role == "admin":
+        from modules.admin import render_admin_erros
+        render_admin_erros(username)
+
+    elif pagina == "business_home":
+        from modules.admin import render_business_home
+        render_business_home(username, name)
+
+    else:  # página desconhecida: volta ao início do painel actual
+        st.session_state.pagina = INICIO[painel]
+        st.rerun()
 except Exception as _e:  # nunca mostrar uma página partida ao aluno
     import traceback
     from modules import db as _db
@@ -305,5 +329,5 @@ except Exception as _e:  # nunca mostrar uma página partida ao aluno
     with st.expander("Detalhes técnicos (para o professor ou programador)"):
         st.code(traceback.format_exc())
     if st.button("Voltar ao Início", key="err_home"):
-        st.session_state.pagina = "dashboard"
+        st.session_state.pagina = INICIO.get(painel, "dashboard")
         st.rerun()

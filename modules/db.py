@@ -90,6 +90,13 @@ def _update(tabela: str, eq: dict, campos: dict):
         _local(tabela).update(dict(campos), lambda r: all(r.get(k) == v for k, v in eq.items()))
 
 
+def _delete(tabela: str, eq: dict):
+    if usando_supabase():
+        _sb("DELETE", tabela, params={k: f"eq.{v}" for k, v in eq.items()}, prefer="return=minimal")
+    else:
+        _local(tabela).remove(lambda r: all(r.get(k) == v for k, v in eq.items()))
+
+
 # ══════════════════════════════════════════════════════
 # UTILIZADORES
 # ══════════════════════════════════════════════════════
@@ -160,8 +167,11 @@ def get_historico(username: str, limite: int = 200) -> list:
 # ══════════════════════════════════════════════════════
 # TURMAS, CERTIFICADOS, ERROS
 # ══════════════════════════════════════════════════════
-def create_turma(codigo: str, nome: str, professor: str):
-    _insert("turmas", {"codigo": codigo, "nome": nome, "professor": professor, "created_at": _agora()})
+def create_turma(codigo: str, nome: str, professor: str, org_id=None):
+    row = {"codigo": codigo, "nome": nome, "professor": professor, "created_at": _agora()}
+    if org_id:
+        row["org_id"] = org_id
+    _insert("turmas", row)
 
 
 def get_turma(codigo: str):
@@ -193,3 +203,81 @@ def log_erro(username: str, pagina: str, mensagem: str):
         _insert("erros", {"username": username or "", "pagina": pagina or "", "mensagem": str(mensagem)[:1500], "created_at": _agora()})
     except Exception:
         pass
+
+
+def list_erros(limite: int = 200) -> list:
+    return _select("erros", order="created_at", desc=True, limit=limite)
+
+
+# ══════════════════════════════════════════════════════
+# ORGANIZAÇÕES (escolas e empresas) E MEMBROS
+# ══════════════════════════════════════════════════════
+TIPOS_ORG = {"escola": "edu", "empresa": "business"}                 # tipo -> produto
+PAPEIS_ORG = {"escola": ["professor", "aluno", "gestor"], "empresa": ["gestor", "analista", "membro"]}
+
+
+def create_org(org_id: str, nome: str, tipo: str, codigo_convite: str):
+    if tipo not in TIPOS_ORG:
+        raise DBError(f"Tipo de organização inválido: {tipo}")
+    _insert("organizacoes", {"id": org_id, "nome": nome, "tipo": tipo, "produto": TIPOS_ORG[tipo],
+                             "codigo_convite": codigo_convite, "activa": True, "created_at": _agora()})
+
+
+def get_org(org_id: str):
+    r = _select("organizacoes", id=org_id)
+    return r[0] if r else None
+
+
+def get_org_por_codigo(codigo: str):
+    r = _select("organizacoes", codigo_convite=(codigo or "").strip().upper())
+    return r[0] if r else None
+
+
+def list_orgs(**eq) -> list:
+    return _select("organizacoes", order="created_at", desc=True, **eq)
+
+
+def update_org(org_id: str, campos: dict):
+    _update("organizacoes", {"id": org_id}, campos)
+
+
+def add_membro(org_id: str, username: str, papel: str):
+    org = get_org(org_id)
+    if not org:
+        raise DBError("Organização inexistente.")
+    if papel not in PAPEIS_ORG[org["tipo"]]:
+        raise DBError(f"Papel '{papel}' inválido para uma {org['tipo']}.")
+    _upsert_membro({"org_id": org_id, "username": username, "papel": papel, "created_at": _agora()})
+
+
+def _upsert_membro(row: dict):
+    """Chave composta (org_id, username)."""
+    if usando_supabase():
+        _sb("POST", "membros", params={"on_conflict": "org_id,username"}, body=row,
+            prefer="resolution=merge-duplicates,return=minimal")
+    else:
+        _local("membros").upsert(dict(row), lambda r: r.get("org_id") == row["org_id"] and r.get("username") == row["username"])
+
+
+def remove_membro(org_id: str, username: str):
+    _delete("membros", {"org_id": org_id, "username": username})
+
+
+def list_membros(org_id=None, username=None) -> list:
+    eq = {}
+    if org_id:
+        eq["org_id"] = org_id
+    if username:
+        eq["username"] = username
+    return _select("membros", **eq)
+
+
+def membros_do_utilizador(username: str) -> list:
+    """Pertenças activas de uma pessoa: [{org_id, papel, tipo, produto, nome}]."""
+    out = []
+    for m in list_membros(username=username):
+        org = get_org(m["org_id"])
+        if org and org.get("activa", True):
+            out.append({"org_id": org["id"], "papel": m["papel"], "tipo": org["tipo"],
+                        "produto": org["produto"], "nome": org["nome"]})
+    return out
