@@ -28,6 +28,17 @@ def test_cor_e_hex_em_python_e_variavel_css_em_html():
     assert f"{C_TEXT_MUTE}".startswith("var(--df-text-mute,")
 
 
+def test_cor_pode_ser_copiada_e_serializada():
+    """O Plotly faz deepcopy das cores dos gráficos; a Cor tem de sobreviver a copy/deepcopy/pickle."""
+    import copy
+    import pickle
+    from modules.utils import C_ACCENT, PALETTE
+    for copia in (copy.copy(C_ACCENT), copy.deepcopy(C_ACCENT), copy.deepcopy(PALETTE)[0], pickle.loads(pickle.dumps(C_ACCENT))):
+        assert str.__str__(copia) == str.__str__(C_ACCENT)
+        assert copia.nome == "accent"
+        assert f"{copia}".startswith("var(--df-accent,")
+
+
 def test_os_dois_temas_definem_as_mesmas_cores():
     from modules.utils import TEMAS
     assert set(TEMAS["escuro"]) == set(TEMAS["claro"])

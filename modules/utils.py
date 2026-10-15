@@ -47,6 +47,17 @@ class Cor(str):
             return str.__format__(self, spec)
         return f"var(--df-{self.nome.replace('_', '-')}, {str.__str__(self)})"
 
+    # copy/deepcopy/pickle: o __new__ pede 2 argumentos, por isso sem isto o Plotly (que faz deepcopy
+    # das cores dos gráficos) falhava com "Cor.__new__() missing 1 required positional argument: 'nome'"
+    def __reduce__(self):
+        return (Cor, (str.__str__(self), self.nome))
+
+    def __copy__(self):
+        return self
+
+    def __deepcopy__(self, memo):
+        return self
+
 
 def _cor(nome: str) -> Cor:
     return Cor(TEMAS["escuro"][nome], nome)
