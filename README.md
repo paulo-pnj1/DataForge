@@ -78,6 +78,7 @@ tests/test_smoke.py
 - **Quem cria o quê:**
   - **Professor:** recebe um **convite de uso único** do admin (por email, válido 7 dias, ligado ao seu email). Cria a sua **escola** em *Perfil* e as suas **turmas**.
   - **Aluno:** regista-se com o código da turma, ou é **criado pelo professor** (em lote, com palavra-passe temporária que tem de trocar no primeiro acesso). Por defeito o professor tem de **aceitar** quem entra pelo código (pode desligar).
+  - **Professor sem convite:** no ecrã *Criar conta* > «Sou professor» há «Não tens convite? Pede acesso». Preenche nome, email e escola; o admin recebe o pedido (email e aviso na Visão geral) e aprova ou recusa em *Administração > Convites*. Ao aprovar, o convite de uso único sai para o email do pedido. Volta a executar `schema.sql` para criar a tabela `pedidos_convite`.
   - **Empresa (Business):** o dono regista-se e a empresa fica **pendente até o admin aprovar**; depois recebe o código para os colegas.
   - **Admin:** cria convites, aprova ou recusa empresas, suspende organizações. Não entra nos painéis dos utilizadores.
 - **Email (Brevo):** preenche `smtp_*`, `email_from` e `admin_email` nos segredos (ver `.streamlit/secrets.toml.example`). Em *Administração > Email* vês a quota diária, a fila e podes enviar um email de teste. Sem email configurado, tudo funciona: os códigos e links aparecem no ecrã para os enviares à mão. O código `admin_code` só serve para criar o primeiro administrador.

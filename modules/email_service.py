@@ -144,6 +144,21 @@ def t_convite_professor(codigo: str, link: str, dias: int):
     return "Convite para professor no DataForge", corpo + _ASS
 
 
+def t_pedido_convite_admin(nome: str, email: str, escola: str, mensagem: str):
+    corpo = (f"Um professor pediu acesso ao DataForge.\n\nNome: {nome}\nEmail: {email}\n"
+             f"Escola: {escola or 'não indicada'}\n")
+    if mensagem:
+        corpo += f"Mensagem: {mensagem}\n"
+    corpo += "\nEntra em Administração > Convites para aprovar (o convite sai por email) ou recusar."
+    return "Pedido de convite de professor no DataForge", corpo + _ASS
+
+
+def t_pedido_convite_recusado(nome: str, motivo: str):
+    return ("Sobre o teu pedido de acesso ao DataForge",
+            f"Olá, {nome}.\n\nNão foi possível aprovar o teu pedido de acesso como professor neste momento.\n\n"
+            f"Motivo: {motivo or 'não indicado'}\n\nSe achas que houve um engano, responde a este email." + _ASS)
+
+
 def t_empresa_pendente_admin(nome_empresa: str, dono: str, email: str):
     return ("Empresa a aguardar aprovação no DataForge",
             f"Há uma empresa nova à espera de aprovação.\n\nEmpresa: {nome_empresa}\nResponsável: {dono}\n"

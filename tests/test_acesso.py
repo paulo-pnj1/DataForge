@@ -142,3 +142,42 @@ def test_limite_diario_poe_emails_em_fila(monkeypatch):
     assert email_service.enviar("b@x.com", "B", "t")[0] == "fila"
     monkeypatch.setenv("EMAIL_LIMITE_DIARIO", "100")
     assert email_service.processar_fila()["restam"] == 0
+
+
+def test_professor_pede_convite_e_admin_aprova(ambiente, monkeypatch):
+    from modules import acesso, db
+    monkeypatch.setenv("ADMIN_EMAIL", "admin@x.com")
+    ok, m = acesso.pedir_convite("Prof Novo", "Novo@X.com", "ISPKZ", "Dou ML")
+    assert ok, m
+    assert any(e[0] == "admin@x.com" and "Pedido de convite" in e[1] for e in ambiente)   # avisa o admin
+    # um pedido pendente por email
+    ok, m = acesso.pedir_convite("Prof Novo", "novo@x.com", "ISPKZ")
+    assert not ok and "aguardar" in m
+    pend = acesso.pedidos_convite_pendentes()
+    assert len(pend) == 1 and pend[0]["email"] == "novo@x.com"
+    # o admin aprova: convite criado, ligado ao email do pedido e enviado
+    codigo, estado, _ = acesso.aprovar_pedido_convite(pend[0]["id"], "adm")
+    assert estado == "enviado" and ambiente[-1][0] == "novo@x.com" and codigo in ambiente[-1][2]
+    assert not acesso.pedidos_convite_pendentes()
+    assert db.get_pedido_convite(pend[0]["id"])["estado"] == "aprovado"
+    # o professor regista-se com esse convite
+    ok, m = acesso.registar("professor", "Prof Novo", "profnovo", "novo@x.com", "123456", "123456", cod_convite=codigo)
+    assert ok and db.get_user("profnovo")["role"] == "professor"
+    # não se trata o mesmo pedido duas vezes
+    with pytest.raises(db.DBError):
+        acesso.aprovar_pedido_convite(pend[0]["id"], "adm")
+
+
+def test_pedido_de_convite_recusado_avisa_e_valida_campos(ambiente):
+    from modules import acesso, db
+    assert not acesso.pedir_convite("Ab", "a@x.com", "Escola")[0]               # nome curto
+    assert not acesso.pedir_convite("Prof Teste", "sem-arroba", "Escola")[0]    # email inválido
+    assert not acesso.pedir_convite("Prof Teste", "a@x.com", "")[0]             # escola em falta
+    assert acesso.pedir_convite("Prof Teste", "a@x.com", "Escola X")[0]
+    pid = acesso.pedidos_convite_pendentes()[0]["id"]
+    acesso.recusar_pedido_convite(pid, "adm", "Não conseguimos confirmar a escola")
+    assert db.get_pedido_convite(pid)["estado"] == "recusado"
+    assert ambiente[-1][0] == "a@x.com" and "confirmar a escola" in ambiente[-1][2]
+    assert not acesso.pedidos_convite_pendentes()
+    # depois de recusado, pode voltar a pedir
+    assert acesso.pedir_convite("Prof Teste", "a@x.com", "Escola X")[0]

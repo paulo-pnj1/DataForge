@@ -100,6 +100,21 @@ create table if not exists pedidos_turma (
   created_at timestamptz not null default now()
 );
 
+-- Pedidos de convite feitos por professores novos (o admin aprova e o convite sai por email)
+create table if not exists pedidos_convite (
+  id             text primary key,
+  nome           text not null,
+  email          text not null,
+  escola         text,
+  mensagem       text,
+  estado         text not null default 'pendente',   -- pendente | aprovado | recusado
+  motivo         text,
+  codigo_convite text,
+  decidido_por   text,
+  decidido_em    timestamptz,
+  created_at     timestamptz not null default now()
+);
+
 create table if not exists reset_tokens (
   token_hash text primary key,
   username   text not null,
@@ -132,4 +147,5 @@ alter table membros       enable row level security;
 alter table convites_professor enable row level security;
 alter table pedidos_turma      enable row level security;
 alter table reset_tokens       enable row level security;
+alter table pedidos_convite    enable row level security;
 alter table emails             enable row level security;

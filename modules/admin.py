@@ -55,6 +55,9 @@ def render_admin_home(username: str):
     pend = acesso.orgs_pendentes()
     if pend:
         st.warning(f"Há {len(pend)} organização(ões) a aguardar a tua aprovação, em Organizações.")
+    pend_conv = acesso.pedidos_convite_pendentes()
+    if pend_conv:
+        st.warning(f"Há {len(pend_conv)} professor(es) a pedir convite, em Convites.")
 
     st.markdown("### Os dois produtos")
     escolas = [o for o in orgs if o["produto"] == "edu"]
@@ -130,9 +133,53 @@ def render_admin_orgs(username: str):
         st.warning("Organização suspensa: os membros deixam de ter acesso ao painel desta organização.")
 
 
+def _render_pedidos_convite(username: str):
+    """Pedidos feitos pelos próprios professores no formulário de registo."""
+    pedidos = acesso.pedidos_convite_pendentes()
+    st.markdown(f"### Pedidos de convite ({len(pedidos)})")
+    resultado = st.session_state.pop("_pedido_resultado", None)
+    if resultado:
+        (st.success if resultado[0] == "ok" else st.warning)(resultado[1])
+        if resultado[2]:
+            st.code(resultado[2])
+    if not pedidos:
+        st.caption("Não há pedidos à espera. Os professores novos podem pedir convite no ecrã «Criar conta».")
+        return
+    for p in pedidos:
+        with st.container(border=True):
+            st.markdown(f"**{p['nome']}** · {p['email']}  \n{p.get('escola') or 'Escola não indicada'}")
+            if p.get("mensagem"):
+                st.caption(p["mensagem"])
+            motivo = st.text_input("Motivo (só se recusares)", key=f"pc_motivo_{p['id']}")
+            c1, c2, _ = st.columns([1.2, 1, 3])
+            if c1.button("Aprovar e enviar convite", type="primary", key=f"pc_ok_{p['id']}"):
+                try:
+                    codigo, estado, msg = acesso.aprovar_pedido_convite(p["id"], username)
+                except db.DBError as e:
+                    st.session_state["_pedido_resultado"] = ("aviso", str(e), "")
+                else:
+                    if estado == "enviado":
+                        st.session_state["_pedido_resultado"] = ("ok", f"Convite {codigo} enviado para {p['email']}.", "")
+                    else:
+                        st.session_state["_pedido_resultado"] = (
+                            "aviso", f"Convite {codigo} criado, mas o email não saiu ({msg}). Envia-o tu, por WhatsApp ou outro meio:",
+                            acesso.link_convite(codigo) or codigo)
+                st.rerun()
+            if c2.button("Recusar", key=f"pc_no_{p['id']}"):
+                try:
+                    acesso.recusar_pedido_convite(p["id"], username, motivo)
+                    st.session_state["_pedido_resultado"] = ("ok", f"Pedido de {p['nome']} recusado.", "")
+                except db.DBError as e:
+                    st.session_state["_pedido_resultado"] = ("aviso", str(e), "")
+                st.rerun()
+
+
 def render_admin_convites(username: str):
     page_header("Convites de professor", "Cada convite é de uso único e expira em %d dias" % acesso.VALIDADE_CONVITE_DIAS)
 
+    _render_pedidos_convite(username)
+
+    st.markdown("### Convidar um professor directamente")
     with st.form("form_convite", clear_on_submit=True):
         email = st.text_input("Email do professor")
         criar = st.form_submit_button("Criar convite e enviar", type="primary")

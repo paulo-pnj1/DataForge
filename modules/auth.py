@@ -149,6 +149,28 @@ def _render_registo():
         except db.DBError as e:
             ok, msg = False, f"Erro na base de dados: {e}"
         (st.success if ok else st.error)(msg)
+    if papel == "professor":
+        _render_pedir_convite(aberto=not convite_url)
+
+
+def _render_pedir_convite(aberto: bool = True):
+    """Professor novo sem convite: pede acesso aqui e o admin aprova (o convite chega ao email)."""
+    with st.expander("Não tens convite? Pede acesso", expanded=aberto):
+        st.caption("Diz-nos quem és. O administrador analisa o pedido e envia-te o convite por email: "
+                   "depois voltas a este ecrã, escolhes «Sou professor» e usas o código.")
+        with st.form("form_pedir_convite", clear_on_submit=True):
+            p_nome = st.text_input("Nome completo", key="pc_nome")
+            p_mail = st.text_input("Email onde queres receber o convite", key="pc_mail")
+            p_escola = st.text_input("Escola ou instituição onde ensinas", key="pc_escola")
+            p_msg = st.text_area("Mensagem (opcional)", key="pc_msg", height=80, max_chars=300,
+                                 placeholder="Ex.: Dou Machine Learning no 3.º ano de Engenharia Informática.")
+            pedir = st.form_submit_button("Pedir convite", type="primary")
+        if pedir:
+            try:
+                ok, msg = acesso.pedir_convite(p_nome, p_mail, p_escola, p_msg)
+            except db.DBError as e:
+                ok, msg = False, f"Erro na base de dados: {e}"
+            (st.success if ok else st.error)(msg)
 
 
 def _render_esqueci():

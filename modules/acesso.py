@@ -106,6 +106,61 @@ def cancelar_convite(codigo: str):
 
 
 # ══════════════════════════════════════════════════════
+# PEDIDOS DE CONVITE (professor novo, sem falar com o admin)
+# ══════════════════════════════════════════════════════
+MAX_PEDIDOS_PENDENTES = 100       # trava contra spam: acima disto não se aceitam mais pedidos novos
+
+
+def pedir_convite(nome: str, email: str, escola: str = "", mensagem: str = ""):
+    """Regista o pedido e avisa o admin. Devolve (ok, mensagem). Um pedido pendente por email."""
+    nome = " ".join((nome or "").split())
+    email = (email or "").strip().lower()
+    escola = " ".join((escola or "").split())[:120]
+    mensagem = (mensagem or "").strip()[:300]
+    if len(nome) < 3:
+        return False, "Escreve o teu nome completo."
+    if not EMAIL_RE.match(email):
+        return False, "Escreve um email válido: é para lá que enviamos o convite."
+    if len(escola) < 3:
+        return False, "Escreve o nome da escola ou instituição onde ensinas."
+    pendentes = db.list_pedidos_convite(estado="pendente")
+    if any((p.get("email") or "").lower() == email for p in pendentes):
+        return False, "Já tens um pedido a aguardar aprovação. Assim que for aprovado, o convite chega ao teu email."
+    if len(pendentes) >= MAX_PEDIDOS_PENDENTES:
+        return False, "Há muitos pedidos em espera neste momento. Tenta novamente daqui a uns dias."
+    db.create_pedido_convite({"id": secrets.token_hex(6), "nome": nome, "email": email, "escola": escola,
+                              "mensagem": mensagem, "estado": "pendente"})
+    email_service.enviar_a_admins(*email_service.t_pedido_convite_admin(nome, email, escola, mensagem))
+    return True, ("Pedido enviado! O administrador vai analisá-lo e o convite chega ao email que indicaste "
+                  "(confirma também o spam).")
+
+
+def pedidos_convite_pendentes() -> list:
+    return sorted(db.list_pedidos_convite(estado="pendente"), key=lambda p: str(p.get("created_at", "")))
+
+
+def aprovar_pedido_convite(pedido_id: str, admin: str):
+    """Cria o convite (uso único, ligado ao email do pedido) e envia-o. Devolve (codigo, estado_email, mensagem_email)."""
+    p = db.get_pedido_convite(pedido_id)
+    if not p or p.get("estado") != "pendente":
+        raise db.DBError("Este pedido já foi tratado.")
+    codigo, estado, msg = criar_convite_professor(p["email"], admin)
+    db.update_pedido_convite(pedido_id, {"estado": "aprovado", "codigo_convite": codigo,
+                                         "decidido_por": admin, "decidido_em": db._agora()})
+    return codigo, estado, msg
+
+
+def recusar_pedido_convite(pedido_id: str, admin: str, motivo: str = ""):
+    p = db.get_pedido_convite(pedido_id)
+    if not p or p.get("estado") != "pendente":
+        raise db.DBError("Este pedido já foi tratado.")
+    motivo = (motivo or "").strip()[:300]
+    db.update_pedido_convite(pedido_id, {"estado": "recusado", "motivo": motivo,
+                                         "decidido_por": admin, "decidido_em": db._agora()})
+    email_service.enviar(p["email"], *email_service.t_pedido_convite_recusado(p.get("nome", ""), motivo))
+
+
+# ══════════════════════════════════════════════════════
 # ESCOLAS (criadas pelo professor) E EMPRESAS (aprovadas pelo admin)
 # ══════════════════════════════════════════════════════
 def criar_escola(username: str, nome: str):

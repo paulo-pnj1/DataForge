@@ -338,6 +338,28 @@ def update_convite(codigo: str, campos: dict):
 
 
 # ══════════════════════════════════════════════════════
+# PEDIDOS DE CONVITE (professores novos pedem acesso)
+# ══════════════════════════════════════════════════════
+def create_pedido_convite(row: dict):
+    row = dict(row)
+    row.setdefault("created_at", _agora())
+    _insert("pedidos_convite", row)
+
+
+def get_pedido_convite(pedido_id: str):
+    r = _select("pedidos_convite", id=pedido_id)
+    return r[0] if r else None
+
+
+def list_pedidos_convite(limite: int = 200, **eq) -> list:
+    return _select("pedidos_convite", order="created_at", desc=True, limit=limite, **eq)
+
+
+def update_pedido_convite(pedido_id: str, campos: dict):
+    _update("pedidos_convite", {"id": pedido_id}, campos)
+
+
+# ══════════════════════════════════════════════════════
 # REPOSIÇÃO DE PALAVRA-PASSE (só se guarda o hash do token)
 # ══════════════════════════════════════════════════════
 def save_reset(token_hash: str, username: str, expira_em: str):
