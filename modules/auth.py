@@ -3,6 +3,7 @@ DataForge EDU - Módulo de Autenticação
 Login, registo, perfil do utilizador
 """
 
+import time
 import streamlit as st
 import streamlit_authenticator as stauth
 import yaml
@@ -65,26 +66,20 @@ def load_config() -> dict:
 
 
 def get_authenticator(force: bool = False):
-    """Devolve (authenticator, config).
-
-    O `Authenticate` NÃO pode ficar guardado entre execuções: lê os cookies do navegador uma única vez,
-    ao ser criado, e na primeira execução depois de recarregar a página essa leitura vem vazia
-    (o componente só responde na execução seguinte). Por isso é criado de novo em cada execução do
-    script (ver `nova_execucao`), e só uma vez por execução (um segundo componente igual daria erro).
-    Só a configuração (utilizadores) fica em cache na sessão."""
-    if force or "auth_config" not in st.session_state:
-        # force = utilizadores mudaram (registo, convite...): o novo Authenticate já nasce na próxima execução
-        st.session_state.auth_config = load_config()
-    config = st.session_state.auth_config
-    if "authenticator" not in st.session_state:
+    if force or "authenticator" not in st.session_state or "auth_config" not in st.session_state:
+        config = load_config()
+        st.session_state.auth_config = config
         st.session_state.authenticator = stauth.Authenticate(
             config["credentials"], config["cookie"]["name"], config["cookie"]["key"], config["cookie"]["expiry_days"])
-    return st.session_state.authenticator, config
+    return st.session_state.authenticator, st.session_state.auth_config
 
 
-def nova_execucao():
-    """Chamar no início de cada execução do script, antes de `render_login_page`."""
-    st.session_state.pop("authenticator", None)
+def _tinha_cookie(config) -> bool:
+    """True se o navegador já enviou o cookie de sessão (login automático, sem escrever cookie novo)."""
+    try:
+        return bool(st.context.cookies.get(config["cookie"]["name"]))
+    except Exception:
+        return False
 
 
 def _google_activo() -> bool:
@@ -245,7 +240,6 @@ def render_mudar_pw_obrigatoria(username: str):
 def render_login_page():
     inject_css()
 
-    nova_execucao()
     authenticator, config = get_authenticator()
 
     # Estado actual antes de qualquer tentativa de (re)autenticação.
@@ -282,6 +276,11 @@ def render_login_page():
                 except Exception:
                     authenticator.login(location="main")
                 auth_status = st.session_state.get("authentication_status")
+                if auth_status is True and not _tinha_cookie(config):
+                    # Login novo pelo formulário: o cookie é escrito no navegador por um componente que só
+                    # executa se a página ainda existir. Qualquer st.rerun() logo a seguir (tema, etc.)
+                    # destruía-o antes de gravar e, ao recarregar, voltava o login. Damos-lhe tempo.
+                    time.sleep(1.5)
                 if auth_status is False:
                     st.markdown(f"""<div style=" background:rgba(248,81,73,0.1); border:1px solid rgba(248,81,73,0.3); border-left:3px solid #F85149; border-radius:8px; padding:.75rem 1rem; color:#F85149; font-size:14px; font-weight:600; margin-top:.8rem; ">Utilizador ou palavra-passe incorrectos.</div>""", unsafe_allow_html=True)
                 if _google_activo():
