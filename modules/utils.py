@@ -886,18 +886,49 @@ def inject_css():
 
     </style>
     """, unsafe_allow_html=True)
-    if tema_actual() == "claro":
-        st.markdown(_CSS_CLARO, unsafe_allow_html=True)
+    st.markdown(_CSS_NATIVOS, unsafe_allow_html=True)
+    if tema_actual() == "escuro":
+        st.markdown(_CSS_ESCURO, unsafe_allow_html=True)
 
 
-# Só entra quando o tema é claro: o que o Streamlit desenha sempre escuro (tabelas em canvas,
-# gráficos nativos, código) é convertido por filtro, e a barra superior ganha texto escuro.
-_CSS_CLARO = """
+# A base do Streamlit (.streamlit/config.toml) é clara. Aqui os elementos nativos seguem o tema escolhido
+# (variáveis --df-*), seja claro ou escuro.
+_CSS_NATIVOS = """
 <style>
-[data-testid="stDataFrame"], [data-testid="stArrowVegaLiteChart"] { filter: invert(1) hue-rotate(180deg); }
 [data-testid="stHeader"] button, [data-testid="stToolbar"] * { color: var(--df-text) !important; }
 [data-testid="stCode"] pre, .stCode pre { background: var(--df-surface2) !important; }
 [data-testid="stCode"] code, [data-testid="stCode"] code span, .stCode code span { color: var(--df-text) !important; }
+
+/* Botões do menu lateral */
+section[data-testid="stSidebar"] .stButton > button,
+section[data-testid="stSidebar"] [data-testid^="stBaseButton"] {
+    background: var(--df-surface2) !important;
+    color: var(--df-text) !important;
+    border: 1px solid var(--df-border) !important;
+    box-shadow: none !important;
+}
+section[data-testid="stSidebar"] .stButton > button *,
+section[data-testid="stSidebar"] [data-testid^="stBaseButton"] * { color: var(--df-text) !important; }
+section[data-testid="stSidebar"] .stButton > button:hover,
+section[data-testid="stSidebar"] [data-testid^="stBaseButton"]:hover {
+    background: var(--df-surface3) !important;
+    border-color: var(--df-accent) !important;
+}
+
+/* Listas de escolha (selectbox, multiselect) e menus */
+[data-baseweb="popover"] > div, [data-baseweb="popover"] ul, [data-baseweb="menu"],
+[data-baseweb="popover"] li, [data-baseweb="menu"] li, [role="listbox"], [role="option"] {
+    background: var(--df-surface) !important;
+    color: var(--df-text) !important;
+}
+[role="option"]:hover, [data-baseweb="menu"] li:hover { background: var(--df-surface3) !important; }
+</style>
+"""
+
+# Só no tema escuro: tabelas em canvas e gráficos nativos são desenhados claros e convertem-se por filtro.
+_CSS_ESCURO = """
+<style>
+[data-testid="stDataFrame"], [data-testid="stArrowVegaLiteChart"] { filter: invert(1) hue-rotate(180deg); }
 </style>
 """
 
