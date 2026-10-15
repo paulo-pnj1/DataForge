@@ -28,8 +28,7 @@ Feita em Angola para o contexto universitário lusófono.
 ## Instalação local
 ```bash
 python -m venv venv && source venv/bin/activate     # Windows: venv\Scripts\activate
-pip install -r requirements.txt                     # núcleo
-pip install -r requirements-dl.txt                  # opcional: Deep Learning e Reforço (PyTorch)
+pip install -r requirements.txt                     # tudo: núcleo, PyTorch, gymnasium e statsmodels
 streamlit run app.py
 ```
 Sem credenciais Supabase a app usa uma base local (`data/db.json`) e liga as contas demo.
