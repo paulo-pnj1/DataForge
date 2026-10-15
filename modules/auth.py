@@ -104,7 +104,12 @@ def _login_por_cookie_do_navegador(authenticator, config) -> bool:
             aviso = st.empty()
             aviso.markdown(f"<div style='text-align:center;padding:30vh 0 0;color:{C_TEXT_SEC};font-size:15px;'>A carregar…</div>",
                            unsafe_allow_html=True)
-            time.sleep(1.0)
+            # Espera até 5 s em passos curtos. Cada actualização do aviso é um comando do Streamlit, que
+            # interrompe a espera logo que o navegador responde (a página volta a executar com o cookie).
+            for i in range(25):
+                time.sleep(0.2)
+                aviso.markdown(f"<div style='text-align:center;padding:30vh 0 0;color:{C_TEXT_SEC};font-size:15px;'>A carregar{'.' * (i % 4)}</div>",
+                               unsafe_allow_html=True)
             aviso.empty()
             return False
         bruto = cookies.get(nome)
