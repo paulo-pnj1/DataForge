@@ -16,24 +16,76 @@ from modules import db as _db
 # ══════════════════════════════════════════════════════
 # PALETA DE CORES - Design System
 # ══════════════════════════════════════════════════════
-C_BG         = "#0D1117"   # fundo principal (GitHub-dark inspired)
-C_SURFACE    = "#161B27"   # cards e painéis
-C_SURFACE2   = "#1C2333"   # inputs e elementos secundários
-C_SURFACE3   = "#21262D"   # hover states
-C_BORDER     = "#30363D"   # bordas subtis
-C_BORDER2    = "#3A4560"   # bordas mais visíveis
-C_ACCENT     = "#58A6FF"   # azul primário
-C_ACCENT_H   = "#79BAFF"   # hover do accent
-C_ACCENT2    = "#BC8CFF"   # violeta secundário
-C_GREEN      = "#3FB950"   # sucesso
-C_AMBER      = "#D29922"   # aviso
-C_RED        = "#F85149"   # erro
-C_TEAL       = "#39D0C0"   # teal
-C_TEXT       = "#E6EDF3"   # texto principal
-C_TEXT_SEC   = "#8B949E"   # texto secundário
-C_TEXT_MUTE  = "#484F58"   # texto muted
+TEMAS = {
+    "escuro": dict(
+        bg="#0D1117", surface="#161B27", surface2="#1C2333", surface3="#21262D",
+        border="#30363D", border2="#3A4560",
+        accent="#58A6FF", accent_h="#79BAFF", accent2="#BC8CFF",
+        green="#3FB950", amber="#D29922", red="#F85149", teal="#39D0C0",
+        text="#E6EDF3", text_sec="#8B949E", text_mute="#484F58", text2="#B8C4D8", text3="#7A8BA8",
+        on_accent="#0D1117", overlay="rgba(255,255,255,.04)", shadow="rgba(0,0,0,.5)"),
+    "claro": dict(
+        bg="#FFFFFF", surface="#F6F8FA", surface2="#EAEEF2", surface3="#DDE3EA",
+        border="#D0D7DE", border2="#AFB8C1",
+        accent="#0969DA", accent_h="#218BFF", accent2="#8250DF",
+        green="#1A7F37", amber="#9A6700", red="#CF222E", teal="#1B7C83",
+        text="#1F2328", text_sec="#57606A", text_mute="#6E7781", text2="#424A53", text3="#6E7781",
+        on_accent="#FFFFFF", overlay="rgba(0,0,0,.04)", shadow="rgba(31,35,40,.15)"),
+}
+
+
+class Cor(str):
+    """Uma cor da paleta. Em Python (gráficos, matplotlib, plotly) é o hex do tema escuro;
+    dentro de um f-string/HTML vira `var(--df-nome, #hex)`, por isso muda sozinha com o tema."""
+    def __new__(cls, hex_: str, nome: str):
+        o = super().__new__(cls, hex_)
+        o.nome = nome
+        return o
+
+    def __format__(self, spec: str) -> str:
+        if spec:
+            return str.__format__(self, spec)
+        return f"var(--df-{self.nome.replace('_', '-')}, {str.__str__(self)})"
+
+
+def _cor(nome: str) -> Cor:
+    return Cor(TEMAS["escuro"][nome], nome)
+
+
+C_BG         = _cor("bg")          # fundo principal
+C_SURFACE    = _cor("surface")     # cards e painéis
+C_SURFACE2   = _cor("surface2")    # inputs e elementos secundários
+C_SURFACE3   = _cor("surface3")    # hover states
+C_BORDER     = _cor("border")      # bordas subtis
+C_BORDER2    = _cor("border2")     # bordas mais visíveis
+C_ACCENT     = _cor("accent")      # azul primário
+C_ACCENT_H   = _cor("accent_h")    # hover do accent
+C_ACCENT2    = _cor("accent2")     # violeta secundário
+C_GREEN      = _cor("green")       # sucesso
+C_AMBER      = _cor("amber")       # aviso
+C_RED        = _cor("red")         # erro
+C_TEAL       = _cor("teal")        # teal
+C_TEXT       = _cor("text")        # texto principal
+C_TEXT_SEC   = _cor("text_sec")    # texto secundário
+C_TEXT_MUTE  = _cor("text_mute")   # texto muted
 
 PALETTE = [C_ACCENT, C_TEAL, C_AMBER, C_RED, C_ACCENT2, C_GREEN]
+
+def tema_actual() -> str:
+    """'escuro' (por omissão) ou 'claro', conforme a escolha guardada na sessão."""
+    try:
+        return "claro" if st.session_state.get("tema") == "claro" else "escuro"
+    except Exception:
+        return "escuro"
+
+
+def paleta(tema: str = None) -> dict:
+    return TEMAS.get(tema or tema_actual(), TEMAS["escuro"])
+
+
+def _css_vars() -> str:
+    return "\n        ".join(f"--df-{k.replace('_', '-')}: {v};" for k, v in paleta().items())
+
 
 # ══════════════════════════════════════════════════════
 # CSS GLOBAL - Cobertura completa do Streamlit
@@ -45,16 +97,18 @@ def inject_css():
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
     /* ══════════════════════════════════════════════
-       ROOT & RESET - força tema escuro em tudo
+       ROOT & RESET - tema escuro ou claro (variáveis --df-*)
     ══════════════════════════════════════════════ */
     :root {{
-        --bg: {C_BG};
-        --surface: {C_SURFACE};
-        --surface2: {C_SURFACE2};
-        --border: {C_BORDER};
-        --accent: {C_ACCENT};
-        --text: {C_TEXT};
-        --text-sec: {C_TEXT_SEC};
+        color-scheme: {'light' if tema_actual() == 'claro' else 'dark'};
+        {_css_vars()}
+        --bg: var(--df-bg);
+        --surface: var(--df-surface);
+        --surface2: var(--df-surface2);
+        --border: var(--df-border);
+        --accent: var(--df-accent);
+        --text: var(--df-text);
+        --text-sec: var(--df-text-sec);
     }}
 
     html, body {{
@@ -187,7 +241,7 @@ def inject_css():
             min-width: 260px !important;
             max-width: 80vw !important;
             overflow-y: auto !important;
-            box-shadow: 4px 0 24px rgba(0,0,0,0.5) !important;
+            box-shadow: 4px 0 24px var(--df-shadow, rgba(0,0,0,.5)) !important;
         }}
         /* Botão hamburger fixo no topo-esquerdo em mobile */
         [data-testid="collapsedControl"] {{
@@ -301,7 +355,7 @@ def inject_css():
     ══════════════════════════════════════════════ */
     .stButton > button {{
         background: {C_ACCENT} !important;
-        color: #0D1117 !important;
+        color: var(--df-on-accent, #0D1117) !important;
         border: none !important;
         border-radius: 8px !important;
         font-weight: 700 !important;
@@ -358,7 +412,7 @@ def inject_css():
     }}
     .stTabs [aria-selected="true"] {{
         background: {C_ACCENT} !important;
-        color: #0D1117 !important;
+        color: var(--df-on-accent, #0D1117) !important;
         font-weight: 700 !important;
     }}
     /* Tab content area */
@@ -715,8 +769,8 @@ def inject_css():
         font-size: 13px; font-weight: 700;
         flex-shrink: 0;
     }}
-    .step-dot.active  {{ background: {C_ACCENT};  color: #0D1117; }}
-    .step-dot.done    {{ background: {C_GREEN};   color: #0D1117; }}
+    .step-dot.active  {{ background: {C_ACCENT};  color: var(--df-on-accent, #0D1117); }}
+    .step-dot.done    {{ background: {C_GREEN};   color: var(--df-on-accent, #0D1117); }}
     .step-dot.pending {{ background: {C_SURFACE2}; color: {C_TEXT_SEC}; border: 1px solid {C_BORDER2}; }}
 
     /* ── Barra de progresso custom ── */
@@ -770,7 +824,7 @@ def inject_css():
         background: linear-gradient(135deg, {C_ACCENT}, {C_ACCENT2});
         border-radius: 8px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 14px; font-weight: 800; color: #0D1117;
+        font-size: 14px; font-weight: 800; color: var(--df-on-accent, #0D1117);
         flex-shrink: 0;
     }}
     .user-name {{ font-size: 14px; font-weight: 700; color: {C_TEXT} !important; }}
@@ -832,6 +886,174 @@ def inject_css():
 
     </style>
     """, unsafe_allow_html=True)
+    if tema_actual() == "claro":
+        st.markdown(_CSS_CLARO, unsafe_allow_html=True)
+
+
+# Só entra quando o tema é claro: o que o Streamlit desenha sempre escuro (tabelas em canvas,
+# gráficos nativos, código) é convertido por filtro, e a barra superior ganha texto escuro.
+_CSS_CLARO = """
+<style>
+[data-testid="stDataFrame"], [data-testid="stArrowVegaLiteChart"] { filter: invert(1) hue-rotate(180deg); }
+[data-testid="stHeader"] button, [data-testid="stToolbar"] * { color: var(--df-text) !important; }
+[data-testid="stCode"] pre, .stCode pre { background: var(--df-surface2) !important; }
+[data-testid="stCode"] code, [data-testid="stCode"] code span, .stCode code span { color: var(--df-text) !important; }
+</style>
+"""
+
+
+# ══════════════════════════════════════════════════════
+# GRÁFICOS: os gráficos são desenhados para o tema escuro; no claro adaptam-se ao mostrar
+# ══════════════════════════════════════════════════════
+def _luminancia(cor) -> float:
+    from matplotlib.colors import to_rgb
+    r, g, b = to_rgb(cor)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def tema_figura_matplotlib(fig, tema: str = None):
+    """Adapta uma figura matplotlib ao tema claro (no escuro não faz nada). Nunca levanta erros."""
+    if (tema or tema_actual()) != "claro" or fig is None:
+        return fig
+    P = TEMAS["claro"]
+    try:
+        fig.patch.set_facecolor(P["surface"])
+        for t in list(fig.texts) + ([fig._suptitle] if getattr(fig, "_suptitle", None) else []):
+            if _luminancia(t.get_color()) > 0.6:
+                t.set_color(P["text"])
+        for ax in fig.axes:
+            ax.set_facecolor(P["surface"])
+            for sp in ax.spines.values():
+                sp.set_edgecolor(P["border2"])
+            ax.tick_params(colors=P["text_sec"], which="both")
+            rotulos = [ax.xaxis.label, ax.yaxis.label, ax.title]
+            if hasattr(ax, "zaxis"):
+                rotulos.append(ax.zaxis.label)
+            for r in rotulos:
+                r.set_color(P["text"])
+            for ln in ax.get_xgridlines() + ax.get_ygridlines():
+                ln.set_color(P["border"])
+            leg = ax.get_legend()
+            if leg:
+                leg.get_frame().set_facecolor(P["surface2"])
+                leg.get_frame().set_edgecolor(P["border"])
+                for t in leg.get_texts() + [leg.get_title()]:
+                    t.set_color(P["text"])
+            if not ax.images:          # em mapas de calor o texto das células tem a sua própria cor
+                for t in ax.texts:
+                    if _luminancia(t.get_color()) > 0.6:
+                        t.set_color(P["text"])
+    except Exception:
+        pass
+    return fig
+
+
+def tema_figura_plotly(fig, tema: str = None):
+    """Adapta uma figura plotly ao tema claro (no escuro não faz nada). Nunca levanta erros."""
+    if (tema or tema_actual()) != "claro" or fig is None or not hasattr(fig, "update_layout"):
+        return fig
+    P = TEMAS["claro"]
+    eixos = dict(color=P["text_sec"], gridcolor=P["border"], zerolinecolor=P["border2"], linecolor=P["border2"])
+    passos = (
+        lambda: fig.update_layout(paper_bgcolor=P["surface"], plot_bgcolor=P["surface"],
+                                  font=dict(color=P["text"]), title_font_color=P["text"],
+                                  legend=dict(font=dict(color=P["text"]))),
+        lambda: fig.update_xaxes(**eixos),
+        lambda: fig.update_yaxes(**eixos),
+        lambda: fig.update_polars(bgcolor=P["surface"],
+                                  radialaxis=dict(color=P["text_sec"], gridcolor=P["border"]),
+                                  angularaxis=dict(color=P["text"], gridcolor=P["border"])),
+        lambda: fig.update_annotations(font_color=P["text"]),
+    )
+    for passo in passos:          # cada passo é independente: um que não se aplica não impede os outros
+        try:
+            passo()
+        except Exception:
+            pass
+    return fig
+
+
+def instalar_tema_graficos():
+    """Faz st.pyplot e st.plotly_chart adaptarem os gráficos ao tema escolhido (chamar uma vez por execução)."""
+    if not getattr(st.pyplot, "_df_tema", False):
+        _pyplot = st.pyplot
+
+        def pyplot(fig=None, *args, **kwargs):
+            if fig is None:
+                try:
+                    import matplotlib.pyplot as plt
+                    fig = plt.gcf()
+                except Exception:
+                    pass
+            tema_figura_matplotlib(fig)
+            return _pyplot(fig, *args, **kwargs)
+        pyplot._df_tema = True
+        st.pyplot = pyplot
+    if not getattr(st.plotly_chart, "_df_tema", False):
+        _plotly = st.plotly_chart
+
+        def plotly_chart(fig, *args, **kwargs):
+            tema_figura_plotly(fig)
+            return _plotly(fig, *args, **kwargs)
+        plotly_chart._df_tema = True
+        st.plotly_chart = plotly_chart
+
+
+# ══════════════════════════════════════════════════════
+# ESCOLHA DO TEMA (fica guardada na conta)
+# ══════════════════════════════════════════════════════
+def definir_tema(username: str, tema: str):
+    tema = "claro" if tema == "claro" else "escuro"
+    st.session_state["tema"] = tema
+    st.session_state["tema_toggle"] = tema == "claro"
+    st.session_state["perfil_tema"] = "Claro" if tema == "claro" else "Escuro"
+    try:
+        progress = get_user_progress(username)
+        progress["tema"] = tema
+        _gravar_progress(username, progress)
+    except Exception:
+        pass          # sem base de dados a escolha vale só para esta sessão
+
+
+def carregar_tema(username: str) -> bool:
+    """Ao entrar, aplica o tema guardado na conta (escuro se nunca escolheu). True se mudou: fazer st.rerun()."""
+    chave = f"_tema_lido_{username}"
+    if st.session_state.get(chave):
+        return False
+    st.session_state[chave] = True
+    try:
+        guardado = get_user_progress(username).get("tema")
+    except Exception:
+        guardado = None
+    alvo = guardado if guardado in ("claro", "escuro") else "escuro"
+    st.session_state["tema_toggle"] = alvo == "claro"
+    st.session_state["perfil_tema"] = "Claro" if alvo == "claro" else "Escuro"
+    if alvo != tema_actual():
+        st.session_state["tema"] = alvo
+        return True
+    return False
+
+
+def _ao_mudar_toggle(username: str):
+    definir_tema(username, "claro" if st.session_state.get("tema_toggle") else "escuro")
+
+
+def _ao_mudar_radio(username: str):
+    definir_tema(username, "claro" if st.session_state.get("perfil_tema") == "Claro" else "escuro")
+
+
+def render_seletor_tema(username: str):
+    """Interruptor compacto (menu lateral)."""
+    st.session_state.setdefault("tema_toggle", tema_actual() == "claro")
+    st.toggle("Tema claro", key="tema_toggle", on_change=_ao_mudar_toggle, args=(username,),
+              help="Fundo branco em todo o DataForge. Fica guardado na tua conta.")
+
+
+def render_seletor_tema_perfil(username: str):
+    """Escolha explícita Escuro / Claro (página Perfil)."""
+    st.session_state.setdefault("perfil_tema", "Claro" if tema_actual() == "claro" else "Escuro")
+    st.radio("Tema", ["Escuro", "Claro"], key="perfil_tema", horizontal=True,
+             on_change=_ao_mudar_radio, args=(username,))
 
 
 # ══════════════════════════════════════════════════════

@@ -154,7 +154,7 @@ def render_mlp(username: str):
                 nm = st.selectbox("Dataset", opcoes, key="mlp_c_ds")
                 df, desc, _ = carregar_dataset_embutido(nm)
                 if df is not None and desc:
-                    st.markdown(f'<div style="font-size:13px;color:#D0D8F0;">{desc}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="font-size:13px;color:var(--df-text2,#B8C4D8);">{desc}</div>', unsafe_allow_html=True)
             else:
                 f = st.file_uploader("CSV", type=["csv"], key="mlp_c_up")
                 df = pd.read_csv(f) if f else None
@@ -214,7 +214,7 @@ def render_mlp(username: str):
                 nm2 = st.selectbox("Dataset", opcoes2, key="mlp_r_ds")
                 df2, desc2, _ = carregar_dataset_embutido(nm2)
                 if df2 is not None and desc2:
-                    st.markdown(f'<div style="font-size:13px;color:#D0D8F0;">{desc2}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="font-size:13px;color:var(--df-text2,#B8C4D8);">{desc2}</div>', unsafe_allow_html=True)
             else:
                 f2 = st.file_uploader("CSV", type=["csv"], key="mlp_r_up")
                 df2 = pd.read_csv(f2) if f2 else None
@@ -309,7 +309,7 @@ def _train_mlp_clf(df, features, target, hidden, activation, solver, lr, max_ite
 def _show_mlp_clf_result():
     res = st.session_state.get("mlp_clf_res", {})
     if not res:
-        st.markdown(f"""<div style="text-align:center;padding:5rem;color:#7A8BA8; border:2px dashed #3A4560;border-radius:16px;margin-top:1rem;"><div style="font-size:40px;margin-bottom:1rem;"></div><div style="font-size:16px;font-weight:700;color:#FFFFFF;">Configura a rede e clica em <strong>Treinar</strong></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style="text-align:center;padding:5rem;color:var(--df-text3,#7A8BA8); border:2px dashed var(--df-border2,#3A4560);border-radius:16px;margin-top:1rem;"><div style="font-size:40px;margin-bottom:1rem;"></div><div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">Configura a rede e clica em <strong>Treinar</strong></div></div>""", unsafe_allow_html=True)
         return
 
     c1, c2, c3 = st.columns(3)
@@ -385,7 +385,7 @@ def _train_mlp_reg(df, features, target, hidden, activation, solver, lr, max_ite
 def _show_mlp_reg_result():
     res = st.session_state.get("mlp_reg_res", {})
     if not res:
-        st.markdown(f"""<div style="text-align:center;padding:5rem;color:#7A8BA8; border:2px dashed #3A4560;border-radius:16px;margin-top:1rem;"><div style="font-size:40px;margin-bottom:1rem;"></div><div style="font-size:16px;font-weight:700;color:#FFFFFF;">Configura e clica em <strong>Treinar</strong></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style="text-align:center;padding:5rem;color:var(--df-text3,#7A8BA8); border:2px dashed var(--df-border2,#3A4560);border-radius:16px;margin-top:1rem;"><div style="font-size:40px;margin-bottom:1rem;"></div><div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">Configura e clica em <strong>Treinar</strong></div></div>""", unsafe_allow_html=True)
         return
 
     c1, c2, c3, c4 = st.columns(4)

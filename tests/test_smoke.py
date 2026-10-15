@@ -200,3 +200,23 @@ def test_aluno_com_palavra_passe_temporaria_tem_de_a_trocar():
     at = _app("dashboard", "novo")
     _sem_erros(at)
     assert "painel" not in at.session_state
+
+
+# ── Tema claro ────────────────────────────────────────
+@pytest.mark.parametrize("pagina", ["dashboard", "perfil", "classificacao", "comparador"])
+def test_tema_claro_desenha_as_paginas_sem_erros(pagina):
+    from modules import db
+    db.save_progress("aluno", {"tema": "claro"})          # tema guardado na conta: a app aplica-o ao entrar
+    at = _app(pagina)
+    _sem_erros(at)
+    assert at.session_state["tema"] == "claro"
+
+
+def test_interruptor_do_tema_muda_e_fica_guardado():
+    from modules import db
+    at = _app("dashboard")
+    assert at.toggle(key="tema_toggle").value is False     # escuro por omissão
+    at.toggle(key="tema_toggle").set_value(True).run()
+    _sem_erros(at)
+    assert at.session_state["tema"] == "claro"
+    assert db.get_progress("aluno").get("tema") == "claro"

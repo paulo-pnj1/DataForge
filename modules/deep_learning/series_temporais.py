@@ -177,7 +177,7 @@ def render_series_temporais(username: str):
                     serie = _gerar_serie_tendencia()
                 else:
                     serie = _gerar_serie_vendas()
-                st.markdown(f'<div style="font-size:13px;color:#D0D8F0;font-weight:600;">{ds_desc}</div>',
+                st.markdown(f'<div style="font-size:13px;color:var(--df-text2,#B8C4D8);font-weight:600;">{ds_desc}</div>',
                             unsafe_allow_html=True)
                 st.plotly_chart(_plot_serie(serie, ds_nome), width='stretch')
                 valores = serie.to_numpy(dtype=float)
@@ -251,7 +251,7 @@ def render_series_temporais(username: str):
                     "<strong>MAE</strong> (Mean Absolute Error): erro médio absoluto. "
                     "Mais intuitivo - 'em média, erro X unidades'.")
             else:
-                st.markdown(f"""<div style="text-align:center;padding:5rem;color:#7A8BA8; border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:48px;margin-bottom:1rem;">&#128200;</div><div style="font-size:16px;font-weight:700;color:#FFFFFF;">Configura e clica em <strong>Treinar e Prever</strong></div></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div style="text-align:center;padding:5rem;color:var(--df-text3,#7A8BA8); border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:48px;margin-bottom:1rem;">&#128200;</div><div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">Configura e clica em <strong>Treinar e Prever</strong></div></div>""", unsafe_allow_html=True)
 
     # ════════════════════════════════════════════════
     # ARIMA
@@ -281,7 +281,7 @@ def render_series_temporais(username: str):
             n_prev = st.slider("Passos a prever", 5, 50, 20, key="ar_np")
             test_a = st.slider("% Teste", 10, 30, 20, key="ar_ts") / 100
 
-            st.markdown(f"""<div style="background:{C_SURFACE2};border:2px solid {C_BORDER};border-radius:10px; padding:.8rem 1rem;font-size:13px;color:#D0D8F0;font-weight:600;"><strong style="color:#FFFFFF;">ARIMA({p},{d},{q})</strong><br>p={p}: usa {p} valores passados<br>d={d}: diferencia {d} vez(es) para estacionaridade<br>q={q}: usa {q} erros passados</div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="background:{C_SURFACE2};border:2px solid {C_BORDER};border-radius:10px; padding:.8rem 1rem;font-size:13px;color:var(--df-text2,#B8C4D8);font-weight:600;"><strong style="color:var(--df-text,#FFFFFF);">ARIMA({p},{d},{q})</strong><br>p={p}: usa {p} valores passados<br>d={d}: diferencia {d} vez(es) para estacionaridade<br>q={q}: usa {q} erros passados</div>""", unsafe_allow_html=True)
 
             if st.button("Ajustar ARIMA", width='stretch', key="ar_run"):
                 _train_arima(valores_a, p, d, q, n_prev, test_a, username)
@@ -300,7 +300,7 @@ def render_series_temporais(username: str):
                     "<strong>q</strong>: componente de média móvel dos erros. "
                     "Para séries com sazonalidade forte, usa SARIMA.")
             else:
-                st.markdown(f"""<div style="text-align:center;padding:5rem;color:#7A8BA8; border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:48px;margin-bottom:1rem;">&#128202;</div><div style="font-size:16px;font-weight:700;color:#FFFFFF;">Configura os parâmetros e clica em <strong>Ajustar ARIMA</strong></div></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div style="text-align:center;padding:5rem;color:var(--df-text3,#7A8BA8); border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:48px;margin-bottom:1rem;">&#128202;</div><div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">Configura os parâmetros e clica em <strong>Ajustar ARIMA</strong></div></div>""", unsafe_allow_html=True)
 
 
 def _train_lstm_gru(valores, modelo_tipo, seq_len, hidden_sz, n_layers,
@@ -341,7 +341,7 @@ def _train_lstm_gru(valores, modelo_tipo, seq_len, hidden_sz, n_layers,
             if (epoch + 1) % max(1, epochs // 10) == 0 or epoch == epochs - 1:
                 progress.progress((epoch + 1) / epochs)
                 status.markdown(
-                    f'<div style="color:#FFFFFF;font-weight:700;">Época {epoch+1}/{epochs} - Loss: {loss.item():.6f}</div>',
+                    f'<div style="color:var(--df-text,#FFFFFF);font-weight:700;">Época {epoch+1}/{epochs} - Loss: {loss.item():.6f}</div>',
                     unsafe_allow_html=True
                 )
 

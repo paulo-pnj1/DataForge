@@ -170,4 +170,4 @@ def render_anomalias(username: str):
                 "Ajusta a <strong>contaminação</strong> conforme a percentagem real de outliers que esperas. "
                 "Usa <strong>PCA 2D</strong> apenas para visualização - o modelo foi treinado no espaço original.")
         else:
-            st.markdown(f"""<div style="text-align:center;padding:5rem;color:#7A8BA8; border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:40px;margin-bottom:1rem;"></div><div style="font-size:16px;font-weight:700;color:#FFFFFF;">Configura e clica em <strong>Detectar Anomalias</strong></div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="text-align:center;padding:5rem;color:var(--df-text3,#7A8BA8); border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:40px;margin-bottom:1rem;"></div><div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">Configura e clica em <strong>Detectar Anomalias</strong></div></div>""", unsafe_allow_html=True)

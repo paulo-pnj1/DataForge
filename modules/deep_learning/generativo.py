@@ -251,7 +251,7 @@ def render_generativo(username: str):
                     "são semanticamente similares nos dados originais. "
                     "Com <strong>latente = 2</strong> conseguimos visualizar directamente.")
             else:
-                st.markdown(f"""<div style="text-align:center;padding:4rem;color:#7A8BA8; border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:48px;margin-bottom:1rem;">&#127968;</div><div style="font-size:16px;font-weight:700;color:#FFFFFF;">Clica em <strong>Treinar Autoencoder</strong></div></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div style="text-align:center;padding:4rem;color:var(--df-text3,#7A8BA8); border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:48px;margin-bottom:1rem;">&#127968;</div><div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">Clica em <strong>Treinar Autoencoder</strong></div></div>""", unsafe_allow_html=True)
 
     # ════════════════════════════════════════════════
     # VAE
@@ -304,7 +304,7 @@ def render_generativo(username: str):
                     st.plotly_chart(_scatter_2d(res_v["Z"][:, :2], "Espaço Latente VAE"),
                                     width='stretch')
             else:
-                st.markdown(f"""<div style="text-align:center;padding:4rem;color:#7A8BA8; border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:48px;margin-bottom:1rem;">&#127775;</div><div style="font-size:16px;font-weight:700;color:#FFFFFF;">Clica em <strong>Treinar VAE</strong></div></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div style="text-align:center;padding:4rem;color:var(--df-text3,#7A8BA8); border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:48px;margin-bottom:1rem;">&#127775;</div><div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">Clica em <strong>Treinar VAE</strong></div></div>""", unsafe_allow_html=True)
 
     # ════════════════════════════════════════════════
     # GAN
@@ -321,7 +321,7 @@ def render_generativo(username: str):
             lr_g     = st.select_slider("Learning Rate", [0.0001, 0.0002, 0.001], value=0.0002, key="gan_lr")
             n_gen_g  = st.slider("Amostras a gerar", 100, 1000, 300, key="gan_ngen")
 
-            st.markdown(f"""<div style="background:{C_SURFACE2};border:2px solid {C_BORDER};border-radius:10px; padding:.8rem 1rem;font-size:13px;color:#D0D8F0;font-weight:600;margin-top:1rem;">O GAN treina dois modelos:<br><strong style="color:{C_GREEN};">Gerador</strong>: cria dados falsos<br><strong style="color:{C_RED};">Discriminador</strong>: distingue real de falso<br>Ambos competem até o gerador enganar o discriminador.</div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="background:{C_SURFACE2};border:2px solid {C_BORDER};border-radius:10px; padding:.8rem 1rem;font-size:13px;color:var(--df-text2,#B8C4D8);font-weight:600;margin-top:1rem;">O GAN treina dois modelos:<br><strong style="color:{C_GREEN};">Gerador</strong>: cria dados falsos<br><strong style="color:{C_RED};">Discriminador</strong>: distingue real de falso<br>Ambos competem até o gerador enganar o discriminador.</div>""", unsafe_allow_html=True)
 
             if st.button("Treinar GAN", width='stretch', key="gan_run"):
                 X_g = _gerar_dados_2d(tipo_g, n_g)
@@ -366,7 +366,7 @@ def render_generativo(username: str):
                     "Se a loss do Gerador sobe muito, o discriminador está a ganhar - experimenta "
                     "reduzir o learning rate ou aumentar a dimensão do ruído.")
             else:
-                st.markdown(f"""<div style="text-align:center;padding:4rem;color:#7A8BA8; border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:48px;margin-bottom:1rem;">&#127917;</div><div style="font-size:16px;font-weight:700;color:#FFFFFF;">Clica em <strong>Treinar GAN</strong></div></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div style="text-align:center;padding:4rem;color:var(--df-text3,#7A8BA8); border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:48px;margin-bottom:1rem;">&#127917;</div><div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">Clica em <strong>Treinar GAN</strong></div></div>""", unsafe_allow_html=True)
 
 
 # ── HELPERS DE TREINO ─────────────────────────────────
@@ -389,7 +389,7 @@ def _train_autoencoder(X, latent_dim, hidden_dims, epochs, lr, username):
             losses.append(loss.item())
             if (ep + 1) % max(1, epochs // 10) == 0:
                 prog.progress((ep + 1) / epochs)
-                stat.markdown(f'<div style="color:#FFFFFF;font-weight:700;">Época {ep+1}/{epochs} - Loss: {loss.item():.6f}</div>', unsafe_allow_html=True)
+                stat.markdown(f'<div style="color:var(--df-text,#FFFFFF);font-weight:700;">Época {ep+1}/{epochs} - Loss: {loss.item():.6f}</div>', unsafe_allow_html=True)
 
         model.eval()
         with torch.no_grad():
@@ -425,7 +425,7 @@ def _train_vae(X, latent_dim, hidden_dim, epochs, lr, n_gen, username):
             losses.append(loss.item())
             if (ep + 1) % max(1, epochs // 10) == 0:
                 prog.progress((ep + 1) / epochs)
-                stat.markdown(f'<div style="color:#FFFFFF;font-weight:700;">Época {ep+1}/{epochs} - Loss: {loss.item():.2f}</div>', unsafe_allow_html=True)
+                stat.markdown(f'<div style="color:var(--df-text,#FFFFFF);font-weight:700;">Época {ep+1}/{epochs} - Loss: {loss.item():.2f}</div>', unsafe_allow_html=True)
 
         model.eval()
         with torch.no_grad():
@@ -486,7 +486,7 @@ def _train_gan(X, noise_dim, hidden_dim, epochs, lr, n_gen, username):
             if (ep + 1) % max(1, epochs // 10) == 0:
                 prog.progress((ep + 1) / epochs)
                 stat.markdown(
-                    f'<div style="color:#FFFFFF;font-weight:700;">Época {ep+1}/{epochs} - '
+                    f'<div style="color:var(--df-text,#FFFFFF);font-weight:700;">Época {ep+1}/{epochs} - '
                     f'G: {loss_G.item():.4f} | D: {loss_D.item():.4f}</div>',
                     unsafe_allow_html=True
                 )

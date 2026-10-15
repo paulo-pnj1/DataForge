@@ -195,7 +195,7 @@ def render_visao(username: str):
 
         with col_cfg:
             section_title("Dataset")
-            st.markdown(f"""<div style="background:{C_SURFACE2};border:2px solid {C_BORDER};border-radius:10px; padding:1rem;margin-bottom:1rem;font-size:14px;color:#D0D8F0;font-weight:600;">Estrutura do ZIP esperada:<br><code>dataset.zip/<br>&nbsp;&nbsp;classe_A/img1.jpg<br>&nbsp;&nbsp;classe_A/img2.jpg<br>&nbsp;&nbsp;classe_B/img1.jpg</code></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="background:{C_SURFACE2};border:2px solid {C_BORDER};border-radius:10px; padding:1rem;margin-bottom:1rem;font-size:14px;color:var(--df-text2,#B8C4D8);font-weight:600;">Estrutura do ZIP esperada:<br><code>dataset.zip/<br>&nbsp;&nbsp;classe_A/img1.jpg<br>&nbsp;&nbsp;classe_A/img2.jpg<br>&nbsp;&nbsp;classe_B/img1.jpg</code></div>""", unsafe_allow_html=True)
 
             zip_file = st.file_uploader("ZIP com imagens por classe", type=["zip"], key="vis_zip")
 
@@ -256,7 +256,7 @@ def render_visao(username: str):
                     "Se a accuracy de validação fica muito abaixo da de treino, há <strong>overfitting</strong> "
                     "- experimenta mais dropout ou menos épocas.")
             else:
-                st.markdown(f"""<div style="text-align:center;padding:5rem;color:#7A8BA8; border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:48px;margin-bottom:1rem;">&#128247;</div><div style="font-size:16px;font-weight:700;color:#FFFFFF;">Carrega um ZIP e clica em <strong>Treinar CNN</strong></div></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div style="text-align:center;padding:5rem;color:var(--df-text3,#7A8BA8); border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:48px;margin-bottom:1rem;">&#128247;</div><div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">Carrega um ZIP e clica em <strong>Treinar CNN</strong></div></div>""", unsafe_allow_html=True)
 
     with tab_inferencia:
         section_title("Classificar nova imagem")
@@ -384,7 +384,7 @@ def _train_cnn(classes_data, arch, n_conv, n_filters, dropout,
 
             progress_bar.progress((epoch + 1) / epochs)
             status_txt.markdown(
-                f'<div style="color:#FFFFFF;font-weight:700;">Época {epoch+1}/{epochs} - '
+                f'<div style="color:var(--df-text,#FFFFFF);font-weight:700;">Época {epoch+1}/{epochs} - '
                 f'Loss: {epoch_loss:.4f} - Acc treino: {epoch_acc:.1%} - Acc val: {val_acc:.1%}</div>',
                 unsafe_allow_html=True
             )

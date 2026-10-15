@@ -68,7 +68,7 @@ tests/test_smoke.py
 ```
 
 ## O que ainda não existe
-- Versão em inglês e tema claro (a interface está toda escrita em português, com tema escuro).
+- Versão em inglês (a interface está toda escrita em português).
 
 ## Painéis e organizações (Fase 1)
 
@@ -84,3 +84,10 @@ tests/test_smoke.py
 - **Email (Brevo):** preenche `smtp_*`, `email_from` e `admin_email` nos segredos (ver `.streamlit/secrets.toml.example`). Em *Administração > Email* vês a quota diária, a fila e podes enviar um email de teste. Sem email configurado, tudo funciona: os códigos e links aparecem no ecrã para os enviares à mão. O código `admin_code` só serve para criar o primeiro administrador.
 - **Base de dados já existente:** volta a executar `schema.sql` no Supabase (é seguro repetir) para criar as tabelas novas e a coluna `turmas.org_id`.
 - O painel Business ainda é um marcador; o MVP vem na Fase 3.
+
+## Tema claro (branco)
+
+- Interruptor **Tema claro** no menu lateral (por cima de *Sair*) e escolha **Escuro / Claro** em *Perfil*. A escolha fica guardada na conta e aplica-se ao entrar; o ecrã de login é sempre escuro.
+- Como funciona: as cores da paleta (`C_BG`, `C_TEXT`...) continuam a ser hex em Python (gráficos) e passam a variáveis CSS `--df-*` dentro de HTML, por isso o mesmo código serve os dois temas. As duas paletas estão em `TEMAS` (`modules/utils.py`); para ajustar uma cor, muda-a aí.
+- Gráficos: `st.pyplot` e `st.plotly_chart` são envolvidos por `instalar_tema_graficos()` (chamado em `app.py`) e adaptam fundo, eixos, legenda e texto ao tema; as cores dos dados não mudam. Tabelas (`st.dataframe`) e gráficos nativos (`st.bar_chart`) convertem-se por filtro CSS no tema claro.
+- Texto novo em HTML: usa `{C_TEXT}`, `{C_TEXT_SEC}`... ou `color:var(--df-text)`; evita `#FFFFFF` e `#161B27` fixos, porque ficam errados num dos temas.

@@ -128,7 +128,7 @@ def render_reducao(username: str):
             nm = st.selectbox("Dataset", opcoes, key="rd_ds")
             df, desc, _ = carregar_dataset_embutido(nm)
             if df is not None and desc:
-                st.markdown(f'<div style="font-size:13px;color:#D0D8F0;">{desc}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="font-size:13px;color:var(--df-text2,#B8C4D8);">{desc}</div>', unsafe_allow_html=True)
         else:
             f = st.file_uploader("CSV", type=["csv"], key="rd_up")
             df = pd.read_csv(f) if f else None
@@ -245,4 +245,4 @@ def render_reducao(username: str):
                 "<strong>t-SNE e UMAP</strong> preservam estrutura local (boa para visualização). "
                 "<strong>PCA</strong> preserva variância global (boa para pré-processamento).")
         else:
-            st.markdown(f"""<div style="text-align:center;padding:5rem;color:#7A8BA8; border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:40px;margin-bottom:1rem;"></div><div style="font-size:16px;font-weight:700;color:#FFFFFF;">Configura os parâmetros e clica em <strong>Reduzir Dimensionalidade</strong></div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="text-align:center;padding:5rem;color:var(--df-text3,#7A8BA8); border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:40px;margin-bottom:1rem;"></div><div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">Configura os parâmetros e clica em <strong>Reduzir Dimensionalidade</strong></div></div>""", unsafe_allow_html=True)

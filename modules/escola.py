@@ -45,7 +45,7 @@ def _caixa(titulo: str, corpo: str, cor: str = C_ACCENT):
 def _secao(numero: int, titulo: str):
     st.markdown(
         f'<div style="display:flex;align-items:center;gap:10px;margin:1.8rem 0 .6rem;">'
-        f'<div style="width:26px;height:26px;border-radius:50%;background:{C_ACCENT};color:#0D1117;'
+        f'<div style="width:26px;height:26px;border-radius:50%;background:{C_ACCENT};color:var(--df-on-accent,#0D1117);'
         f'font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;">{numero}</div>'
         f'<div style="font-size:18px;font-weight:800;color:{C_TEXT};">{titulo}</div></div>',
         unsafe_allow_html=True,
@@ -774,7 +774,7 @@ def _licao_11():
         st.markdown(
             f'<div style="display:flex;gap:12px;align-items:flex-start;background:{C_SURFACE};border:1px solid {C_BORDER};'
             f'border-radius:10px;padding:.7rem 1rem;margin-bottom:.5rem;">'
-            f'<div style="min-width:28px;height:28px;border-radius:50%;background:{C_ACCENT};color:#0D1117;font-weight:800;'
+            f'<div style="min-width:28px;height:28px;border-radius:50%;background:{C_ACCENT};color:var(--df-on-accent,#0D1117);font-weight:800;'
             f'display:flex;align-items:center;justify-content:center;">{i}</div>'
             f'<div><div style="font-weight:700;color:{C_TEXT};">{t}</div>'
             f'<div style="font-size:14px;color:{C_TEXT_SEC};">{d}</div></div></div>',

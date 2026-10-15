@@ -728,18 +728,18 @@ def _tab_conhecer(res, an):
         p = _pers(nome)
         st.markdown(
             f'<div style="background:{C_SURFACE};border:1px solid {C_BORDER};border-left:4px solid {C_ACCENT};border-radius:10px;'
-            f'padding:.9rem 1.1rem;margin-bottom:.7rem;"><div style="font-size:17px;font-weight:800;color:#FFFFFF;">{nome}</div>'
-            f'<div style="font-size:14px;color:#D0D8F0;margin-top:4px;"><b>Analogia:</b> {p["analogia"]}</div>'
-            f'<div style="font-size:14px;color:#D0D8F0;"><b>Forte:</b> {p["forte"]}</div>'
-            f'<div style="font-size:14px;color:#D0D8F0;"><b>Fraco:</b> {p["fraco"]}</div>'
-            f'<div style="font-size:14px;color:#D0D8F0;"><b>Desenha fronteiras assim:</b> {p["forma"]}</div></div>',
+            f'padding:.9rem 1.1rem;margin-bottom:.7rem;"><div style="font-size:17px;font-weight:800;color:var(--df-text,#FFFFFF);">{nome}</div>'
+            f'<div style="font-size:14px;color:var(--df-text2,#B8C4D8);margin-top:4px;"><b>Analogia:</b> {p["analogia"]}</div>'
+            f'<div style="font-size:14px;color:var(--df-text2,#B8C4D8);"><b>Forte:</b> {p["forte"]}</div>'
+            f'<div style="font-size:14px;color:var(--df-text2,#B8C4D8);"><b>Fraco:</b> {p["fraco"]}</div>'
+            f'<div style="font-size:14px;color:var(--df-text2,#B8C4D8);"><b>Desenha fronteiras assim:</b> {p["forma"]}</div></div>',
             unsafe_allow_html=True)
 
 
 def _show_comparison_result(tipo):
     res = st.session_state.get("cmp_result")
     if not res or res.get("tipo") != tipo:
-        st.markdown(f"""<div style="text-align:center;padding:3.5rem;color:#7A8BA8;border:2px dashed #3A4560;border-radius:16px;margin-top:1rem;">
+        st.markdown(f"""<div style="text-align:center;padding:3.5rem;color:var(--df-text3,#7A8BA8);border:2px dashed var(--df-border2,#3A4560);border-radius:16px;margin-top:1rem;">
         Configura a comparação acima e carrega em <b>Comparar Modelos</b>.</div>""", unsafe_allow_html=True)
         return
     an = _analise(res)

@@ -241,7 +241,7 @@ def render_q_learning(username: str):
             section_title("Ambiente GridWorld")
             n_grid = st.slider("Tamanho da grelha (N x N)", 4, 10, 5, key="ql_n")
 
-            st.markdown(f'<div style="font-size:13px;color:#D0D8F0;font-weight:700;margin-bottom:.3rem;">Obstaculos (linha,col separados por espaco):</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:13px;color:var(--df-text2,#B8C4D8);font-weight:700;margin-bottom:.3rem;">Obstaculos (linha,col separados por espaco):</div>', unsafe_allow_html=True)
             obs_input  = st.text_input("Ex: 1,1 2,2 3,1", value="1,1 2,2 3,1", key="ql_obs")
             trap_input = st.text_input("Armadilhas Ex: 1,3 3,3", value="1,3", key="ql_trap")
 
@@ -272,8 +272,8 @@ def render_q_learning(username: str):
 
             st.markdown(f"""
             <div style="background:{C_SURFACE2};border:2px solid {C_BORDER};border-radius:10px;
-            padding:.8rem 1rem;font-size:13px;color:#D0D8F0;font-weight:600;margin-top:.5rem;">
-            <strong style="color:#FFFFFF;">Legenda:</strong><br>
+            padding:.8rem 1rem;font-size:13px;color:var(--df-text2,#B8C4D8);font-weight:600;margin-top:.5rem;">
+            <strong style="color:var(--df-text,#FFFFFF);">Legenda:</strong><br>
             \u25cf Inicio (0,0) &nbsp;|\u25cf Meta ({n_grid-1},{n_grid-1})<br>
             \u25a0 Obstaculo &nbsp;| \u2715 Armadilha
             </div>
@@ -325,10 +325,10 @@ def render_q_learning(username: str):
                     "A <strong>recompensa</strong> deve aumentar e os <strong>passos</strong> diminuir ao longo do treino.")
             else:
                 st.markdown(f"""
-                <div style="text-align:center;padding:5rem;color:#7A8BA8;
+                <div style="text-align:center;padding:5rem;color:var(--df-text3,#7A8BA8);
                 border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;">
                     <div style="font-size:48px;margin-bottom:1rem;">\U0001f916</div>
-                    <div style="font-size:16px;font-weight:700;color:#FFFFFF;">
+                    <div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">
                         Configura o ambiente e clica em <strong>Treinar Agente</strong>
                     </div>
                 </div>
@@ -345,10 +345,10 @@ def render_q_learning(username: str):
             st.markdown(f"""
             <div style="background:{C_SURFACE};border:2px solid {C_BORDER};border-radius:12px;
             padding:1rem;margin-bottom:1rem;">
-                <div style="font-size:15px;font-weight:800;color:#FFFFFF;margin-bottom:.5rem;">
+                <div style="font-size:15px;font-weight:800;color:var(--df-text,#FFFFFF);margin-bottom:.5rem;">
                     Caminho encontrado: {len(path)} passos
                 </div>
-                <div style="font-size:13px;color:#D0D8F0;font-weight:600;">
+                <div style="font-size:13px;color:var(--df-text2,#B8C4D8);font-weight:600;">
                     {" \u2192 ".join([f"({r},{c})" for r, c in path])}
                 </div>
             </div>
@@ -369,9 +369,9 @@ def render_q_learning(username: str):
                 sucesso_box("Animacao concluida!")
         else:
             st.markdown(f"""
-            <div style="text-align:center;padding:3rem;color:#7A8BA8;
+            <div style="text-align:center;padding:3rem;color:var(--df-text3,#7A8BA8);
             border:2px dashed {C_BORDER};border-radius:16px;">
-                <div style="font-size:16px;font-weight:700;color:#FFFFFF;">
+                <div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">
                     Treina o agente primeiro para ver a animacao
                 </div>
             </div>

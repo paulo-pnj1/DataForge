@@ -202,7 +202,7 @@ def render_dashboard(name: str, username: str):
     cols = st.columns(4)
     for col, k in zip(cols, kpis):
         with col:
-            st.markdown(f"""<div style="background:{C_SURFACE};border:1px solid {C_BORDER};border-radius:12px; padding:1rem 1.1rem;display:flex;align-items:center;gap:12px;"><div style="width:40px;height:40px;background:rgba(255,255,255,.04);border-radius:10px; border:1px solid {C_BORDER};display:flex;align-items:center;justify-content:center;flex-shrink:0;">{_ico(k["icon"], 20, k["cor"])}</div><div><div style="font-size:20px;font-weight:800;color:{C_TEXT};line-height:1.1;">{k["valor"]}</div><div style="font-size:11px;font-weight:600;color:{C_TEXT_MUTE};text-transform:uppercase; letter-spacing:.06em;margin-top:2px;">{k["label"]}</div></div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="background:{C_SURFACE};border:1px solid {C_BORDER};border-radius:12px; padding:1rem 1.1rem;display:flex;align-items:center;gap:12px;"><div style="width:40px;height:40px;background:var(--df-overlay,rgba(255,255,255,.04));border-radius:10px; border:1px solid {C_BORDER};display:flex;align-items:center;justify-content:center;flex-shrink:0;">{_ico(k["icon"], 20, k["cor"])}</div><div><div style="font-size:20px;font-weight:800;color:{C_TEXT};line-height:1.1;">{k["valor"]}</div><div style="font-size:11px;font-weight:600;color:{C_TEXT_MUTE};text-transform:uppercase; letter-spacing:.06em;margin-top:2px;">{k["label"]}</div></div></div>""", unsafe_allow_html=True)
 
     # ── PROGRESSO ────────────────────────────────────
     st.markdown("<div style='margin:1.4rem 0 .2rem;'>", unsafe_allow_html=True)
@@ -268,7 +268,7 @@ def _card_modulo(modulo: dict, completados: list):
         status_ico = _ico("check", 14, C_GREEN)
         bl         = f"3px solid {cor}"
     elif bloqueado:
-        status_bg  = "rgba(255,255,255,.04)"
+        status_bg  = "var(--df-overlay,rgba(255,255,255,.04))"
         status_ico = _ico("lock", 14, C_TEXT_MUTE)
         bl         = f"1px solid {C_BORDER}"
     else:
@@ -287,7 +287,7 @@ def _card_modulo(modulo: dict, completados: list):
             f'&nbsp;Recomendado fazer antes: {", ".join(nomes_pre)}</div>'
         )
 
-    st.markdown(f"""<div style="background:{C_SURFACE};border-left:{bl}; border-top:1px solid {C_BORDER};border-right:1px solid {C_BORDER}; border-bottom:1px solid {C_BORDER};border-radius:12px; padding:1rem 1.1rem;margin-bottom:.8rem;opacity:{opac};"><div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.8rem;"><div style="width:36px;height:36px;background:rgba(255,255,255,.05); border-radius:9px;display:flex;align-items:center;justify-content:center;">{mod_ico}</div><div style="width:26px;height:26px;background:{status_bg}; border-radius:7px;display:flex;align-items:center;justify-content:center;">{status_ico}</div></div><div style="font-size:14px;font-weight:700;color:{C_TEXT};margin-bottom:3px;">{modulo["titulo"]}</div><div style="font-size:11px;color:{C_TEXT_MUTE};margin-bottom:.7rem; overflow:hidden;display:-webkit-box;-webkit-line-clamp:2; -webkit-box-orient:vertical;line-height:1.6;">{modulo["descricao"]}</div><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;"><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px; color:{nivel_cor};background:{nivel_cor}1A;border:1px solid {nivel_cor}33;">{modulo["nivel"]}</span><span style="font-size:10px;padding:2px 8px;border-radius:8px; color:{C_TEXT_MUTE};background:rgba(255,255,255,.04);">{modulo["algoritmos"]} algoritmos</span></div>{bloq_html}</div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div style="background:{C_SURFACE};border-left:{bl}; border-top:1px solid {C_BORDER};border-right:1px solid {C_BORDER}; border-bottom:1px solid {C_BORDER};border-radius:12px; padding:1rem 1.1rem;margin-bottom:.8rem;opacity:{opac};"><div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.8rem;"><div style="width:36px;height:36px;background:var(--df-overlay,rgba(255,255,255,.04)); border-radius:9px;display:flex;align-items:center;justify-content:center;">{mod_ico}</div><div style="width:26px;height:26px;background:{status_bg}; border-radius:7px;display:flex;align-items:center;justify-content:center;">{status_ico}</div></div><div style="font-size:14px;font-weight:700;color:{C_TEXT};margin-bottom:3px;">{modulo["titulo"]}</div><div style="font-size:11px;color:{C_TEXT_MUTE};margin-bottom:.7rem; overflow:hidden;display:-webkit-box;-webkit-line-clamp:2; -webkit-box-orient:vertical;line-height:1.6;">{modulo["descricao"]}</div><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;"><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px; color:{nivel_cor};background:color-mix(in srgb, {nivel_cor} 10%, transparent);border:1px solid color-mix(in srgb, {nivel_cor} 20%, transparent);">{modulo["nivel"]}</span><span style="font-size:10px;padding:2px 8px;border-radius:8px; color:{C_TEXT_MUTE};background:var(--df-overlay,rgba(255,255,255,.04));">{modulo["algoritmos"]} algoritmos</span></div>{bloq_html}</div>""", unsafe_allow_html=True)
 
     pagina = MODULO_PARA_PAGINA.get(mid)
     if pagina and st.button("Abrir" if not feito else "Praticar de novo", key=f"abrir_{mid}", width="stretch"):

@@ -161,7 +161,7 @@ def render_clustering(username: str):
                 nome_ds = st.selectbox("Dataset", opcoes_cl, key="cl_ds_nome")
                 df, desc, _ = carregar_dataset_embutido(nome_ds)
                 if df is not None:
-                    st.markdown(f'<div style="font-size:14px;color:#D0D8F0;padding:.6rem 0;">{desc}</div>',
+                    st.markdown(f'<div style="font-size:14px;color:var(--df-text2,#B8C4D8);padding:.6rem 0;">{desc}</div>',
                                 unsafe_allow_html=True)
                     st.dataframe(df.head(5), width='stretch')
                     st.session_state.cl_df = df
@@ -199,7 +199,7 @@ def render_clustering(username: str):
                 "spectral":     ("Spectral Clustering", "Usa eigenvalores do grafo de similaridade. Excelente para clusters não-convexos.", C_ACCENT),
             }
             nome_i, desc_i, cor_i = info.get(algo_key, (algo_label, "", C_ACCENT))
-            st.markdown(f"""<div style="background:{C_SURFACE};border:2px solid {cor_i};border-left:5px solid {cor_i}; border-radius:12px;padding:1.2rem 1.4rem;margin:1rem 0;"><div style="font-size:17px;font-weight:800;color:#FFFFFF;margin-bottom:6px;">{nome_i}</div><div style="font-size:15px;color:#D0D8F0;">{desc_i}</div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="background:{C_SURFACE};border:2px solid {cor_i};border-left:5px solid {cor_i}; border-radius:12px;padding:1.2rem 1.4rem;margin:1rem 0;"><div style="font-size:17px;font-weight:800;color:var(--df-text,#FFFFFF);margin-bottom:6px;">{nome_i}</div><div style="font-size:15px;color:var(--df-text2,#B8C4D8);">{desc_i}</div></div>""", unsafe_allow_html=True)
 
             col1, col2 = st.columns(2)
             with col1:
@@ -379,7 +379,7 @@ def render_clustering(username: str):
     # MODO LIVRE
     # ════════════════════════════════════════════════
     with tab_livre:
-        st.markdown(f'<div style="font-size:17px;font-weight:800;color:#FFFFFF;margin-bottom:1rem;">Modo Livre - Controlo Total</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="font-size:17px;font-weight:800;color:var(--df-text,#FFFFFF);margin-bottom:1rem;">Modo Livre - Controlo Total</div>', unsafe_allow_html=True)
 
         col_cfg, col_res = st.columns([1, 2])
         with col_cfg:
@@ -443,4 +443,4 @@ def render_clustering(username: str):
                     width='stretch'
                 )
             else:
-                st.markdown(f"""<div style="text-align:center;padding:4rem;color:#7A8BA8; border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:40px;margin-bottom:1rem;"></div><div style="font-size:16px;font-weight:700;">Configura e clica em <strong style="color:#FFFFFF;">Agrupar</strong></div></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div style="text-align:center;padding:4rem;color:var(--df-text3,#7A8BA8); border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:40px;margin-bottom:1rem;"></div><div style="font-size:16px;font-weight:700;">Configura e clica em <strong style="color:var(--df-text,#FFFFFF);">Agrupar</strong></div></div>""", unsafe_allow_html=True)

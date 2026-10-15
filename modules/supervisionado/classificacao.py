@@ -873,6 +873,6 @@ def _previsao_interactiva(r: dict):
                     f"{r['classes'][i]}: {probs[i]:.1%}" for i in top_idx
                 ])
 
-            st.markdown(f"""<div style="background:rgba(79,142,247,.1);border:2px solid {C_ACCENT}; border-radius:12px;padding:1.2rem 1.4rem;text-align:center;margin-top:.8rem;"><div style="font-size:13px;color:{C_TEXT_MUTE};margin-bottom:4px;">Classe prevista</div><div style="font-size:28px;font-weight:800;color:{C_ACCENT};">{label}</div>{"<div style='font-size:12px;color:"+C_TEXT_MUTE+";margin-top:6px;'>"+prob_str+"</div>" if prob_str else ""}</div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="background:rgba(79,142,247,.1);border:2px solid {C_ACCENT}; border-radius:12px;padding:1.2rem 1.4rem;text-align:center;margin-top:.8rem;"><div style="font-size:13px;color:{C_TEXT_MUTE};margin-bottom:4px;">Classe prevista</div><div style="font-size:28px;font-weight:800;color:{C_ACCENT};">{label}</div>{"<div style='font-size:12px;color:"+f"{C_TEXT_MUTE}"+";margin-top:6px;'>"+prob_str+"</div>" if prob_str else ""}</div>""", unsafe_allow_html=True)
         except Exception as e:
             erro_box(f"Erro na previsão: {e}")

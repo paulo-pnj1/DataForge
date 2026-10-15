@@ -15,10 +15,12 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from modules.utils import inject_css, C_TEXT_MUTE, C_BORDER, C_SURFACE, C_ACCENT, C_TEXT_SEC, C_TEXT, C_BG, C_SURFACE2
+from modules.utils import inject_css, C_TEXT_MUTE, C_BORDER, C_SURFACE, C_ACCENT, C_TEXT_SEC, C_TEXT, C_BG, C_SURFACE2, \
+    instalar_tema_graficos, carregar_tema
 from modules.auth import render_login_page, render_sidebar_user, get_user_role
 
 inject_css()
+instalar_tema_graficos()      # gráficos seguem o tema escuro/claro
 
 # ── PÁGINA PÚBLICA DE VERIFICAÇÃO DE CERTIFICADOS (?verificar=CODIGO) ──
 if "verificar" in st.query_params:
@@ -64,7 +66,7 @@ def icon(name: str, size: int = 18, color: str = "currentColor") -> str:
 # ── PÁGINAS AUXILIARES ────────────────────────────────
 def _render_em_breve(titulo: str, descricao: str, icone_svg: str = ""):
     from modules.utils import page_header
-    st.markdown(f"""<div style="background:{C_SURFACE};border:2px solid {C_BORDER};border-radius:20px; padding:3.5rem 2rem;text-align:center;margin-top:2rem;"><div style="width:64px;height:64px;background:rgba(107,163,255,.15);border:2px solid {C_ACCENT}; border-radius:16px;display:flex;align-items:center;justify-content:center; margin:0 auto 1.4rem;">{icone_svg}</div><div style="font-size:22px;font-weight:800;color:#FFFFFF;margin-bottom:.6rem;">{titulo}</div><div style="font-size:16px;color:#B8C4D8;margin-bottom:1.2rem;">{descricao}</div><div style="display:inline-block;background:rgba(107,163,255,.12);border:1px solid rgba(107,163,255,.3); border-radius:8px;padding:.4rem 1rem;font-size:13px;font-weight:700;color:{C_ACCENT};">Em desenvolvimento - Fase 2</div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div style="background:{C_SURFACE};border:2px solid {C_BORDER};border-radius:20px; padding:3.5rem 2rem;text-align:center;margin-top:2rem;"><div style="width:64px;height:64px;background:rgba(107,163,255,.15);border:2px solid {C_ACCENT}; border-radius:16px;display:flex;align-items:center;justify-content:center; margin:0 auto 1.4rem;">{icone_svg}</div><div style="font-size:22px;font-weight:800;color:var(--df-text,#FFFFFF);margin-bottom:.6rem;">{titulo}</div><div style="font-size:16px;color:var(--df-text2,#B8C4D8);margin-bottom:1.2rem;">{descricao}</div><div style="display:inline-block;background:rgba(107,163,255,.12);border:1px solid rgba(107,163,255,.3); border-radius:8px;padding:.4rem 1rem;font-size:13px;font-weight:700;color:{C_ACCENT};">Em desenvolvimento - Fase 2</div></div>""", unsafe_allow_html=True)
 
 
 def _render_historico(username: str):
@@ -72,7 +74,7 @@ def _render_historico(username: str):
     page_header("Historial de Modelos", "Todos os modelos que treinaste", "")
     historico = get_historico_modelos(username)
     if not historico:
-        st.markdown(f"""<div style="text-align:center;padding:3rem;color:#B8C4D8;"><div style="font-size:48px;margin-bottom:1rem;">📂</div>Ainda sem modelos treinados. Começa por <b>O Meu Primeiro Modelo</b> no menu.</div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style="text-align:center;padding:3rem;color:var(--df-text2,#B8C4D8);"><div style="font-size:48px;margin-bottom:1rem;">📂</div>Ainda sem modelos treinados. Começa por <b>O Meu Primeiro Modelo</b> no menu.</div>""", unsafe_allow_html=True)
         return
     for h in reversed(historico[-20:]):
         tipo  = h.get("tipo", "")
@@ -84,7 +86,7 @@ def _render_historico(username: str):
         elif tipo == "regressao" and h.get("r2"):
             metricas = f"R²: {h.get('r2',0):.4f} · RMSE: {h.get('rmse',0):.4f}"
         tipo_icon = icon("chart-bar", 16, "#6BA3FF") if tipo == "classificacao" else icon("trend-up", 16, "#4ADE80")
-        st.markdown(f"""<div style="background:{C_SURFACE};border:2px solid {C_BORDER};border-radius:12px; padding:.9rem 1.2rem;margin-bottom:.7rem;display:flex;align-items:center;gap:14px;">{tipo_icon}<div style="flex:1;"><div style="font-size:15px;font-weight:700;color:#FFFFFF;">{algo}</div><div style="font-size:13px;color:#7A8BA8;">{tipo.capitalize()} · {data}</div><div style="font-size:13px;color:#B8C4D8;margin-top:2px;">{metricas}</div></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style="background:{C_SURFACE};border:2px solid {C_BORDER};border-radius:12px; padding:.9rem 1.2rem;margin-bottom:.7rem;display:flex;align-items:center;gap:14px;">{tipo_icon}<div style="flex:1;"><div style="font-size:15px;font-weight:700;color:var(--df-text,#FFFFFF);">{algo}</div><div style="font-size:13px;color:var(--df-text3,#7A8BA8);">{tipo.capitalize()} · {data}</div><div style="font-size:13px;color:var(--df-text2,#B8C4D8);margin-top:2px;">{metricas}</div></div></div>""", unsafe_allow_html=True)
 
 
 # ── AUTH ─────────────────────────────────────────────
@@ -94,6 +96,10 @@ if auth_status is not True:
 
 name = st.session_state.get("name", username)
 role = get_user_role(username, config)
+
+# Tema guardado na conta (escuro por omissão): se for diferente do actual, volta a desenhar já com ele
+if carregar_tema(username):
+    st.rerun()
 
 # Aluno criado pelo professor: tem de trocar a palavra-passe temporária antes de usar a plataforma
 if st.session_state.get("_pw_ok") != username:
@@ -187,7 +193,7 @@ with st.sidebar:
     for label, key, seccao, icone_svg in MENU:
         if seccao and seccao != ultima_seccao:
             ultima_seccao = seccao
-            st.markdown(f"""<div style="font-size:10px;font-weight:800;letter-spacing:.14em; color:#7A8BA8;padding:14px 0 4px;text-transform:uppercase; border-top:1px solid {C_BORDER};margin-top:4px;">{seccao}</div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="font-size:10px;font-weight:800;letter-spacing:.14em; color:var(--df-text3,#7A8BA8);padding:14px 0 4px;text-transform:uppercase; border-top:1px solid {C_BORDER};margin-top:4px;">{seccao}</div>""", unsafe_allow_html=True)
 
         ativo = st.session_state.pagina == key
         bg    = f"background:rgba(107,163,255,.15);border-left:3px solid {C_ACCENT};" if ativo else ""
@@ -209,7 +215,7 @@ with st.sidebar:
                 st.rerun()
 
     st.markdown("---")
-    st.markdown(f'<div style="font-size:11px;font-weight:600;color:#7A8BA8;text-align:center;padding:4px;">{PRODUTO_DO_PAINEL[painel]} v2.0 · Angola 🇦🇴</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-size:11px;font-weight:600;color:var(--df-text3,#7A8BA8);text-align:center;padding:4px;">{PRODUTO_DO_PAINEL[painel]} v2.0 · Angola 🇦🇴</div>', unsafe_allow_html=True)
 
 
 # ── ROTEADOR ─────────────────────────────────────────

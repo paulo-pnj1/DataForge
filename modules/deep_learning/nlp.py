@@ -215,7 +215,7 @@ def render_nlp(username: str):
                 ds = DATASETS_NLP[ds_nome]
                 texts  = ds["texts"]
                 labels_raw = ds["labels"]
-                st.markdown(f'<div style="font-size:13px;color:#D0D8F0;font-weight:600;">{ds["desc"]}</div>',
+                st.markdown(f'<div style="font-size:13px;color:var(--df-text2,#B8C4D8);font-weight:600;">{ds["desc"]}</div>',
                             unsafe_allow_html=True)
             else:
                 f = st.file_uploader("CSV com colunas 'text' e 'label'", type=["csv"], key="nlp_up")
@@ -304,7 +304,7 @@ def render_nlp(username: str):
                             pred_label = pred if not isinstance(pred, int) else res["class_names"][pred]
                             sucesso_box(f"Classe prevista: <strong>{pred_label}</strong>")
             else:
-                st.markdown(f"""<div style="text-align:center;padding:5rem;color:#7A8BA8; border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:48px;margin-bottom:1rem;">&#128172;</div><div style="font-size:16px;font-weight:700;color:#FFFFFF;">Configura e clica em <strong>Treinar Classificador</strong></div></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div style="text-align:center;padding:5rem;color:var(--df-text3,#7A8BA8); border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:48px;margin-bottom:1rem;">&#128172;</div><div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">Configura e clica em <strong>Treinar Classificador</strong></div></div>""", unsafe_allow_html=True)
 
     # ════════════════════════════════════════════════
     # LSTM
@@ -344,7 +344,7 @@ def render_nlp(username: str):
                         "O <strong>TF-IDF</strong> é mais rápido e muitas vezes suficiente "
                         "para classificação de texto curto como reviews e emails.")
                 else:
-                    st.markdown(f"""<div style="text-align:center;padding:5rem;color:#7A8BA8; border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:48px;margin-bottom:1rem;">&#129504;</div><div style="font-size:16px;font-weight:700;color:#FFFFFF;">Configura e clica em <strong>Treinar LSTM</strong></div></div>""", unsafe_allow_html=True)
+                    st.markdown(f"""<div style="text-align:center;padding:5rem;color:var(--df-text3,#7A8BA8); border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:48px;margin-bottom:1rem;">&#129504;</div><div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">Configura e clica em <strong>Treinar LSTM</strong></div></div>""", unsafe_allow_html=True)
 
 
 def _train_bow(texts, labels_raw, vec_tipo, max_feats, ngram_max, clf_nome, test_size, username):
@@ -440,7 +440,7 @@ def _train_lstm(texts, labels_raw, embed_dim, hidden_dim, n_layers, dropout, epo
 
             progress.progress((epoch + 1) / epochs)
             status.markdown(
-                f'<div style="color:#FFFFFF;font-weight:700;">Época {epoch+1}/{epochs} - '
+                f'<div style="color:var(--df-text,#FFFFFF);font-weight:700;">Época {epoch+1}/{epochs} - '
                 f'Loss: {loss.item():.4f} - Acc: {acc:.1%}</div>',
                 unsafe_allow_html=True
             )

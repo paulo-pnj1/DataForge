@@ -146,7 +146,7 @@ def _train_dqn_cartpole(episodes, hidden_str, lr, gamma, epsilon_start,
                 progress.progress((ep + 1) / episodes)
                 avg_r = np.mean(rewards_hist[-50:]) if len(rewards_hist) >= 50 else np.mean(rewards_hist)
                 status.markdown(
-                    f'<div style="color:#FFFFFF;font-weight:700;">Ep {ep+1}/{episodes} - '
+                    f'<div style="color:var(--df-text,#FFFFFF);font-weight:700;">Ep {ep+1}/{episodes} - '
                     f'Reward: {total_r:.0f} | Media(50): {avg_r:.1f} | epsilon: {epsilon:.3f}</div>',
                     unsafe_allow_html=True
                 )
@@ -193,8 +193,8 @@ def render_dqn(username: str):
         section_title("Ambiente: CartPole-v1")
         st.markdown(f"""
         <div style="background:{C_SURFACE2};border:2px solid {C_BORDER};border-radius:10px;
-        padding:.8rem 1rem;font-size:13px;color:#D0D8F0;font-weight:600;margin-bottom:1rem;">
-        <strong style="color:#FFFFFF;">CartPole</strong>: equilibra um poste numa plataforma movel.<br>
+        padding:.8rem 1rem;font-size:13px;color:var(--df-text2,#B8C4D8);font-weight:600;margin-bottom:1rem;">
+        <strong style="color:var(--df-text,#FFFFFF);">CartPole</strong>: equilibra um poste numa plataforma movel.<br>
         Estado: 4 valores (posicao, velocidade, angulo, velocidade angular)<br>
         Accoes: 2 (esquerda, direita)<br>
         Recompensa: +1 por cada passo que o poste se mantiver em pe<br>
@@ -279,10 +279,10 @@ def render_dqn(username: str):
                 "actualizada periodicamente - evita que o alvo mude a cada passo, tornando o treino mais estavel.")
         else:
             st.markdown(f"""
-            <div style="text-align:center;padding:5rem;color:#7A8BA8;
+            <div style="text-align:center;padding:5rem;color:var(--df-text3,#7A8BA8);
             border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;">
                 <div style="font-size:48px;margin-bottom:1rem;">\U0001f3ae</div>
-                <div style="font-size:16px;font-weight:700;color:#FFFFFF;">
+                <div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">
                     Configura e clica em <strong>Treinar DQN</strong>
                 </div>
             </div>
