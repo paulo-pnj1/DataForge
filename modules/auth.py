@@ -106,7 +106,7 @@ def _login_por_cookie_do_navegador(authenticator, config) -> bool:
             # navegador responde (a página volta a executar já com o cookie).
             for i in range(int(restante / 0.2) + 1):
                 time.sleep(0.2)
-                aviso.markdown(f"<div style='text-align:center;padding:30vh 0 0;color:{C_TEXT_SEC};font-size:15px;'>A carregar{'.' * (i % 4)}</div>",
+                aviso.markdown(f"<div style='position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;background:var(--df-bg,#FFFFFF);color:{C_TEXT_SEC};font-size:15px;'>A carregar{'.' * (i % 4)}</div>",
                                unsafe_allow_html=True)
             aviso.empty()
             return False
