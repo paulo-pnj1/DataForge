@@ -65,12 +65,26 @@ def load_config() -> dict:
 
 
 def get_authenticator(force: bool = False):
-    if force or "authenticator" not in st.session_state or "auth_config" not in st.session_state:
-        config = load_config()
-        st.session_state.auth_config = config
+    """Devolve (authenticator, config).
+
+    O `Authenticate` NÃO pode ficar guardado entre execuções: lê os cookies do navegador uma única vez,
+    ao ser criado, e na primeira execução depois de recarregar a página essa leitura vem vazia
+    (o componente só responde na execução seguinte). Por isso é criado de novo em cada execução do
+    script (ver `nova_execucao`), e só uma vez por execução (um segundo componente igual daria erro).
+    Só a configuração (utilizadores) fica em cache na sessão."""
+    if force or "auth_config" not in st.session_state:
+        # force = utilizadores mudaram (registo, convite...): o novo Authenticate já nasce na próxima execução
+        st.session_state.auth_config = load_config()
+    config = st.session_state.auth_config
+    if "authenticator" not in st.session_state:
         st.session_state.authenticator = stauth.Authenticate(
             config["credentials"], config["cookie"]["name"], config["cookie"]["key"], config["cookie"]["expiry_days"])
-    return st.session_state.authenticator, st.session_state.auth_config
+    return st.session_state.authenticator, config
+
+
+def nova_execucao():
+    """Chamar no início de cada execução do script, antes de `render_login_page`."""
+    st.session_state.pop("authenticator", None)
 
 
 def _google_activo() -> bool:
@@ -231,6 +245,7 @@ def render_mudar_pw_obrigatoria(username: str):
 def render_login_page():
     inject_css()
 
+    nova_execucao()
     authenticator, config = get_authenticator()
 
     # Estado actual antes de qualquer tentativa de (re)autenticação.
