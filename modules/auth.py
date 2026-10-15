@@ -289,7 +289,7 @@ def render_mudar_pw_obrigatoria(username: str):
 
 
 def render_login_page():
-    inject_css()
+    # (o CSS já é injectado em app.py em cada execução; repeti-lo aqui duplicava ~900 linhas de CSS por clique)
 
     authenticator, config = get_authenticator()
 

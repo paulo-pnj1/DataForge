@@ -4,7 +4,9 @@ Plataforma de Aprendizagem de Machine Learning para Universidades
 """
 
 import streamlit as st
-import os, sys
+import os, sys, time
+
+_T0 = time.perf_counter()
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -91,6 +93,7 @@ def _render_historico(username: str):
 
 # ── AUTH ─────────────────────────────────────────────
 authenticator, auth_status, username, config = render_login_page()
+_T_LOGIN = time.perf_counter()
 if auth_status is not True:
     st.stop()
 
@@ -371,3 +374,7 @@ except Exception as _e:  # nunca mostrar uma página partida ao aluno
     if st.button("Voltar ao Início", key="err_home"):
         st.session_state.pagina = INICIO.get(painel, "dashboard")
         st.rerun()
+
+# Tempo do servidor nesta execução (aparece nos logs: "Gerenciar aplicativo"). Se for baixo e a página
+# parecer lenta, a demora está na rede ou no navegador, não no código.
+print(f"[tempo] pagina={pagina} login={_T_LOGIN - _T0:.2f}s total={time.perf_counter() - _T0:.2f}s", flush=True)
