@@ -90,3 +90,14 @@ tests/test_smoke.py
 - Como funciona: as cores da paleta (`C_BG`, `C_TEXT`...) continuam a ser hex em Python (gráficos) e passam a variáveis CSS `--df-*` dentro de HTML, por isso o mesmo código serve os dois temas. As duas paletas estão em `TEMAS` (`modules/utils.py`); para ajustar uma cor, muda-a aí.
 - Gráficos: `st.pyplot` e `st.plotly_chart` são envolvidos por `instalar_tema_graficos()` (chamado em `app.py`) e adaptam fundo, eixos, legenda e texto ao tema; as cores dos dados não mudam. Tabelas (`st.dataframe`) e gráficos nativos (`st.bar_chart`) convertem-se por filtro CSS no tema claro.
 - Texto novo em HTML: usa `{C_TEXT}`, `{C_TEXT_SEC}`... ou `color:var(--df-text)`; evita `#FFFFFF` e `#161B27` fixos, porque ficam errados num dos temas.
+
+## Idioma / Language (Português · English)
+
+A interface está em português e pode mudar para inglês a qualquer momento: no ecrã de login e no menu lateral há um seletor **Idioma / Language**. A escolha fica guardada na conta (como o tema) e também aceita `?lang=en` no endereço.
+
+Como funciona (para quem mexe no código):
+- O código-fonte continua em português. `modules/i18n.py` traduz, no momento de mostrar, tudo o que passa por `st.*` (texto, botões, opções, tabelas, gráficos Plotly/Matplotlib e PDFs), usando `modules/locales/en.json`.
+- O valor devolvido pelos widgets não muda (as opções só são traduzidas na apresentação), por isso a lógica da app não depende do idioma.
+- Para acrescentar ou corrigir uma tradução, edita `modules/locales/en.json` (`"texto em português": "English text"`). Frases sem tradução aparecem em português.
+- Ficam em português de propósito: os e-mails enviados, e os textos de exemplo dos datasets de NLP (são dados, não interface).
+- Testes: `pytest -q tests/test_idioma.py`.

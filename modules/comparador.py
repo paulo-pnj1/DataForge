@@ -376,7 +376,8 @@ def _analise(res) -> dict:
 # RELATÓRIO PDF
 # ══════════════════════════════════════════════════════
 def _l1(t):
-    return str(t).replace("**", "").encode("latin-1", "replace").decode("latin-1")
+    from modules.i18n import tr
+    return str(tr(str(t))).replace("**", "").encode("latin-1", "replace").decode("latin-1")
 
 
 def _gerar_pdf(res, an):
@@ -407,7 +408,7 @@ def _gerar_pdf(res, an):
                 pdf.cell(w, 6.5, _l1(c), border=1)
             pdf.ln(6.5)
 
-    titulo("Relatorio de Comparacao de Modelos", 17)
+    titulo("Relatório de Comparação de Modelos", 17)
     texto(f"DataForge EDU - {datetime.date.today():%d/%m/%Y}")
     texto(f"Problema: {tipo}. Dados: {res['dataset']} ({res['n_linhas']} exemplos, {res['n_feat']} colunas). Alvo: {res['alvo']}.")
     pdf.ln(2)
@@ -443,7 +444,7 @@ def _gerar_pdf(res, an):
         p = _pers(n)
         texto(f"{n}: {p['analogia']} Forte: {p['forte']} Fraco: {p['fraco']}")
     pdf.ln(2)
-    texto("Como ler: 'Estudo' e a nota nos exemplos que o modelo viu; 'Prova' e a nota em casos novos; 'Provas (CV)' e a media de varias provas diferentes e e a mais fiavel.", 9)
+    texto("Como ler: 'Estudo' é a nota nos exemplos que o modelo viu; 'Prova' é a nota em casos novos; 'Provas (CV)' é a média de várias provas diferentes e é a mais fiável.", 9)
     return bytes(pdf.output())
 
 

@@ -44,7 +44,8 @@ TIPOS = {
 
 
 def _l1(t) -> str:
-    return str(t).encode("latin-1", "replace").decode("latin-1")
+    from modules.i18n import tr
+    return str(tr(str(t))).encode("latin-1", "replace").decode("latin-1")
 
 
 def emitir(username: str, nome: str, tipo: str) -> dict:
@@ -111,9 +112,9 @@ def gerar_pdf(cert: dict) -> bytes:
     pdf.set_font("Helvetica", "", 11)
     pdf.set_text_color(90, 100, 120)
     pdf.set_xy(20, 168)
-    pdf.cell(120, 6, f"Emitido em {data}")
+    pdf.cell(120, 6, _l1(f"Emitido em {data}"))
     pdf.set_xy(20, 175)
-    pdf.cell(120, 6, f"Codigo de verificacao: {cert['codigo']}")
+    pdf.cell(120, 6, _l1(f"Código de verificação: {cert['codigo']}"))
     pdf.set_xy(20, 182)
     pdf.cell(150, 6, _l1("Verifica a autenticidade em: " + url_verificacao(cert["codigo"])[:70]))
 

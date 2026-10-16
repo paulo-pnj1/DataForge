@@ -53,7 +53,8 @@ def _prep(df, feats, alvo, tipo):
 
 
 def _l1(t):
-    return str(t).replace("**", "").encode("latin-1", "replace").decode("latin-1")
+    from modules.i18n import tr
+    return str(tr(str(t))).replace("**", "").encode("latin-1", "replace").decode("latin-1")
 
 
 def _pdf(P, nome_aluno):
@@ -80,14 +81,14 @@ def _pdf(P, nome_aluno):
     tit("2. Colunas usadas")
     txt(", ".join(P["feats"]))
     pdf.ln(1)
-    tit("3. Comparacao de algoritmos (media de varias provas)")
+    tit("3. Comparação de algoritmos (média de várias provas)")
     for n, v in P["cv"].items():
         txt(f"- {n}: {v:.3f}")
     pdf.ln(1)
-    tit("4. Modelo escolhido e avaliacao")
+    tit("4. Modelo escolhido e avaliação")
     txt(f"Modelo: {P['escolhido']}.  " + "  ".join(f"{k}: {v:.3f}" for k, v in P["metricas"].items()))
     pdf.ln(1)
-    tit("5. A minha conclusao")
+    tit("5. A minha conclusão")
     txt(P["conclusao"])
     pdf.ln(1)
     tit("6. O que cada linha dos dados representa")
@@ -167,7 +168,7 @@ def render_projeto(username: str, nome: str):
         if P["tipo"] == "clf":
             P["metricas"] = {"Accuracy": accuracy_score(y_te, pred), "F1": f1_score(y_te, pred, average="weighted")}
         else:
-            P["metricas"] = {"R2": r2_score(y_te, pred), "Erro medio (MAE)": mean_absolute_error(y_te, pred)}
+            P["metricas"] = {"R2": r2_score(y_te, pred), "Erro médio (MAE)": mean_absolute_error(y_te, pred)}
         st.markdown(f"**{P['escolhido']}** avaliado em casos que nunca viu:")
         cols = st.columns(len(P["metricas"]))
         for c, (k, v) in zip(cols, P["metricas"].items()):

@@ -1117,6 +1117,54 @@ def render_seletor_tema_perfil(username: str):
 
 
 # ══════════════════════════════════════════════════════
+# ESCOLHA DO IDIOMA / LANGUAGE (fica guardada na conta, como o tema)
+# ══════════════════════════════════════════════════════
+def definir_idioma(username, lang: str):
+    from modules.i18n import definir_idioma_sessao
+    definir_idioma_sessao(lang)
+    if not username:
+        return
+    try:
+        progress = get_user_progress(username)
+        progress["lang"] = "en" if lang == "en" else "pt"
+        _gravar_progress(username, progress)
+    except Exception:
+        pass          # sem base de dados a escolha vale só para esta sessão
+
+
+def carregar_idioma(username: str) -> bool:
+    """Ao entrar, aplica o idioma guardado na conta. True se mudou: fazer st.rerun()."""
+    from modules.i18n import idioma_actual, definir_idioma_sessao
+    chave = f"_idioma_lido_{username}"
+    if st.session_state.get(chave):
+        return False
+    st.session_state[chave] = True
+    try:
+        guardado = get_user_progress(username).get("lang")
+    except Exception:
+        guardado = None
+    if guardado in ("pt", "en") and guardado != idioma_actual():
+        definir_idioma_sessao(guardado)
+        return True
+    return False
+
+
+def _ao_mudar_idioma(username):
+    from modules.i18n import IDIOMAS
+    escolhido = st.session_state.get("_idioma_radio", "Português")
+    lang = "en" if escolhido == IDIOMAS["en"] else "pt"
+    definir_idioma(username, lang)
+
+
+def render_seletor_idioma(username=None):
+    """Escolha Português / English (menu lateral e ecrã de login)."""
+    from modules.i18n import IDIOMAS, idioma_actual
+    st.session_state.setdefault("_idioma_radio", IDIOMAS[idioma_actual()])
+    st.radio("Idioma / Language", list(IDIOMAS.values()), key="_idioma_radio", horizontal=True,
+             on_change=_ao_mudar_idioma, args=(username,))
+
+
+# ══════════════════════════════════════════════════════
 # PROGRESSO E HISTORIAL (Supabase ou TinyDB local, via modules/db.py)
 # ══════════════════════════════════════════════════════
 _CACHE_TTL = 45  # segundos: evita 1 pedido à base de dados por cada interacção

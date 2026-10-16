@@ -1,6 +1,6 @@
 """
 DataForge EDU - Q-Learning Tabular
-GridWorld customizavel + visualizacao do processo de aprendizagem
+GridWorld personalizável + visualização do processo de aprendizagem
 """
 
 import streamlit as st
@@ -110,7 +110,7 @@ class GridWorld:
             yaxis=dict(showticklabels=False, showgrid=False, zeroline=False, autorange="reversed"),
             plot_bgcolor=C_SURFACE, paper_bgcolor=C_SURFACE,
             margin=dict(t=40, b=10, l=10, r=10),
-            title=dict(text="GridWorld - Politica Aprendida", font=dict(color="#FFFFFF", size=14))
+            title=dict(text="GridWorld - Política Aprendida", font=dict(color="#FFFFFF", size=14))
         )
         return fig
 
@@ -173,8 +173,8 @@ def _plot_training_curves(rewards, steps_hist, eps_hist):
         return np.convolve(arr, np.ones(w)/w, mode='valid').tolist()
 
     fig = make_subplots(rows=2, cols=2,
-        subplot_titles=["Recompensa por Episodio", "Recompensa Suavizada",
-                        "Passos por Episodio", "Epsilon (Exploracao)"],
+        subplot_titles=["Recompensa por Episódio", "Recompensa Suavizada",
+                        "Passos por Episódio", "Epsilon (Exploração)"],
         vertical_spacing=0.18)
 
     ep     = list(range(len(rewards)))
@@ -213,7 +213,7 @@ def _plot_q_heatmap(Q, n):
         showscale=True, colorbar=dict(tickfont=dict(color="#FFFFFF"))
     ))
     fig.update_layout(
-        title=dict(text="Valor Maximo Q por Estado (V*)", font=dict(color="#FFFFFF", size=14)),
+        title=dict(text="Valor Máximo Q por Estado (V*)", font=dict(color="#FFFFFF", size=14)),
         xaxis=dict(showticklabels=False, showgrid=False),
         yaxis=dict(showticklabels=False, showgrid=False, autorange="reversed"),
         plot_bgcolor=C_SURFACE, paper_bgcolor=C_SURFACE,
@@ -227,9 +227,9 @@ def render_q_learning(username: str):
     page_header("Q-Learning", "O agente aprende a navegar por tentativa e erro", "")
 
     teoria_box("Como funciona o Q-Learning?",
-        "O agente esta num <strong>ambiente</strong> e toma <strong>accoes</strong>. "
-        "Recebe <strong>recompensas</strong> e aprende a maximiza-las atraves da tabela Q. "
-        "Com <strong>epsilon-greedy</strong>, o agente explora aleatoriamente no inicio "
+        "O agente está num <strong>ambiente</strong> e toma <strong>acções</strong>. "
+        "Recebe <strong>recompensas</strong> e aprende a maximizá-las através da tabela Q. "
+        "Com <strong>epsilon-greedy</strong>, o agente explora aleatoriamente no início "
         "e vai ficando mais ganancioso (greedy) conforme aprende.")
 
     tab_treino, tab_demo = st.tabs(["  Treinar Agente  ", "  Demo Passo a Passo  "])
@@ -241,7 +241,7 @@ def render_q_learning(username: str):
             section_title("Ambiente GridWorld")
             n_grid = st.slider("Tamanho da grelha (N x N)", 4, 10, 5, key="ql_n")
 
-            st.markdown(f'<div style="font-size:13px;color:var(--df-text2,#B8C4D8);font-weight:700;margin-bottom:.3rem;">Obstaculos (linha,col separados por espaco):</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:13px;color:var(--df-text2,#B8C4D8);font-weight:700;margin-bottom:.3rem;">Obstáculos (linha,col separados por espaço):</div>', unsafe_allow_html=True)
             obs_input  = st.text_input("Ex: 1,1 2,2 3,1", value="1,1 2,2 3,1", key="ql_obs")
             trap_input = st.text_input("Armadilhas Ex: 1,3 3,3", value="1,3", key="ql_trap")
 
@@ -262,13 +262,13 @@ def render_q_learning(username: str):
             obstacles.discard((0, 0)); obstacles.discard((n_grid-1, n_grid-1))
             traps.discard((0, 0));     traps.discard((n_grid-1, n_grid-1))
 
-            section_title("Hiperparametros Q-Learning")
+            section_title("Hiperparâmetros Q-Learning")
             episodes      = st.slider("Episodios", 100, 5000, 1000, 100, key="ql_ep")
             alpha         = st.slider("alpha (learning rate)", 0.01, 1.0, 0.1, 0.01, key="ql_alpha")
             gamma         = st.slider("gamma (desconto futuro)", 0.5, 0.999, 0.95, 0.01, key="ql_gamma")
             epsilon_start = st.slider("epsilon inicial", 0.1, 1.0, 1.0, 0.1, key="ql_eps")
             epsilon_decay = st.slider("epsilon decay", 0.990, 0.9999, 0.995, 0.001, key="ql_epd", format="%.4f")
-            epsilon_min   = st.slider("epsilon minimo", 0.01, 0.2, 0.01, 0.01, key="ql_epm")
+            epsilon_min   = st.slider("epsilon mínimo", 0.01, 0.2, 0.01, 0.01, key="ql_epm")
 
             st.markdown(f"""
             <div style="background:{C_SURFACE2};border:2px solid {C_BORDER};border-radius:10px;
@@ -281,7 +281,7 @@ def render_q_learning(username: str):
 
             if st.button("Treinar Agente", use_container_width=True, key="ql_run"):
                 env = GridWorld(n_grid, obstacles, traps)
-                with st.spinner(f"A treinar por {episodes} episodios..."):
+                with st.spinner(f"A treinar por {episodes} episódios..."):
                     Q, rewards, steps_h, eps_h = q_learning(
                         env, episodes, alpha, gamma,
                         epsilon_start, epsilon_decay, epsilon_min
@@ -297,9 +297,9 @@ def render_q_learning(username: str):
                 }
                 add_pontos(username, 20, "Q-Learning GridWorld")
                 if reached:
-                    sucesso_box(f"Agente treinou com sucesso! Caminho optimo: {len(path)} passos.")
+                    sucesso_box(f"Agente treinou com sucesso! Caminho óptimo: {len(path)} passos.")
                 else:
-                    aviso_box("Treino concluido mas o agente nao convergiu. Experimenta mais episodios.")
+                    aviso_box("Treino concluído, mas o agente não convergiu. Experimenta mais episódios.")
 
         with col_res:
             res = st.session_state.get("ql_result", {})
@@ -310,7 +310,7 @@ def render_q_learning(username: str):
 
                 c1, c2, c3 = st.columns(3)
                 c1.metric("Episodios",       len(res["rewards"]))
-                c2.metric("Recomp. media",   f"{np.mean(res['rewards'][-100:]):.2f}")
+                c2.metric("Recomp. média",   f"{np.mean(res['rewards'][-100:]):.2f}")
                 c3.metric("Passos (optimo)", len(path) if res["reached_goal"] else "N/A")
 
                 st.plotly_chart(env_r.render_grid(Q, path), use_container_width=True)
@@ -319,9 +319,9 @@ def render_q_learning(username: str):
                                 use_container_width=True)
 
                 teoria_box("Interpretar os resultados",
-                    "As <strong>setas</strong> mostram a accao optima em cada estado. "
+                    "As <strong>setas</strong> mostram a acção óptima em cada estado. "
                     "O <strong>heatmap V*</strong> mostra quanto o agente valoriza cada estado "
-                    "- estados perto da meta tem valor mais alto. "
+                    "- estados perto da meta têm valor mais alto. "
                     "A <strong>recompensa</strong> deve aumentar e os <strong>passos</strong> diminuir ao longo do treino.")
             else:
                 st.markdown(f"""
@@ -366,13 +366,13 @@ def render_q_learning(username: str):
                     ))
                     placeholder.plotly_chart(fig, use_container_width=True)
                     time.sleep(0.45)
-                sucesso_box("Animacao concluida!")
+                sucesso_box("Animação concluída!")
         else:
             st.markdown(f"""
             <div style="text-align:center;padding:3rem;color:var(--df-text3,#7A8BA8);
             border:2px dashed {C_BORDER};border-radius:16px;">
                 <div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">
-                    Treina o agente primeiro para ver a animacao
+                    Treina o agente primeiro para ver a animação
                 </div>
             </div>
             """, unsafe_allow_html=True)

@@ -212,7 +212,7 @@ def _mostrar_resultado(r: dict):
         _cartao_destaque(
             f"Resultado: {rotulo}",
             f"Erra em média {r['mae']:,.1f} {cfg['unidade']}",
-            f"Se previssemos sempre a média, o erro médio seria <b>{r['mae_base']:,.1f}</b>. "
+            f"Se prevíssemos sempre a média, o erro médio seria <b>{r['mae_base']:,.1f}</b>. "
             f"O teu modelo reduziu o erro em <b>{reducao:.0%}</b> e explica <b>{max(r['r2'], 0):.0%}</b> do que faz o valor variar.",
             cor_hex)
 

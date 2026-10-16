@@ -16,7 +16,7 @@ from modules.settings import secret, contas_demo
 from modules.utils import (
     inject_css, C_ACCENT, C_SURFACE, C_BORDER, C_TEXT, C_TEXT_SEC,
     C_TEXT_MUTE, C_BG, C_SURFACE2, C_GREEN, C_AMBER, get_user_progress, badge,
-    render_seletor_tema, render_seletor_tema_perfil
+    render_seletor_tema, render_seletor_tema_perfil, render_seletor_idioma
 )
 
 CONFIG_PATH = "config.yaml"
@@ -311,6 +311,7 @@ def render_login_page():
         # formulário - que também tenta o cookie guardado - e mensagens).
         col1, col2, col3 = st.columns([1, 1.6, 1])
         with col2:
+            render_seletor_idioma(None)
             st.markdown(f"""<div style=" display:flex; flex-direction:column; align-items:center; padding: 3rem 1rem 2rem; "><div style=" width:72px; height:72px; background: linear-gradient(135deg, {C_ACCENT}, #BC8CFF); border-radius:20px; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:900; color:var(--df-on-accent,#0D1117); letter-spacing:-1px; margin-bottom:1.2rem; box-shadow: 0 8px 32px rgba(88,166,255,0.3); font-family: Inter, sans-serif; ">DF</div><div style=" font-size:32px; font-weight:800; color:{C_TEXT}; letter-spacing:-.5px; margin-bottom:.4rem; ">DataForge EDU</div><div style=" font-size:15px; color:{C_TEXT_SEC}; font-weight:500; margin-bottom:2.4rem; ">Plataforma de Aprendizagem de Machine Learning</div><div style=" font-size:15px; font-weight:600; color:{C_TEXT_SEC}; margin-bottom:.8rem; text-transform:uppercase; letter-spacing:.06em; font-size:12px; ">Entra na tua conta</div></div>""", unsafe_allow_html=True)
             if st.query_params.get("reset"):
                 _render_reset(st.query_params.get("reset"))
@@ -374,6 +375,7 @@ def render_sidebar_user(name: str, username: str, role: str, authenticator, prod
     pontos = progress.get("pontos", 0)
     st.markdown(f"""<div class="sidebar-brand"><div class="sidebar-brand-icon" style="font-size:15px;font-weight:900;color:var(--df-on-accent,#0D1117);letter-spacing:-1px;font-family:Inter,sans-serif;">DF</div><div><div class="sidebar-brand-name">{produto}</div><div class="sidebar-brand-sub">Machine Learning</div></div></div><div class="user-pill"><div class="user-avatar">{initial}</div><div style="flex:1;min-width:0;"><div class="user-name">{name}</div><div class="user-role">{badge(role_label, role_color)} &nbsp;⭐ {pontos} pts</div></div></div>""", unsafe_allow_html=True)
     render_seletor_tema(username)
+    render_seletor_idioma(username)
     if st.button("Sair", key="logout_btn", use_container_width=True):
         st.session_state["_df_saiu"] = True     # impede que o cookie ainda por apagar reabra a sessão
         authenticator.logout(location="unrendered")

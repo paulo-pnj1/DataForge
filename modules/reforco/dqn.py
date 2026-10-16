@@ -1,6 +1,6 @@
 """
 DataForge EDU - Deep Q-Network (DQN)
-CartPole-v1 com PyTorch + visualizacao educativa
+CartPole-v1 com PyTorch + visualização educativa
 """
 
 import streamlit as st
@@ -147,7 +147,7 @@ def _train_dqn_cartpole(episodes, hidden_str, lr, gamma, epsilon_start,
                 avg_r = np.mean(rewards_hist[-50:]) if len(rewards_hist) >= 50 else np.mean(rewards_hist)
                 status.markdown(
                     f'<div style="color:var(--df-text,#FFFFFF);font-weight:700;">Ep {ep+1}/{episodes} - '
-                    f'Reward: {total_r:.0f} | Media(50): {avg_r:.1f} | epsilon: {epsilon:.3f}</div>',
+                    f'Reward: {total_r:.0f} | Média(50): {avg_r:.1f} | epsilon: {epsilon:.3f}</div>',
                     unsafe_allow_html=True
                 )
 
@@ -160,9 +160,9 @@ def _train_dqn_cartpole(episodes, hidden_str, lr, gamma, epsilon_start,
         }
         add_pontos(username, 30, "DQN CartPole")
         if avg_last >= 195:
-            sucesso_box(f"CartPole resolvido! Media(50): {avg_last:.1f} >= 195 (criterio de sucesso)")
+            sucesso_box(f"CartPole resolvido! Média(50): {avg_last:.1f} >= 195 (critério de sucesso)")
         else:
-            sucesso_box(f"DQN treinado! Media(50): {avg_last:.1f} | Melhor episodio: {best_reward:.0f}")
+            sucesso_box(f"DQN treinado! Média(50): {avg_last:.1f} | Melhor episódio: {best_reward:.0f}")
     except Exception as e:
         erro_box(f"Erro DQN: {e}")
 
@@ -173,18 +173,18 @@ def render_dqn(username: str):
                 "Rede neural que aprende a jogar CartPole", "")
 
     if not HAS_TORCH:
-        aviso_box("PyTorch necessario. Adiciona <code>torch</code> ao requirements.txt")
+        aviso_box("PyTorch necessário. Adiciona <code>torch</code> ao requirements.txt")
         return
     if not HAS_GYM:
-        aviso_box("Gymnasium necessario. Adiciona <code>gymnasium</code> ao requirements.txt")
+        aviso_box("Gymnasium necessário. Adiciona <code>gymnasium</code> ao requirements.txt")
         return
 
     teoria_box("DQN vs Q-Learning Tabular",
-        "O <strong>Q-Learning tabular</strong> guarda um valor por (estado, accao) numa tabela. "
-        "Funciona bem para espacos pequenos como GridWorld. "
-        "O <strong>DQN</strong> usa uma <strong>rede neural</strong> para aproximar a funcao Q, "
-        "permitindo lidar com espacos de estado contínuos e de alta dimensao como imagens. "
-        "Duas inovacoes chave: <strong>Replay Buffer</strong> (quebra correlacao entre amostras) "
+        "O <strong>Q-Learning tabular</strong> guarda um valor por (estado, acção) numa tabela. "
+        "Funciona bem para espaços pequenos como GridWorld. "
+        "O <strong>DQN</strong> usa uma <strong>rede neural</strong> para aproximar a função Q, "
+        "permitindo lidar com espaços de estado contínuos e de alta dimensão como imagens. "
+        "Duas inovações chave: <strong>Replay Buffer</strong> (quebra a correlação entre amostras) "
         "e <strong>Target Network</strong> (estabiliza o treino).")
 
     col_cfg, col_res = st.columns([1, 2])
@@ -194,10 +194,10 @@ def render_dqn(username: str):
         st.markdown(f"""
         <div style="background:{C_SURFACE2};border:2px solid {C_BORDER};border-radius:10px;
         padding:.8rem 1rem;font-size:13px;color:var(--df-text2,#B8C4D8);font-weight:600;margin-bottom:1rem;">
-        <strong style="color:var(--df-text,#FFFFFF);">CartPole</strong>: equilibra um poste numa plataforma movel.<br>
-        Estado: 4 valores (posicao, velocidade, angulo, velocidade angular)<br>
-        Accoes: 2 (esquerda, direita)<br>
-        Recompensa: +1 por cada passo que o poste se mantiver em pe<br>
+        <strong style="color:var(--df-text,#FFFFFF);">CartPole</strong>: equilibra um poste numa plataforma móvel.<br>
+        Estado: 4 valores (posição, velocidade, ângulo, velocidade angular)<br>
+        Acções: 2 (esquerda, direita)<br>
+        Recompensa: +1 por cada passo que o poste se mantiver em pé<br>
         <strong>Resolvido</strong> quando media(50 eps) >= 195
         </div>
         """, unsafe_allow_html=True)
@@ -209,13 +209,13 @@ def render_dqn(username: str):
         buffer_size = st.select_slider("Replay Buffer", [1000, 5000, 10000], value=10000, key="dqn_buf")
         target_upd  = st.slider("Target update (cada N eps)", 5, 50, 10, key="dqn_tu")
 
-        section_title("Hiperparametros")
+        section_title("Hiperparâmetros")
         episodes      = st.slider("Episodios", 100, 1000, 300, 50, key="dqn_ep")
         lr            = st.select_slider("Learning Rate", [0.0001, 0.0005, 0.001, 0.005], value=0.001, key="dqn_lr")
         gamma         = st.slider("Gamma (desconto)", 0.9, 0.999, 0.99, 0.001, key="dqn_gamma")
         eps_start     = st.slider("Epsilon inicial", 0.5, 1.0, 1.0, 0.1, key="dqn_eps")
         eps_decay     = st.slider("Epsilon decay", 0.990, 0.9999, 0.995, 0.001, key="dqn_epd", format="%.4f")
-        eps_min       = st.slider("Epsilon minimo", 0.01, 0.1, 0.01, 0.01, key="dqn_epm")
+        eps_min       = st.slider("Epsilon mínimo", 0.01, 0.1, 0.01, 0.01, key="dqn_epm")
 
         if st.button("Treinar DQN", use_container_width=True, key="dqn_run"):
             _train_dqn_cartpole(episodes, hidden_str, lr, gamma, eps_start,
@@ -233,7 +233,7 @@ def render_dqn(username: str):
             if res["avg_last_50"] >= 195:
                 sucesso_box("CartPole RESOLVIDO! Media >= 195")
 
-            # Reward por episodio
+            # Reward por episódio
             window = max(1, len(res["rewards"]) // 20)
             smooth = np.convolve(res["rewards"], np.ones(window)/window, mode='valid').tolist()
             ep_all = list(range(len(res["rewards"])))
@@ -247,7 +247,7 @@ def render_dqn(username: str):
             fig_r.add_hline(y=195, line_color=C_AMBER, line_dash="dash",
                             annotation_text="Meta: 195", annotation_font_color="#FFFFFF")
             fig_r.update_layout(
-                title=dict(text="Reward por Episodio", font=dict(color="#FFFFFF", size=15)),
+                title=dict(text="Reward por Episódio", font=dict(color="#FFFFFF", size=15)),
                 xaxis=dict(title="Episodio", color="#FFFFFF", gridcolor=C_BORDER),
                 yaxis=dict(title="Reward", color="#FFFFFF", gridcolor=C_BORDER),
                 plot_bgcolor=C_SURFACE, paper_bgcolor=C_SURFACE,
@@ -273,10 +273,10 @@ def render_dqn(username: str):
             st.plotly_chart(fig_le, use_container_width=True)
 
             teoria_box("Replay Buffer e Target Network",
-                "O <strong>Replay Buffer</strong> guarda as ultimas experiencias e amostras mini-batches aleatorios, "
-                "quebrando a correlacao temporal que desestabilizaria o treino. "
-                "A <strong>Target Network</strong> e uma copia 'congelada' da rede principal "
-                "actualizada periodicamente - evita que o alvo mude a cada passo, tornando o treino mais estavel.")
+                "O <strong>Replay Buffer</strong> guarda as últimas experiências e amostra mini-batches aleatórios, "
+                "quebrando a correlação temporal que desestabilizaria o treino. "
+                "A <strong>Target Network</strong> é uma cópia 'congelada' da rede principal "
+                "actualizada periodicamente - evita que o alvo mude a cada passo, tornando o treino mais estável.")
         else:
             st.markdown(f"""
             <div style="text-align:center;padding:5rem;color:var(--df-text3,#7A8BA8);
