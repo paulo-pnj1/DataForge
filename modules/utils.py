@@ -364,7 +364,9 @@ def inject_css():
     /* ══════════════════════════════════════════════
        BOTÕES
     ══════════════════════════════════════════════ */
-    .stButton > button {{
+    .stButton > button,
+    .stDownloadButton > button,
+    .stFormSubmitButton > button {{
         background: {C_ACCENT} !important;
         color: var(--df-on-accent, #0D1117) !important;
         border: none !important;
@@ -378,22 +380,34 @@ def inject_css():
         letter-spacing: 0.01em !important;
         cursor: pointer !important;
     }}
-    .stButton > button:hover {{
+    .stButton > button:hover,
+    .stDownloadButton > button:hover,
+    .stFormSubmitButton > button:hover {{
         background: {C_ACCENT_H} !important;
         transform: translateY(-1px) !important;
         box-shadow: 0 4px 16px rgba(88,166,255,0.35) !important;
     }}
-    .stButton > button:active {{
+    .stButton > button:active,
+    .stDownloadButton > button:active,
+    .stFormSubmitButton > button:active {{
         transform: translateY(0) !important;
     }}
     /* Botões secundários (outline) */
-    .stButton > button[kind="secondary"] {{
+    .stButton > button[kind="secondary"],
+    .stDownloadButton > button[kind="secondary"],
+    .stFormSubmitButton > button[kind="secondary"] {{
         background: transparent !important;
         color: {C_ACCENT} !important;
         border: 1px solid {C_ACCENT} !important;
     }}
-    .stButton > button[kind="secondary"]:hover {{
+    .stButton > button[kind="secondary"]:hover,
+    .stDownloadButton > button[kind="secondary"]:hover,
+    .stFormSubmitButton > button[kind="secondary"]:hover {{
         background: rgba(88,166,255,0.1) !important;
+    }}
+
+    .stButton > button p, .stDownloadButton > button p, .stFormSubmitButton > button p {{
+        color: inherit !important;
     }}
 
     /* ══════════════════════════════════════════════
