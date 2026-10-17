@@ -28,6 +28,10 @@ def _agora() -> str:
 # ══════════════════════════════════════════════════════
 # BACKENDS
 # ══════════════════════════════════════════════════════
+class TabelaEmFalta(DBError):
+    """A tabela ainda não existe no Supabase (falta correr o schema.sql)."""
+
+
 def _sb(method: str, tabela: str, params=None, body=None, prefer=None):
     base = str(secret("supabase_url")).rstrip("/")
     chave = str(secret("supabase_key"))
@@ -40,6 +44,8 @@ def _sb(method: str, tabela: str, params=None, body=None, prefer=None):
     except requests.RequestException as e:
         raise DBError(f"Sem ligação à base de dados: {e}")
     if r.status_code >= 400:
+        if r.status_code == 404 and "PGRST205" in r.text:
+            raise TabelaEmFalta(tabela)
         raise DBError(f"Supabase {r.status_code}: {r.text[:300]}")
     return r.json() if r.text.strip() else None
 

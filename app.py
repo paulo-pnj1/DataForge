@@ -388,7 +388,16 @@ try:
 
     elif pagina in BUSINESS_PAGINAS and painel == "business" and role != "admin":
         from modules import business as _bn
-        getattr(_bn, BUSINESS_PAGINAS[pagina])(username, name)
+        from modules.db import TabelaEmFalta
+        try:
+            getattr(_bn, BUSINESS_PAGINAS[pagina])(username, name)
+        except TabelaEmFalta:
+            st.warning("A base de dados ainda não tem as tabelas do painel Business. "
+                       "No Supabase, abre o SQL Editor, cola o SQL abaixo e carrega em Run. Depois recarrega esta página.")
+            try:
+                st.code(open("schema_business.sql", encoding="utf8").read(), language="sql")
+            except OSError:
+                st.info("Corre o ficheiro schema.sql no SQL Editor do Supabase.")
 
     else:  # página desconhecida: volta ao início do painel actual
         st.session_state.pagina = INICIO[painel]
