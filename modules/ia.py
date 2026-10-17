@@ -28,7 +28,7 @@ from modules.settings import secret
 
 PROVEDORES = {          # nome: (endereço base, modelo por omissão). Confirma o modelo actual na consola do provedor.
     "xai": ("https://api.x.ai/v1", "grok-4.7"),
-    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-2.5-flash"),
+    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-3.8-flash"),
 }
 LIMITE_POR_OMISSAO = 30
 TEMPO_MAXIMO = 45
@@ -94,6 +94,21 @@ def _idioma_pedido(lang: str) -> str:
     return "English" if lang == "en" else "português de Angola (europeu, sem brasileirismos)"
 
 
+def _motivo_google(r) -> str:
+    """Mensagem de erro devolvida pelo provedor, curta e sem a chave, para a pessoa perceber a causa real."""
+    try:
+        j = r.json()
+        if isinstance(j, list) and j:
+            j = j[0]
+        m = str((j.get("error") or {}).get("message") or "")
+    except Exception:
+        return ""
+    chave = _chave()
+    if chave:
+        m = m.replace(chave, "***")
+    return re.sub(r"\s+", " ", m).strip()[:240]
+
+
 # ══════════════════════════════════════════════════════
 # CHAMADA À API
 # ══════════════════════════════════════════════════════
@@ -122,7 +137,10 @@ def chamar(mensagens: list, org_id: str, max_tokens: int = 700, json_modo: bool 
     if r.status_code == 429:
         raise IAErro("A IA está com demasiados pedidos agora. Tenta daqui a pouco.")
     if r.status_code in (400, 404):
-        raise IAErro("A IA recusou o pedido. Confirma o nome do modelo em «ia_model» nos segredos.")
+        motivo = _motivo_google(r)
+        if r.status_code == 404:
+            raise IAErro("O modelo «" + modelo() + "» não está disponível. Confirma o nome em «ia_model» nos segredos (ou apaga essa linha)." + (f" Motivo do provedor: {motivo}" if motivo else ""))
+        raise IAErro("A IA recusou o pedido." + (f" Motivo do provedor: {motivo}" if motivo else " Confirma o nome do modelo em «ia_model» nos segredos."))
     if r.status_code >= 400:
         raise IAErro("A IA teve um problema. Tenta daqui a pouco.")
     try:

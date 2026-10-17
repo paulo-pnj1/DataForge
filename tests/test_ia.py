@@ -120,7 +120,7 @@ def test_provedor_gemini_gratuito_usa_o_endereco_e_a_chave_certos(monkeypatch):
     assert ia.chamar([{"role": "user", "content": "x"}], "e1") == "ok"
     url, corpo, cab = enviados[0]
     assert url == "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-    assert corpo["model"] == "gemini-2.5-flash" and cab["Authorization"] == "Bearer chave-gemini"
+    assert corpo["model"] == "gemini-3.8-flash" and cab["Authorization"] == "Bearer chave-gemini"
     monkeypatch.setenv("IA_MODEL", "outro-modelo")                              # o segredo ia_model manda
     ia.chamar([{"role": "user", "content": "x"}], "e1")
     assert enviados[1][1]["model"] == "outro-modelo"
