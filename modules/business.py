@@ -12,8 +12,8 @@ import pandas as pd
 import streamlit as st
 
 from modules import business_core as bc
-from modules import db
-from modules.i18n import tr
+from modules import db, ia
+from modules.i18n import idioma_actual, tr
 from modules.utils import (aviso_box, badge, card, erro_box, info_box, ir_para, page_header, section_title,
                            sucesso_box, tema_figura_plotly)
 
@@ -135,6 +135,37 @@ def _mostrar_diagnostico(df: pd.DataFrame):
     icones = {"ok": sucesso_box, "info": info_box, "aviso": aviso_box, "erro": erro_box}
     for nivel, modelo, args in bc.diagnostico(df):
         icones.get(nivel, info_box)(bc.T(modelo, *args))
+
+
+def _assistente_ia(m: dict, df: pd.DataFrame, did: str):
+    """Pergunta em linguagem normal -> a IA sugere problema, coluna a prever e colunas a ignorar (validado contra os dados)."""
+    with st.expander(tr("Assistente com IA (opcional)")):
+        if not ia.configurada():
+            st.caption(tr("A IA está desligada. Quem administra a aplicação pode ligá-la com a chave «xai_api_key» nos segredos."))
+            return
+        st.caption(tr("Descreve o que queres saber e a IA sugere o problema e as colunas. Só são enviados os nomes das colunas e as categorias, nunca as linhas dos dados."))
+        msg = st.session_state.pop("bn_ia_msg", None)
+        if msg:
+            sucesso_box(msg)
+        pergunta = st.text_area("O que queres saber?", key="bn_ia_pergunta", max_chars=500,
+                                placeholder=tr("ex.: quero descobrir que clientes vão cancelar o serviço"))
+        st.caption(bc.T("Pedidos à IA que restam hoje: {}", ia.pedidos_restantes(m["org_id"])))
+        if st.button("Sugerir com IA", key="bn_ia_sugerir"):
+            with st.spinner(tr("A pensar...")):
+                try:
+                    plano = ia.sugerir_analise(pergunta, df, m["org_id"], idioma_actual())
+                except ia.IAErro as e:
+                    erro_box(tr(str(e)))
+                    return
+            prob = plano["problema"]
+            # estes valores têm de ser postos antes de os campos existirem neste ecrã (por isso o assistente vem primeiro)
+            st.session_state["bn_problema"] = prob
+            st.session_state["bn_an_problema"] = prob
+            if plano["alvo"]:
+                st.session_state[f"bn_alvo_{prob}_{did}"] = plano["alvo"]
+            st.session_state[f"bn_excl_{prob}_{did}"] = plano["ignorar"]
+            st.session_state["bn_ia_msg"] = bc.T("Sugestão aplicada: {}. {}", tr(bc.PROBLEMAS[prob]["titulo"]), plano["porque"])
+            st.rerun()
 
 
 def _fig(fig):
@@ -351,6 +382,7 @@ def render_analises(username: str, name: str):
         erro_box("Não consegui abrir estes dados.")
         return
     nome_dados = next(d["nome"] for d in dados if d["id"] == did)
+    _assistente_ia(m, df, did)
 
     section_title("2. Que problema?")
     chaves = list(bc.PROBLEMAS)
@@ -742,6 +774,28 @@ def render_relatorios(username: str, name: str):
     if not a:
         return
     mostrar_resultado(a["resumo"], a["problema"], chave=f"bn_rel_{esc}")
+    section_title("Comentário para a gestão")
+    texto_ia = (a["resumo"] or {}).get("texto_ia")
+    if texto_ia:
+        st.markdown(texto_ia["texto"])
+        st.caption(bc.T("Escrito pela IA ({}) em {}. Confirma antes de decidir.", texto_ia.get("modelo", ""), texto_ia.get("em", "")))
+    if not ia.configurada():
+        st.caption(tr("A IA está desligada. Quem administra a aplicação pode ligá-la com a chave «xai_api_key» nos segredos."))
+    elif pode(m, "treinar"):
+        if st.button("Escrever outra vez com IA" if texto_ia else "Escrever comentário com IA", key=f"bn_rel_ia_{esc}"):
+            with st.spinner(tr("A escrever o comentário...")):
+                try:
+                    texto = ia.escrever_comentario(a, m["nome"], m["org_id"], idioma_actual())
+                except ia.IAErro as e:
+                    erro_box(tr(str(e)))
+                else:
+                    novo = dict(a["resumo"] or {})
+                    novo["texto_ia"] = {"texto": texto, "modelo": ia.modelo(), "em": str(datetime.date.today())}
+                    db.bn_actualizar_analise(esc, novo)
+                    st.rerun()
+        st.caption(bc.T("Pedidos à IA que restam hoje: {} · o comentário usa só os números da análise, nunca as linhas dos dados.",
+                        ia.pedidos_restantes(m["org_id"])))
+
     section_title("Exportar")
     autor = (db.get_user(a["criado_por"]) or {}).get("name") or a["criado_por"]
     try:

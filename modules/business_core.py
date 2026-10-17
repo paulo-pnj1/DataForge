@@ -1126,6 +1126,14 @@ def relatorio_pdf(empresa: str, analise: dict, autor: str = "") -> bytes:
             linhas.append([nome_segmento(p), str(p["tamanho"]), f"{p['percentagem']:.0%}"])
         f.append(tabela(linhas, [11 * cm, 3 * cm, 3 * cm]))
 
+    texto_ia = (res.get("texto_ia") or {}).get("texto")
+    if texto_ia:
+        f.append(P(tr("Comentário (escrito por IA)"), h2))
+        for par in str(texto_ia).split("\n"):
+            if par.strip():
+                f.append(P(par.strip()))
+        f.append(P(tr("Texto gerado por IA a partir dos números deste relatório. Confirma antes de decidir."), peq))
+
     avisos = res.get("avisos") or []
     if avisos:
         f.append(P(tr("Pontos de atenção"), h2))

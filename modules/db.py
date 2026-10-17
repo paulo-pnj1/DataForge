@@ -450,3 +450,8 @@ def bn_get_analise(analise_id: str):
 
 def bn_apagar_analise(analise_id: str):
     _delete("bn_analises", {"id": analise_id})
+
+
+def bn_actualizar_analise(analise_id: str, resumo: dict):
+    """Substitui o resumo (métricas, avisos, comentário da IA) de uma análise."""
+    _update("bn_analises", {"id": analise_id}, {"resumo": resumo})

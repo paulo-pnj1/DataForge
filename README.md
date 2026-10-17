@@ -89,6 +89,7 @@ tests/test_smoke.py
   - Papéis: **gestor** (tudo), **analista** (carrega dados, treina, gera relatórios) e **membro** (consulta e usa os modelos).
   - A lógica está em `modules/business_core.py` (sem interface, testável) e os ecrãs em `modules/business.py`. Os dados e as análises guardam-se nas tabelas `bn_datasets` e `bn_analises` (**volta a correr o `schema.sql` no Supabase**; em modo local é automático).
   - Contas de empresa antigas (papel `aluno` + empresa, sem turma nem escola) passam a ver só o painel Business.
+- **IA com o Grok (xAI), opcional:** em **Análises** há um assistente que sugere o problema e as colunas a partir de uma frase, e em **Relatórios** um comentário para a gestão que também entra no PDF. Só seguem para a IA os nomes das colunas, as categorias e os números já calculados, **nunca linhas de dados**; tudo o que a IA propõe é validado contra os dados reais. Liga-se com `xai_api_key` (e, se quiseres, `xai_model` e `ia_limite_diario`) nos segredos; sem a chave a IA fica desligada. O limite diário é por empresa (por omissão 30 pedidos). Código em `modules/ia.py`.
 - **Sair:** apaga o cookie no navegador **e** revoga no servidor as sessões abertas até esse momento (chave `sessao:<utilizador>` na tabela `progress`), por isso actualizar a página já não reabre a conta.
 - **Inglês:** o motor de tradução aceita agora modelos com valores (`"Passo {} de {}"` → `"Step {} of {}"`) para as frases montadas com f-strings.
 
