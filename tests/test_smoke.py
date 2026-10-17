@@ -13,6 +13,8 @@ PAGINAS = ["dashboard", "escola", "primeiro_modelo", "assistente", "dicionario",
            "certificados", "perfil", "classificacao", "regressao", "clustering", "reducao", "anomalias", "mlp",
            "reforco", "comparador", "historico"]                      # painel do aluno
 PAGINAS_PROFESSOR = ["professor", "escola", "dicionario", "perfil"]
+PAGINAS_BUSINESS = ["business_home", "business_dados", "business_analises", "business_previsoes", "business_relatorios",
+                    "business_equipa", "perfil"]
 PAGINAS_ADMIN = ["admin_home", "admin_orgs", "admin_convites", "admin_users", "admin_email", "admin_conteudos", "admin_erros", "perfil"]
 
 
@@ -55,6 +57,20 @@ def test_painel_admin(pagina):
     at = _app(pagina, "admin")
     _sem_erros(at)
     assert at.session_state["painel"] == "admin" and at.session_state["pagina"] == pagina
+
+
+@pytest.mark.parametrize("pagina", PAGINAS_BUSINESS)
+def test_painel_business_so_de_empresa(pagina):
+    """Conta de empresa: só o painel Business, sem selector de painel nem nada de aluno."""
+    from modules import db
+    db.create_org("e1", "Empresa Teste", "empresa", "ABC123")
+    db.create_user({"username": "ana", "name": "Ana Silva", "password_hash": "x", "role": "empresa"})
+    db.add_membro("e1", "ana", "gestor")
+    at = _app(pagina, "ana")
+    _sem_erros(at)
+    assert at.session_state["painel"] == "business" and at.session_state["pagina"] == pagina
+    assert not any("pts" in (m.value or "") for m in at.sidebar.markdown)       # sem pontos de aluno
+    assert not at.sidebar.selectbox or all(sb.label != "Painel" for sb in at.sidebar.selectbox)
 
 
 def test_cada_papel_cai_no_seu_painel():

@@ -2,6 +2,7 @@
 import unicodedata
 
 import streamlit as st
+from modules.i18n import tr
 
 from modules.utils import ir_para
 
@@ -30,11 +31,17 @@ def pesquisar(q: str, paginas: list, limite: int = 6) -> list:
     return res[:limite]
 
 
-def render_pesquisa_sidebar(paginas: list):
-    q = st.text_input("Pesquisar na plataforma", placeholder="ex.: overfitting, KNN...", key="pesq_q", label_visibility="collapsed")
+def render_pesquisa_sidebar(paginas: list, so_paginas: bool = False):
+    """so_paginas=True (painel Business): procura só nos menus, sem lições nem dicionário de aluno."""
+    q = st.text_input("Pesquisar na plataforma", placeholder="ex.: previsões, equipa..." if so_paginas else "ex.: overfitting, KNN...",
+                      key="pesq_q", label_visibility="collapsed")
     if not q:
         return
-    res = pesquisar(q, paginas)
+    if so_paginas:
+        alvo = _norm(q.strip())
+        res = [("Página", t, ("pagina", k, None)) for t, k in paginas if len(alvo) >= 2 and (alvo in _norm(t) or alvo in _norm(tr(t)))]
+    else:
+        res = pesquisar(q, paginas)
     if not res:
         st.caption("Nada encontrado.")
         return

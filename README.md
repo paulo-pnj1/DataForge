@@ -82,7 +82,15 @@ tests/test_smoke.py
   - **Admin:** cria convites, aprova ou recusa empresas, suspende organizações. Não entra nos painéis dos utilizadores.
 - **Email (Brevo):** preenche `smtp_*`, `email_from` e `admin_email` nos segredos (ver `.streamlit/secrets.toml.example`). Em *Administração > Email* vês a quota diária, a fila e podes enviar um email de teste. Sem email configurado, tudo funciona: os códigos e links aparecem no ecrã para os enviares à mão. O código `admin_code` só serve para criar o primeiro administrador.
 - **Base de dados já existente:** volta a executar `schema.sql` no Supabase (é seguro repetir) para criar as tabelas novas e a coluna `turmas.org_id`.
-- O painel Business ainda é um marcador; o MVP vem na Fase 3.
+- **Painel Business (completo):** uma conta de empresa (papel `empresa`) só vê este painel: nada de lições, pontos, turmas ou ranking. Páginas:
+  - **Início** (estado da empresa, 4 passos, problemas), **Dados** (CSV/Excel, diagnóstico automático, biblioteca partilhada, dados de exemplo),
+    **Análises** (prever vendas, procura/stock, clientes que saem, fraude/anomalias, segmentos), **Previsões** (ficheiro novo, dados guardados ou um caso à mão),
+    **Relatórios** (histórico + PDF executivo), **Equipa** (código de convite, papéis, remover) e **Perfil**.
+  - Papéis: **gestor** (tudo), **analista** (carrega dados, treina, gera relatórios) e **membro** (consulta e usa os modelos).
+  - A lógica está em `modules/business_core.py` (sem interface, testável) e os ecrãs em `modules/business.py`. Os dados e as análises guardam-se nas tabelas `bn_datasets` e `bn_analises` (**volta a correr o `schema.sql` no Supabase**; em modo local é automático).
+  - Contas de empresa antigas (papel `aluno` + empresa, sem turma nem escola) passam a ver só o painel Business.
+- **Sair:** apaga o cookie no navegador **e** revoga no servidor as sessões abertas até esse momento (chave `sessao:<utilizador>` na tabela `progress`), por isso actualizar a página já não reabre a conta.
+- **Inglês:** o motor de tradução aceita agora modelos com valores (`"Passo {} de {}"` → `"Step {} of {}"`) para as frases montadas com f-strings.
 
 ## Tema claro (branco)
 

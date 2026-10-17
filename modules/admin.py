@@ -278,22 +278,12 @@ def render_admin_erros(username: str):
 
 
 def render_business_home(username: str, name: str):
-    """Marcador do painel Business (MVP na Fase 3)."""
+    """Mantido por compatibilidade: o painel Business completo está em modules/business.py."""
     if (db.get_user(username) or {}).get("role") == "admin":
         st.error("O administrador do sistema não tem acesso ao painel Business.")
         return
-    page_header("DataForge Business", "Machine Learning nos dados da tua empresa")
-    st.info("O painel Business está em construção. Vai permitir carregar dados (CSV ou Excel), fazer um diagnóstico "
-            "automático, escolher o problema (prever vendas, clientes que vão sair, fraude, stock), treinar com "
-            "explicação simples e exportar um relatório executivo em PDF.")
-    membros = db.membros_do_utilizador(username)
-    if membros:
-        st.markdown("**As tuas organizações**")
-        for m in membros:
-            st.markdown(f"- {m['nome']} ({m['tipo']}, {m['papel']})")
-        for m in membros:
-            if m["tipo"] == "empresa" and m["papel"] == "gestor":
-                st.success(f"Código de convite de **{m['nome']}** para os teus colegas: **{m['codigo_convite']}**")
+    from modules.business import render_inicio
+    render_inicio(username, name)
 
 
 def render_empresa_pendente(username: str, org: dict):

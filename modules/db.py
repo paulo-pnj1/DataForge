@@ -9,6 +9,7 @@ Activa RLS nas tabelas sem políticas (ver schema.sql) para a chave pública fic
 import json
 import datetime
 import os
+import uuid
 
 import requests
 from tinydb import TinyDB
@@ -48,9 +49,9 @@ def _local(tabela: str):
     return TinyDB("data/db.json").table(tabela)
 
 
-def _select(tabela: str, order=None, desc=False, limit=None, **eq) -> list:
+def _select(tabela: str, order=None, desc=False, limit=None, cols=None, **eq) -> list:
     if usando_supabase():
-        params = {"select": "*"}
+        params = {"select": ",".join(cols) if cols else "*"}
         for k, v in eq.items():
             params[k] = f"eq.{str(v).lower() if isinstance(v, bool) else v}"
         if order:
@@ -61,7 +62,8 @@ def _select(tabela: str, order=None, desc=False, limit=None, **eq) -> list:
     rows = [dict(r) for r in _local(tabela).all() if all(r.get(k) == v for k, v in eq.items())]
     if order:
         rows.sort(key=lambda r: str(r.get(order, "")), reverse=desc)
-    return rows[:limit] if limit else rows
+    rows = rows[:limit] if limit else rows
+    return [{k: r.get(k) for k in cols} for r in rows] if cols else rows
 
 
 def _insert(tabela: str, row: dict):
@@ -391,3 +393,54 @@ def list_emails(limite: int = 2000, **eq) -> list:
 
 def update_email(email_id: str, campos: dict):
     _update("emails", {"id": email_id}, campos)
+
+
+# ══════════════════════════════════════════════════════
+# DATAFORGE BUSINESS: dados e análises de cada empresa
+# ══════════════════════════════════════════════════════
+_COLS_DATASET = ["id", "org_id", "nome", "linhas", "colunas", "reduzido", "criado_por", "created_at"]
+_COLS_ANALISE = ["id", "org_id", "dataset_id", "dataset_nome", "criado_por", "problema", "titulo", "alvo",
+                 "resumo", "modelo_guardado", "created_at"]
+
+
+def bn_criar_dataset(org_id: str, nome: str, conteudo: str, linhas: int, colunas: int, criado_por: str, reduzido: bool = False) -> str:
+    did = uuid.uuid4().hex[:12]
+    _insert("bn_datasets", {"id": did, "org_id": org_id, "nome": nome, "conteudo": conteudo, "linhas": int(linhas),
+                            "colunas": int(colunas), "reduzido": bool(reduzido), "criado_por": criado_por, "created_at": _agora()})
+    return did
+
+
+def bn_datasets(org_id: str) -> list:
+    return _select("bn_datasets", order="created_at", desc=True, cols=_COLS_DATASET, org_id=org_id)
+
+
+def bn_get_dataset(dataset_id: str):
+    r = _select("bn_datasets", id=dataset_id)
+    return r[0] if r else None
+
+
+def bn_apagar_dataset(dataset_id: str):
+    _delete("bn_datasets", {"id": dataset_id})
+
+
+def bn_criar_analise(org_id: str, dataset_id: str, dataset_nome: str, criado_por: str, problema: str, titulo: str,
+                     alvo: str, resumo: dict, meta: dict, modelo=None) -> str:
+    aid = uuid.uuid4().hex[:12]
+    _insert("bn_analises", {"id": aid, "org_id": org_id, "dataset_id": dataset_id, "dataset_nome": dataset_nome,
+                            "criado_por": criado_por, "problema": problema, "titulo": titulo, "alvo": alvo or "",
+                            "resumo": resumo, "meta": meta, "modelo": modelo, "modelo_guardado": bool(modelo),
+                            "created_at": _agora()})
+    return aid
+
+
+def bn_analises(org_id: str) -> list:
+    return _select("bn_analises", order="created_at", desc=True, cols=_COLS_ANALISE, org_id=org_id)
+
+
+def bn_get_analise(analise_id: str):
+    r = _select("bn_analises", id=analise_id)
+    return r[0] if r else None
+
+
+def bn_apagar_analise(analise_id: str):
+    _delete("bn_analises", {"id": analise_id})

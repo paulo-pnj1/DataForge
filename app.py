@@ -157,9 +157,18 @@ if role != "admin" and "business" not in _disponiveis:
         _empresa_pendente = None
 if _empresa_pendente:      # dono de uma empresa ainda não aprovada: só vê o estado do pedido
     with st.sidebar:
-        render_sidebar_user(name, username, role, authenticator, produto="DataForge Business")
+        render_sidebar_user(name, username, role, authenticator, produto="DataForge Business",
+                            papel_rotulo="Empresa", mostrar_pontos=False, subtitulo="Machine Learning para empresas")
     from modules.admin import render_empresa_pendente
     render_empresa_pendente(username, _empresa_pendente)
+    st.stop()
+
+if not _disponiveis:       # conta de empresa que já não pertence a nenhuma empresa activa
+    with st.sidebar:
+        render_sidebar_user(name, username, role, authenticator, produto="DataForge Business",
+                            papel_rotulo="Empresa", mostrar_pontos=False, subtitulo="Machine Learning para empresas")
+    from modules.business import render_sem_empresa
+    render_sem_empresa(username)
     st.stop()
 
 painel = resolver_painel(st.session_state.get("painel"), _disponiveis)
@@ -170,7 +179,13 @@ if "pagina" not in st.session_state or st.session_state.pagina not in paginas_pe
 
 # ── SIDEBAR ──────────────────────────────────────────
 with st.sidebar:
-    render_sidebar_user(name, username, role, authenticator, produto=PRODUTO_DO_PAINEL[painel])
+    if painel == "business":
+        from modules.business import papel_rotulo as _papel_emp, render_seletor_empresa
+        render_sidebar_user(name, username, role, authenticator, produto=PRODUTO_DO_PAINEL[painel],
+                            papel_rotulo=_papel_emp(username) or "Empresa", mostrar_pontos=False,
+                            subtitulo="Machine Learning para empresas")
+    else:
+        render_sidebar_user(name, username, role, authenticator, produto=PRODUTO_DO_PAINEL[painel])
 
     if len(_disponiveis) > 1:
         escolhido = st.selectbox("Painel", _disponiveis, index=_disponiveis.index(painel),
@@ -179,6 +194,9 @@ with st.sidebar:
             st.session_state["painel"] = escolhido
             st.session_state.pagina = INICIO[escolhido]
             st.rerun()
+
+    if painel == "business":
+        render_seletor_empresa(username)
 
     rotulo_rev = "Revisão do dia"
     if painel == "aluno":
@@ -195,7 +213,7 @@ with st.sidebar:
             for label, key, seccao, ic, cor in menu_do_painel(painel, rotulo_rev)]
 
     from modules.pesquisa import render_pesquisa_sidebar
-    render_pesquisa_sidebar([(l, k) for l, k, _, _ in MENU])
+    render_pesquisa_sidebar([(l, k) for l, k, _, _ in MENU], so_paginas=(painel == "business"))
 
     ultima_seccao = "__start__"
     for label, key, seccao, icone_svg in MENU:
@@ -226,6 +244,9 @@ with st.sidebar:
 
 
 # ── ROTEADOR ─────────────────────────────────────────
+BUSINESS_PAGINAS = {"business_home": "render_inicio", "business_dados": "render_dados",
+                    "business_analises": "render_analises", "business_previsoes": "render_previsoes",
+                    "business_relatorios": "render_relatorios", "business_equipa": "render_equipa"}
 pagina = st.session_state.get("pagina", INICIO[painel])
 
 try:
@@ -325,6 +346,10 @@ try:
         from modules.certificados import render_certificados
         render_certificados(username, name)
 
+    elif pagina == "perfil" and painel == "business" and role != "admin":
+        from modules.business import render_perfil as render_perfil_business
+        render_perfil_business(username, name)
+
     elif pagina == "perfil":
         from modules.auth import render_perfil
         render_perfil(username, name, role)
@@ -361,9 +386,9 @@ try:
         from modules.admin import render_admin_erros
         render_admin_erros(username)
 
-    elif pagina == "business_home" and painel == "business" and role != "admin":
-        from modules.admin import render_business_home
-        render_business_home(username, name)
+    elif pagina in BUSINESS_PAGINAS and painel == "business" and role != "admin":
+        from modules import business as _bn
+        getattr(_bn, BUSINESS_PAGINAS[pagina])(username, name)
 
     else:  # página desconhecida: volta ao início do painel actual
         st.session_state.pagina = INICIO[painel]

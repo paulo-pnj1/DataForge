@@ -86,7 +86,17 @@ def _carregar():
         frases.setdefault(m.group(0), []).append((k, v, m.start()))
     for lst in frases.values():
         lst.sort(key=lambda x: -len(x[0]))
-    _dados = {"exact": exact, "frases": frases}
+    # Modelos com valores dinâmicos: "Passo {} de {}" -> expressão regular + modelo inglês.
+    # Servem para frases montadas com f-strings, em que o texto final nunca é igual ao do ficheiro.
+    padroes = []
+    for k, v in exact.items():
+        if "{}" not in k or k.count("{}") != v.count("{}"):
+            continue
+        partes = k.split("{}")
+        rx = re.compile("^" + "(.+?)".join(re.escape(x) for x in partes) + "$", re.DOTALL)
+        padroes.append((partes[0], rx, v.split("{}")))
+    padroes.sort(key=lambda x: -sum(len(t) for t in x[2]))
+    _dados = {"exact": exact, "frases": frases, "padroes": padroes}
     return _dados
 
 
@@ -116,6 +126,23 @@ def _frases_dentro(core: str, frases: dict) -> str:
     return "".join(out)
 
 
+def _por_modelo(core: str, padroes: list):
+    """Traduz uma frase montada com valores (ex.: «Passo 2 de 5») usando os modelos com {} do ficheiro."""
+    for prefixo, rx, en_partes in padroes:
+        if prefixo and not core.startswith(prefixo):
+            continue
+        m = rx.match(core)
+        if not m:
+            continue
+        valores = [_traduzir_en(g) for g in m.groups()]       # os valores também podem ter texto a traduzir
+        out = [en_partes[0]]
+        for val, resto in zip(valores, en_partes[1:]):
+            out.append(val)
+            out.append(resto)
+        return "".join(out)
+    return None
+
+
 @functools.lru_cache(maxsize=8192)
 def _traduzir_en(texto: str) -> str:
     d = _carregar()
@@ -130,6 +157,8 @@ def _traduzir_en(texto: str) -> str:
             res.append(p)
             continue
         en = exact.get(core)
+        if en is None:
+            en = _por_modelo(core, d["padroes"])
         if en is None:
             en = _frases_dentro(core, frases)
         res.append(pre + en + suf)

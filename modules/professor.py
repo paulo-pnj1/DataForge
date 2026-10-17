@@ -166,7 +166,7 @@ def render_admin_utilizadores(username: str):
     st.markdown("### Mudar o papel de um utilizador")
     c1, c2 = st.columns(2)
     alvo = c1.selectbox("Utilizador", [u["username"] for u in users], key="adm_user")
-    papel = c2.selectbox("Novo papel", ["aluno", "professor", "admin"], key="adm_papel")
+    papel = c2.selectbox("Novo papel", ["aluno", "professor", "empresa", "admin"], key="adm_papel")
     if st.button("Guardar papel", type="primary", key="adm_save"):
         if alvo == username and papel != "admin":
             st.error("Não podes retirar o teu próprio papel de administrador.")

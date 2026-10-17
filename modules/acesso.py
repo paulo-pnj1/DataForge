@@ -399,6 +399,7 @@ def registar(papel, nome, utilizador, email, pw, pw2, turma="", cod_org="", cod_
                 return False, "Não encontrei nenhuma escola activa com esse código. Confirma-o ou deixa vazio."
     else:  # empresa
         turma = ""
+        role = "empresa"          # conta só do painel Business: nunca vê nada de aluno
         if empresa_modo == "nova":
             if len((empresa_nome or "").strip()) < 3:
                 return False, "Escreve o nome da empresa."

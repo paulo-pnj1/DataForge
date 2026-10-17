@@ -12,19 +12,24 @@ INICIO = {"admin": "admin_home", "professor": "professor", "aluno": "dashboard",
 def paineis_disponiveis(role: str, membros: list, tem_turma: bool = False) -> list:
     """Painéis a que a pessoa tem direito (o primeiro é o de entrada).
 
-    - admin global: SÓ o painel de Administração. Nunca acede aos painéis de
-      professor, aluno ou business (gere a plataforma, não usa os painéis dos utilizadores).
-    - professor: Professor; aluno: Aluno.
-    - membro de uma empresa: ganha também o painel Business (e entra nele
-      se não pertencer a nenhuma turma).
+    - admin global: SÓ o painel de Administração (gere a plataforma, não usa os painéis dos utilizadores).
+    - conta de empresa (papel «empresa», ou aluno sem turma nem escola que só pertence a empresas):
+      SÓ o painel Business. Não vê nada de aluno (lições, pontos, turma).
+    - professor: Professor (+ Business se também pertencer a uma empresa).
+    - aluno: Aluno (+ Business se também pertencer a uma empresa).
     """
     if role == "admin":
         return ["admin"]
-    base = "professor" if role == "professor" else "aluno"
-    em_empresa = any(m.get("tipo") == "empresa" for m in (membros or []))
-    if em_empresa and base == "aluno" and not tem_turma:
-        return ["business", "aluno"]
-    return [base, "business"] if em_empresa else [base]
+    membros = membros or []
+    em_empresa = any(m.get("tipo") == "empresa" for m in membros)
+    em_escola = any(m.get("tipo") == "escola" for m in membros)
+    if role == "empresa":
+        return ["business"] if em_empresa else []      # sem empresa activa (pendente ou removida): não há painel
+    if role == "professor":
+        return ["professor", "business"] if em_empresa else ["professor"]
+    if em_empresa and not tem_turma and not em_escola:
+        return ["business"]
+    return ["aluno", "business"] if em_empresa else ["aluno"]
 
 
 def menu_do_painel(painel: str, rotulo_revisao: str = "Revisão do dia") -> list:
@@ -50,8 +55,13 @@ def menu_do_painel(painel: str, rotulo_revisao: str = "Revisão do dia") -> list
         ]
     if painel == "business":
         return [
-            ("Início",  "business_home", "DATAFORGE BUSINESS", "home", AZ),
-            ("Perfil",  "perfil",        None,                 "menu", AM),
+            ("Início",     "business_home",      "DATAFORGE BUSINESS", "home",      AZ),
+            ("Dados",      "business_dados",     None,                 "chart-bar", AZ),
+            ("Análises",   "business_analises",  "RESOLVER PROBLEMAS", "brain",     VD),
+            ("Previsões",  "business_previsoes", None,                 "trend-up",  VD),
+            ("Relatórios", "business_relatorios", None,                "book",      VD),
+            ("Equipa",     "business_equipa",    "EMPRESA",            "network",   AM),
+            ("Perfil",     "perfil",             None,                 "menu",      AM),
         ]
     # aluno
     return [

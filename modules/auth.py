@@ -82,6 +82,97 @@ def _tinha_cookie(config) -> bool:
         return False
 
 
+# ══════════════════════════════════════════════════════
+# TERMINAR SESSÃO (Sair)
+# ══════════════════════════════════════════════════════
+# Porque é que «Sair» não chegava: o cookie de sessão vive no navegador e é apagado por um componente
+# que só executa se a página ainda existir. O st.rerun() logo a seguir destruía-o antes de correr, o
+# cookie ficava lá e, ao actualizar a página, o login automático reabria a sessão.
+# Agora há três camadas: (1) o cookie é apagado no navegador e damos-lhe tempo para isso,
+# (2) as sessões abertas até ao momento do «Sair» ficam revogadas no servidor (o cookie velho, se
+# ainda existir, deixa de servir) e (3) o cookie é verificado contra essa revogação sempre que é lido.
+def _chave_sessao(username: str) -> str:
+    # os nomes de utilizador não podem ter «:», por isso esta chave nunca colide com uma conta real
+    return f"sessao:{username}"
+
+
+def _marca_logout(username: str) -> float:
+    try:
+        return float((db.get_progress(_chave_sessao(username)) or {}).get("logout_em") or 0)
+    except Exception:
+        return 0.0
+
+
+def _revogar_sessoes(username: str):
+    """Marca o instante do «Sair»: cookies emitidos até agora deixam de abrir sessão."""
+    try:
+        db.save_progress(_chave_sessao(username), {"logout_em": time.time()})
+    except Exception:
+        pass            # sem base de dados continua a valer o apagar do cookie no navegador
+
+
+def _cookie_revogado(token: dict, config) -> bool:
+    """True se o cookie (JWT já descodificado) foi emitido antes do último «Sair» dessa conta."""
+    try:
+        marca = _marca_logout(token.get("username", ""))
+        if not marca:
+            return False
+        emitido = float(token.get("exp_date", 0)) - float(config["cookie"]["expiry_days"]) * 86400
+        return emitido <= marca
+    except Exception:
+        return False
+
+
+def _descodificar_cookie(bruto, config):
+    try:
+        import jwt
+        token = jwt.decode(bruto, config["cookie"]["key"], algorithms=["HS256"])
+        return token if token.get("username") else None
+    except Exception:
+        return None
+
+
+def _apagar_cookie_no_navegador(nome: str):
+    """Apaga o cookie de sessão no navegador (JavaScript num iframe do mesmo domínio)."""
+    try:
+        import streamlit.components.v1 as components
+        js = ("<script>(function(){var n=%r,p='Thu, 01 Jan 1970 00:00:00 GMT';"
+              "function k(d){try{d.cookie=n+'=; expires='+p+'; path=/';d.cookie=n+'=; Max-Age=0; path=/';"
+              "d.cookie=n+'=; expires='+p+'; path=/; SameSite=Lax';}catch(e){}}"
+              "k(document);try{k(window.parent.document);}catch(e){}})();</script>" % nome)
+        components.html(js, height=0)
+    except Exception:
+        pass
+
+
+def _terminar_sessao(username: str, authenticator, config=None):
+    """Sai da conta de forma definitiva (também depois de actualizar a página)."""
+    nome_cookie = (config or st.session_state.get("auth_config") or {}).get("cookie", {}).get("name", "dataforge_edu_cookie")
+    _revogar_sessoes(username)
+    st.session_state["_df_saiu"] = True      # impede que o cookie ainda por apagar reabra a sessão
+    try:
+        authenticator.logout(location="unrendered")
+    except Exception:
+        pass
+    try:
+        if _google_activo() and st.user.is_logged_in:
+            st.logout()
+    except Exception:
+        pass
+    _apagar_cookie_no_navegador(nome_cookie)
+    # Dá tempo ao navegador para executar o apagar do cookie antes do st.rerun() (que destrói o componente).
+    time.sleep(1.2)
+    # Esquece tudo o que era da pessoa que saiu: a próxima a entrar começa limpa.
+    for k in list(st.session_state.keys()):
+        if k in ("authentication_status", "username", "name", "email", "roles", "painel", "pagina", "painel_sel",
+                 "_membros_cache", "_prog_cache", "_pw_ok", "guiado_step", "_df_cookie_t0") \
+                or str(k).startswith(("_tema_lido_", "_idioma_lido_")):
+            st.session_state.pop(k, None)
+    st.session_state["authentication_status"] = None
+    st.session_state["logout"] = True        # o authenticator deixa de ler o cookie nesta sessão
+    st.rerun()
+
+
 def _login_por_cookie_do_navegador(authenticator, config) -> bool:
     """Restaura a sessão a partir do cookie guardado no navegador.
 
@@ -118,6 +209,9 @@ def _login_por_cookie_do_navegador(authenticator, config) -> bool:
             return False
         utilizador = config["credentials"]["usernames"].get(token["username"])
         if not utilizador:
+            return False
+        if _cookie_revogado(token, config):      # a pessoa clicou em «Sair» depois deste cookie ser emitido
+            _apagar_cookie_no_navegador(nome)
             return False
         try:
             authenticator.authentication_controller.login(token=token)
@@ -296,6 +390,19 @@ def render_login_page():
     # Estado actual antes de qualquer tentativa de (re)autenticação.
     auth_status = st.session_state.get("authentication_status")
 
+    # Primeira execução da sessão: se o navegador ainda traz um cookie de uma sessão já terminada com «Sair»,
+    # o authenticator não o pode usar (senão actualizar a página reabria a conta).
+    if auth_status is not True and "_df_guarda_cookie" not in st.session_state:
+        st.session_state["_df_guarda_cookie"] = True
+        try:
+            bruto = st.context.cookies.get(config["cookie"]["name"])
+            tk = _descodificar_cookie(bruto, config) if bruto else None
+            if tk and _cookie_revogado(tk, config):
+                st.session_state["_df_saiu"] = True
+                st.session_state["logout"] = True
+        except Exception:
+            pass
+
     if auth_status is not True:
         g = _utilizador_google()
         if g:
@@ -367,24 +474,25 @@ def render_login_page():
     return authenticator, auth_status, username, config
 
 
-def render_sidebar_user(name: str, username: str, role: str, authenticator, produto: str = "DataForge EDU"):
+def render_sidebar_user(name: str, username: str, role: str, authenticator, produto: str = "DataForge EDU",
+                        papel_rotulo: str = None, mostrar_pontos: bool = True, subtitulo: str = "Machine Learning"):
+    """Cartão da pessoa no menu lateral. No painel Business não há pontos nem papel de aluno:
+    `papel_rotulo` mostra o papel na empresa (Gestor, Analista, Membro) e `mostrar_pontos=False` esconde os pontos."""
     initial = name[0].upper() if name else "U"
-    role_labels = {"admin": ("Admin", "red"), "professor": ("Professor", "amber"), "aluno": ("Aluno", "blue")}
+    role_labels = {"admin": ("Admin", "red"), "professor": ("Professor", "amber"), "aluno": ("Aluno", "blue"),
+                   "empresa": ("Empresa", "teal")}
     role_label, role_color = role_labels.get(role, ("Utilizador", "blue"))
-    progress = get_user_progress(username)
-    pontos = progress.get("pontos", 0)
-    st.markdown(f"""<div class="sidebar-brand"><div class="sidebar-brand-icon" style="font-size:15px;font-weight:900;color:var(--df-on-accent,#0D1117);letter-spacing:-1px;font-family:Inter,sans-serif;">DF</div><div><div class="sidebar-brand-name">{produto}</div><div class="sidebar-brand-sub">Machine Learning</div></div></div><div class="user-pill"><div class="user-avatar">{initial}</div><div style="flex:1;min-width:0;"><div class="user-name">{name}</div><div class="user-role">{badge(role_label, role_color)} &nbsp;⭐ {pontos} pts</div></div></div>""", unsafe_allow_html=True)
+    if papel_rotulo:
+        role_label, role_color = papel_rotulo, "teal"
+    pontos_html = ""
+    if mostrar_pontos:
+        pontos = get_user_progress(username).get("pontos", 0)
+        pontos_html = f" &nbsp;⭐ {pontos} pts"
+    st.markdown(f"""<div class="sidebar-brand"><div class="sidebar-brand-icon" style="font-size:15px;font-weight:900;color:var(--df-on-accent,#0D1117);letter-spacing:-1px;font-family:Inter,sans-serif;">DF</div><div><div class="sidebar-brand-name">{produto}</div><div class="sidebar-brand-sub">{subtitulo}</div></div></div><div class="user-pill"><div class="user-avatar">{initial}</div><div style="flex:1;min-width:0;"><div class="user-name">{name}</div><div class="user-role">{badge(role_label, role_color)}{pontos_html}</div></div></div>""", unsafe_allow_html=True)
     render_seletor_tema(username)
     render_seletor_idioma(username)
     if st.button("Sair", key="logout_btn", use_container_width=True):
-        st.session_state["_df_saiu"] = True     # impede que o cookie ainda por apagar reabra a sessão
-        authenticator.logout(location="unrendered")
-        try:
-            if _google_activo() and st.user.is_logged_in:
-                st.logout()
-        except Exception:
-            pass
-        st.rerun()
+        _terminar_sessao(username, authenticator)
 
 
 def get_user_role(username: str, config: dict) -> str:
