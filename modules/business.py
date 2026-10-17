@@ -141,7 +141,7 @@ def _assistente_ia(m: dict, df: pd.DataFrame, did: str):
     """Pergunta em linguagem normal -> a IA sugere problema, coluna a prever e colunas a ignorar (validado contra os dados)."""
     with st.expander(tr("Assistente com IA (opcional)")):
         if not ia.configurada():
-            st.caption(tr("A IA está desligada. Quem administra a aplicação pode ligá-la com a chave «xai_api_key» nos segredos."))
+            st.caption(tr("A IA está desligada. Quem administra a aplicação pode ligá-la com a chave «ia_api_key» nos segredos."))
             return
         st.caption(tr("Descreve o que queres saber e a IA sugere o problema e as colunas. Só são enviados os nomes das colunas e as categorias, nunca as linhas dos dados."))
         msg = st.session_state.pop("bn_ia_msg", None)
@@ -780,7 +780,7 @@ def render_relatorios(username: str, name: str):
         st.markdown(texto_ia["texto"])
         st.caption(bc.T("Escrito pela IA ({}) em {}. Confirma antes de decidir.", texto_ia.get("modelo", ""), texto_ia.get("em", "")))
     if not ia.configurada():
-        st.caption(tr("A IA está desligada. Quem administra a aplicação pode ligá-la com a chave «xai_api_key» nos segredos."))
+        st.caption(tr("A IA está desligada. Quem administra a aplicação pode ligá-la com a chave «ia_api_key» nos segredos."))
     elif pode(m, "treinar"):
         if st.button("Escrever outra vez com IA" if texto_ia else "Escrever comentário com IA", key=f"bn_rel_ia_{esc}"):
             with st.spinner(tr("A escrever o comentário...")):

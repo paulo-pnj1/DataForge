@@ -107,3 +107,33 @@ def test_comentario_usa_so_numeros_e_entra_no_pdf(monkeypatch):
     assert "C00001" not in json.dumps(enviados[0][1], ensure_ascii=False)
     analise["resumo"] = dict(analise["resumo"], texto_ia={"texto": texto, "modelo": "m", "em": "2026-01-01"})
     assert bc.relatorio_pdf("Loja", analise).startswith(b"%PDF")
+
+
+def test_provedor_gemini_gratuito_usa_o_endereco_e_a_chave_certos(monkeypatch):
+    from modules import ia
+    monkeypatch.delenv("XAI_API_KEY")
+    monkeypatch.setenv("IA_API_KEY", "chave-gemini")
+    monkeypatch.setenv("IA_PROVEDOR", "gemini")
+    enviados = []
+    _responder(monkeypatch, "ok", enviados=enviados)
+    assert ia.configurada() and ia.provedor() == "gemini"
+    assert ia.chamar([{"role": "user", "content": "x"}], "e1") == "ok"
+    url, corpo, cab = enviados[0]
+    assert url == "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+    assert corpo["model"] == "gemini-2.5-flash" and cab["Authorization"] == "Bearer chave-gemini"
+    monkeypatch.setenv("IA_MODEL", "outro-modelo")                              # o segredo ia_model manda
+    ia.chamar([{"role": "user", "content": "x"}], "e1")
+    assert enviados[1][1]["model"] == "outro-modelo"
+
+
+def test_repete_sem_response_format_quando_o_modelo_nao_o_aceita(monkeypatch):
+    from modules import ia
+    corpos = []
+
+    def falso(url, json=None, headers=None, timeout=None):
+        corpos.append(dict(json))
+        return _Resp("{}", 400) if "response_format" in json else _Resp("{\"ok\": 1}", 200)
+    monkeypatch.setattr(ia.requests, "post", falso)
+    assert ia.chamar([{"role": "user", "content": "x"}], "e1", json_modo=True) == "{\"ok\": 1}"
+    assert "response_format" in corpos[0] and "response_format" not in corpos[1]
+    assert ia.usos_hoje("e1") == 1                                              # só o pedido que resultou conta

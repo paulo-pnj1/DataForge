@@ -8,12 +8,14 @@ Dois usos, ambos pensados para não enviar dados da empresa:
    Os números vêm sempre do sistema; a IA só os descreve.
 
 Segredos (Streamlit Cloud > Settings > Secrets, ou variáveis de ambiente):
-    xai_api_key       = "xai-..."               # obrigatório; sem ela a IA fica desligada
-    xai_model         = "grok-..."              # opcional; o nome do modelo (ver console.x.ai)
-    xai_base_url      = "https://api.x.ai/v1"   # opcional
-    ia_limite_diario  = 30                      # opcional; pedidos por empresa e por dia
+    ia_api_key       = "..."          # obrigatório; sem ela a IA fica desligada
+    ia_provedor      = "gemini"       # "gemini" (nível gratuito da Google) ou "xai" (Grok, pago). Por omissão: "xai"
+    ia_model         = "..."          # opcional; substitui o modelo do provedor
+    ia_base_url      = "https://..."  # opcional; qualquer serviço compatível com a API da OpenAI
+    ia_limite_diario = 30             # opcional; pedidos por empresa e por dia
+Os nomes antigos xai_api_key, xai_model e xai_base_url continuam a funcionar.
 
-A API da xAI segue o formato da OpenAI (POST /chat/completions com «Authorization: Bearer»).
+Qualquer serviço que siga o formato da OpenAI (POST /chat/completions com «Authorization: Bearer») serve.
 """
 import datetime
 import json
@@ -24,8 +26,10 @@ import requests
 from modules import db
 from modules.settings import secret
 
-MODELO_POR_OMISSAO = "grok-4-1-fast-non-reasoning"
-BASE_POR_OMISSAO = "https://api.x.ai/v1"
+PROVEDORES = {          # nome: (endereço base, modelo por omissão). Confirma o modelo actual na consola do provedor.
+    "xai": ("https://api.x.ai/v1", "grok-4.7"),
+    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-2.5-flash"),
+}
 LIMITE_POR_OMISSAO = 30
 TEMPO_MAXIMO = 45
 
@@ -34,16 +38,25 @@ class IAErro(Exception):
     """Erro da IA com uma mensagem que pode ser mostrada à pessoa (nunca inclui a chave)."""
 
 
+def _chave() -> str:
+    return str(secret("ia_api_key") or secret("xai_api_key") or "")
+
+
+def provedor() -> str:
+    p = str(secret("ia_provedor") or "xai").strip().lower()
+    return p if p in PROVEDORES else "xai"
+
+
 def configurada() -> bool:
-    return bool(secret("xai_api_key"))
+    return bool(_chave())
 
 
 def modelo() -> str:
-    return str(secret("xai_model") or MODELO_POR_OMISSAO)
+    return str(secret("ia_model") or secret("xai_model") or PROVEDORES[provedor()][1])
 
 
 def _base() -> str:
-    return str(secret("xai_base_url") or BASE_POR_OMISSAO).rstrip("/")
+    return str(secret("ia_base_url") or secret("xai_base_url") or PROVEDORES[provedor()][0]).rstrip("/")
 
 
 def limite_diario() -> int:
@@ -86,23 +99,30 @@ def _idioma_pedido(lang: str) -> str:
 # ══════════════════════════════════════════════════════
 def chamar(mensagens: list, org_id: str, max_tokens: int = 700, json_modo: bool = False, temperatura: float = 0.2) -> str:
     if not configurada():
-        raise IAErro("A IA está desligada: falta a chave «xai_api_key» nos segredos da aplicação.")
+        raise IAErro("A IA está desligada: falta a chave «ia_api_key» nos segredos da aplicação.")
     if pedidos_restantes(org_id) <= 0:
         raise IAErro("A empresa atingiu o limite de pedidos à IA por hoje. Volta amanhã.")
     corpo = {"model": modelo(), "messages": mensagens, "max_tokens": max_tokens, "temperature": temperatura, "stream": False}
+    cabecalhos = {"Authorization": f"Bearer {_chave()}", "Content-Type": "application/json"}
+
+    def enviar(c):
+        try:
+            return requests.post(f"{_base()}/chat/completions", json=c, timeout=TEMPO_MAXIMO, headers=cabecalhos)
+        except requests.RequestException:
+            raise IAErro("Não consegui ligar à IA. Tenta daqui a pouco.")
+
     if json_modo:
         corpo["response_format"] = {"type": "json_object"}
-    try:
-        r = requests.post(f"{_base()}/chat/completions", json=corpo, timeout=TEMPO_MAXIMO,
-                          headers={"Authorization": f"Bearer {secret('xai_api_key')}", "Content-Type": "application/json"})
-    except requests.RequestException:
-        raise IAErro("Não consegui ligar à IA. Tenta daqui a pouco.")
+    r = enviar(corpo)
+    if r.status_code == 400 and json_modo:      # nem todos os modelos aceitam «response_format»: o pedido já exige JSON no texto
+        corpo.pop("response_format")
+        r = enviar(corpo)
     if r.status_code in (401, 403):
-        raise IAErro("A chave da IA foi recusada. Confirma a «xai_api_key» nos segredos.")
+        raise IAErro("A chave da IA foi recusada. Confirma a «ia_api_key» nos segredos.")
     if r.status_code == 429:
         raise IAErro("A IA está com demasiados pedidos agora. Tenta daqui a pouco.")
     if r.status_code in (400, 404):
-        raise IAErro("A IA recusou o pedido. Confirma o nome do modelo em «xai_model» nos segredos.")
+        raise IAErro("A IA recusou o pedido. Confirma o nome do modelo em «ia_model» nos segredos.")
     if r.status_code >= 400:
         raise IAErro("A IA teve um problema. Tenta daqui a pouco.")
     try:
