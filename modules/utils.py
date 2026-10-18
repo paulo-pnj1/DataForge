@@ -23,7 +23,7 @@ TEMAS = {
         accent="#58A6FF", accent_h="#79BAFF", accent2="#BC8CFF",
         green="#3FB950", amber="#D29922", red="#F85149", teal="#39D0C0",
         text="#E6EDF3", text_sec="#8B949E", text_mute="#484F58", text2="#B8C4D8", text3="#7A8BA8",
-        on_accent="#0D1117", overlay="rgba(255,255,255,.04)", shadow="rgba(0,0,0,.5)"),
+        on_accent="#FFFFFF", overlay="rgba(255,255,255,.04)", shadow="rgba(0,0,0,.5)"),
     "claro": dict(
         bg="#FFFFFF", surface="#F6F8FA", surface2="#EAEEF2", surface3="#DDE3EA",
         border="#D0D7DE", border2="#AFB8C1",
@@ -368,7 +368,7 @@ def inject_css():
     .stDownloadButton > button,
     .stFormSubmitButton > button {{
         background: {C_ACCENT} !important;
-        color: var(--df-on-accent, #0D1117) !important;
+        color: var(--df-on-accent, #FFFFFF) !important;
         border: none !important;
         border-radius: 8px !important;
         font-weight: 700 !important;
@@ -437,7 +437,7 @@ def inject_css():
     }}
     .stTabs [aria-selected="true"] {{
         background: {C_ACCENT} !important;
-        color: var(--df-on-accent, #0D1117) !important;
+        color: var(--df-on-accent, #FFFFFF) !important;
         font-weight: 700 !important;
     }}
     /* Tab content area */
@@ -794,8 +794,8 @@ def inject_css():
         font-size: 13px; font-weight: 700;
         flex-shrink: 0;
     }}
-    .step-dot.active  {{ background: {C_ACCENT};  color: var(--df-on-accent, #0D1117); }}
-    .step-dot.done    {{ background: {C_GREEN};   color: var(--df-on-accent, #0D1117); }}
+    .step-dot.active  {{ background: {C_ACCENT};  color: var(--df-on-accent, #FFFFFF); }}
+    .step-dot.done    {{ background: {C_GREEN};   color: var(--df-on-accent, #FFFFFF); }}
     .step-dot.pending {{ background: {C_SURFACE2}; color: {C_TEXT_SEC}; border: 1px solid {C_BORDER2}; }}
 
     /* ── Barra de progresso custom ── */
@@ -849,7 +849,7 @@ def inject_css():
         background: linear-gradient(135deg, {C_ACCENT}, {C_ACCENT2});
         border-radius: 8px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 14px; font-weight: 800; color: var(--df-on-accent, #0D1117);
+        font-size: 14px; font-weight: 800; color: var(--df-on-accent, #FFFFFF);
         flex-shrink: 0;
     }}
     .user-name {{ font-size: 14px; font-weight: 700; color: {C_TEXT} !important; }}
@@ -940,6 +940,22 @@ section[data-testid="stSidebar"] [data-testid^="stBaseButton"]:hover {
     border-color: var(--df-accent) !important;
 }
 
+/* Texto branco em tudo o que tem fundo azul (botões, separador activo, menu activo) */
+.stButton > button:not([kind="secondary"]) *,
+.stDownloadButton > button:not([kind="secondary"]) *,
+.stFormSubmitButton > button:not([kind="secondary"]) *,
+.stTabs [aria-selected="true"], .stTabs [aria-selected="true"] * { color: #FFFFFF !important; }
+
+/* Menu lateral: a página onde estás fica marcada a azul */
+section[data-testid="stSidebar"] .stButton > button[kind="primary"],
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] {
+    background: var(--df-accent) !important;
+    border-color: var(--df-accent) !important;
+    font-weight: 700 !important;
+}
+section[data-testid="stSidebar"] .stButton > button[kind="primary"] *,
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] * { color: #FFFFFF !important; }
+
 /* Interruptor (toggle): barra visível nos dois temas, azul quando ligado */
 [data-testid="stToggle"] label:has(input[type="checkbox"]) > span:first-of-type,
 [data-testid="stToggle"] label:has(input[type="checkbox"]) > div:first-of-type:not(:last-child) {
@@ -971,6 +987,11 @@ section[data-testid="stSidebar"] [data-testid^="stBaseButton"]:hover {
 # Só no tema escuro: tabelas em canvas e gráficos nativos são desenhados claros e convertem-se por filtro.
 _CSS_ESCURO = """
 <style>
+/* Azul mais fundo no tema escuro, para o texto branco ler-se bem */
+.stButton > button:not([kind="secondary"]), .stDownloadButton > button:not([kind="secondary"]),
+.stFormSubmitButton > button:not([kind="secondary"]), .stTabs [aria-selected="true"],
+section[data-testid="stSidebar"] .stButton > button[kind="primary"],
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] { background: #1F6FEB !important; }
 [data-testid="stDataFrame"], [data-testid="stArrowVegaLiteChart"] { filter: invert(.91) hue-rotate(180deg); }   /* .91: fundo cinzento-escuro em vez de preto puro */
 </style>
 """

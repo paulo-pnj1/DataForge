@@ -187,7 +187,7 @@ def render_dashboard(name: str, username: str):
     )
 
     # ── PAGE HEADER ──────────────────────────────────
-    st.markdown(f"""<div style="display:flex;align-items:center;gap:14px;margin-bottom:1.8rem; padding-bottom:1.2rem;border-bottom:1px solid {C_BORDER};"><div style="width:48px;height:48px;background:linear-gradient(135deg,{C_ACCENT},{C_ACCENT2}); border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0; box-shadow:0 4px 16px rgba(88,166,255,.25);">{_ico("home", 24, "#0D1117")}</div><div><div style="font-size:22px;font-weight:800;color:{C_TEXT};line-height:1.2;letter-spacing:-.3px;">Dashboard</div><div style="font-size:14px;color:{C_TEXT_SEC};margin-top:3px;">Bem-vindo de volta, {name.split()[0]}. Continua o teu percurso.</div></div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div style="display:flex;align-items:center;gap:14px;margin-bottom:1.8rem; padding-bottom:1.2rem;border-bottom:1px solid {C_BORDER};"><div style="width:48px;height:48px;background:linear-gradient(135deg,{C_ACCENT},{C_ACCENT2}); border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0; box-shadow:0 4px 16px rgba(88,166,255,.25);">{_ico("home", 24, "#FFFFFF")}</div><div><div style="font-size:22px;font-weight:800;color:{C_TEXT};line-height:1.2;letter-spacing:-.3px;">Dashboard</div><div style="font-size:14px;color:{C_TEXT_SEC};margin-top:3px;">Bem-vindo de volta, {name.split()[0]}. Continua o teu percurso.</div></div></div>""", unsafe_allow_html=True)
 
     # ── PRÓXIMO PASSO ────────────────────────────────
     _cartao_proximo_passo(_proximo_passo(progress, completados))

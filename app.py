@@ -171,11 +171,20 @@ if not _disponiveis:       # conta de empresa que já não pertence a nenhuma em
     render_sem_empresa(username)
     st.stop()
 
+# Ao actualizar o navegador (F5) a sessão do Streamlit recomeça: o painel e a página ficam no endereço (?painel=…&p=…)
+if "painel" not in st.session_state and st.query_params.get("painel"):
+    st.session_state["painel"] = st.query_params.get("painel")
 painel = resolver_painel(st.session_state.get("painel"), _disponiveis)
 st.session_state["painel"] = painel
 
+if "pagina" not in st.session_state:
+    _p_url = st.query_params.get("p")
+    if _p_url and _p_url in paginas_permitidas(painel):
+        st.session_state.pagina = _p_url
 if "pagina" not in st.session_state or st.session_state.pagina not in paginas_permitidas(painel):
     st.session_state.pagina = INICIO[painel]
+if "escola_aberta" not in st.session_state and st.session_state.pagina == "escola" and st.query_params.get("licao"):
+    st.session_state.escola_aberta = st.query_params.get("licao")
 
 # ── SIDEBAR ──────────────────────────────────────────
 with st.sidebar:
@@ -232,7 +241,8 @@ with st.sidebar:
             if st.button(
                 f"  {label}",
                 key=f"nav_{key}",
-                width='stretch'
+                width='stretch',
+                type="primary" if ativo else "secondary",
             ):
                 st.session_state.pagina = key
                 if "guiado_step" in st.session_state:
@@ -250,6 +260,16 @@ BUSINESS_PAGINAS = {"business_home": "render_inicio", "business_dados": "render_
 TUTOR_PAGINAS = {"primeiro_modelo", "classificacao", "regressao", "clustering", "reducao", "anomalias", "mlp", "visao",
                  "nlp", "series", "generativo", "reforco", "comparador", "projeto"}
 pagina = st.session_state.get("pagina", INICIO[painel])
+
+# Guarda onde estás no endereço, para o refresh te deixar na mesma página (e na mesma lição)
+_alvo_url = {"painel": painel, "p": pagina}
+if pagina == "escola" and st.session_state.get("escola_aberta"):
+    _alvo_url["licao"] = str(st.session_state.escola_aberta)
+for _k, _v in _alvo_url.items():
+    if st.query_params.get(_k) != _v:
+        st.query_params[_k] = _v
+if pagina != "escola" and "licao" in st.query_params:
+    del st.query_params["licao"]
 
 try:
 
