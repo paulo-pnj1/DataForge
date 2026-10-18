@@ -226,11 +226,16 @@ def _css_painel(aberto: bool) -> str:
             " flex-direction: column; gap: 0 !important; padding: 0 !important; overflow: hidden; background: var(--df-bg);"
             " border-left: 1px solid var(--df-border); box-shadow: -6px 0 24px rgba(0,0,0,.12); }"
             ".st-key-ia_head { flex: 0 0 auto; padding: .7rem 1rem; border-bottom: 1px solid var(--df-border); background: var(--df-surface); }"
-            ".st-key-ia_head .stButton > button, .st-key-ia_head .stButton > button:hover { background: transparent !important; border: none !important;"
-            " box-shadow: none !important; min-height: 32px !important; padding: 0 .5rem !important; transform: none !important; }"
-            ".st-key-ia_head .stButton > button:not([kind='secondary']) * { color: var(--df-text-sec) !important; font-size: 16px !important; }"
+            ".st-key-ia_head button, .st-key-ia_head button:hover, .st-key-ia_head [data-testid^='stBaseButton'] { background: transparent !important;"
+            " border: none !important; box-shadow: none !important; min-height: 32px !important; padding: 0 .5rem !important; transform: none !important; }"
+            ".st-key-ia_head button * { color: var(--df-text-sec) !important; font-size: 18px !important; }"
+            # os blocos do painel ficam dentro de invólucros do Streamlit: o das mensagens é o que cresce
+            ".st-key-ia_painel > div { min-height: 0; }"
+            ".st-key-ia_painel > div:has(.st-key-ia_msgs) { flex: 1 1 0 !important; position: relative; overflow: hidden; }"
+            ".st-key-ia_painel > div:has(.st-key-ia_head), .st-key-ia_painel > div:has(.st-key-ia_comp) { flex: 0 0 auto !important; }"
+            "[data-testid='InputInstructions'] { display: none !important; }"
             # mensagens: column-reverse faz a conversa ficar encostada em baixo e a mais recente sempre visível
-            ".st-key-ia_msgs { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column-reverse;"
+            ".st-key-ia_msgs { position: absolute !important; inset: 0; overflow-y: scroll !important; overscroll-behavior: contain; scrollbar-width: thin; display: flex; flex-direction: column-reverse;"
             " gap: .7rem !important; padding: 1rem; background: var(--df-bg); }"
             "[class*='st-key-ia_u_'], [class*='st-key-ia_a_'] { width: fit-content !important; max-width: 88%%; padding: .6rem .9rem;"
             " border-radius: 16px; font-size: 14.5px; line-height: 1.5; gap: .3rem !important; }"
@@ -291,7 +296,7 @@ def render_painel_ia(username: str, pagina: str, rotulo_pagina: str):
                 f'<div><div style="font-weight:700;font-size:15px;line-height:1.2;">{tr("Tutor IA")}</div>'
                 f'<div style="font-size:12px;color:var(--df-text-sec);line-height:1.3;">{html.escape(tr(ctx["titulo"])[:60])}</div></div></div>',
                 unsafe_allow_html=True)
-            c2.button("✕", key="ia_fechar_b", on_click=_alternar_painel, help=tr("Fechar"))
+            c2.button("✕", key="ia_fechar_b", on_click=_alternar_painel)
         msgs = st.container(key="ia_msgs")
         comp = st.container(key="ia_comp")
 
