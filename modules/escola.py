@@ -354,6 +354,11 @@ def _licao_5():
     _legenda(ax, loc="lower right")
     _mostrar(fig)
 
+    st.session_state["_licao_estado"] = {"id": "classificacao", "texto": (
+        f"Gráfico de pontos: cada ponto é um cliente antigo (azul/laranja = «Não compra»/«Compra»; eixo x = tempo na banca, eixo y = interesse). "
+        f"A estrela é o cliente novo, em x={px:.1f} min e y={py:.1f}. K={k}: os {k} vizinhos mais próximos estão rodeados a verde, ligados à estrela por linhas. "
+        f"Votação: {votos[1]} dizem «Compra» e {votos[0]} dizem «Não compra». "
+        f"Decisão do modelo: {'compra' if decisao else 'não compra'}." + (" Houve empate; ganhou o vizinho mais próximo." if votos[0] == votos[1] else ""))}
     st.markdown(f"**Votação:** {votos[1]} vizinhos dizem *Compra* e {votos[0]} dizem *Não compra*.")
     if decisao:
         st.success("Decisão do modelo: **este cliente vai comprar.**")
@@ -1073,6 +1078,7 @@ def _render_licao(username: str, lid: str):
     page_header(f"{idx + 1}. {licao['titulo']}{estado}", f"Tempo estimado: {licao['tempo']}")
     _caixa("A ideia numa frase", licao["ideia"], C_ACCENT)
 
+    st.session_state.pop("_licao_estado", None)
     licao["render"]()
 
     st.markdown("---")
@@ -1084,7 +1090,8 @@ def _render_licao(username: str, lid: str):
     contexto = (f"Lição: {licao['titulo']}\nIdeia principal: {licao['ideia']}\nResumo da lição:\n"
                 + "\n".join(f"- {p}" for p in licao["resumo"]) + "\nPerguntas do teste desta lição:\n"
                 + "\n".join(f"- {q[0]}" for q in licao["quiz"]))
-    render_tutor(username, f"licao_{lid}", licao["titulo"], contexto, SUGESTOES_LICAO, "Perguntar à IA sobre esta lição", usar_cache=True)
+    render_tutor(username, f"licao_{lid}", licao["titulo"], contexto, SUGESTOES_LICAO, "Perguntar à IA sobre esta lição", usar_cache=True,
+                 estado=(st.session_state.get("_licao_estado") or {}).get("texto", ""))
 
     _render_quiz(username, licao)
 

@@ -121,7 +121,7 @@ def test_provedor_gemini_gratuito_usa_o_endereco_e_a_chave_certos(monkeypatch):
     assert ia.chamar([{"role": "user", "content": "x"}], "e1") == "ok"
     url, corpo, cab = enviados[0]
     assert url == "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-    assert corpo["model"] == "gemini-2.5-flash" and cab["Authorization"] == "Bearer chave-gemini"
+    assert corpo["model"] == "gemini-3.8-flash" and cab["Authorization"] == "Bearer chave-gemini"
     monkeypatch.setenv("IA_MODEL", "outro-modelo")                              # o segredo ia_model manda
     ia.chamar([{"role": "user", "content": "x"}], "e1")
     assert enviados[1][1]["model"] == "outro-modelo"
@@ -309,7 +309,12 @@ def test_modelo_leve_so_para_o_tutor(monkeypatch):
     _responder(monkeypatch, "resposta curta ok", enviados=enviados)
     ia.perguntar_tutor("pergunta", "t", "c", [], "ana")
     ia.chamar([{"role": "user", "content": "x"}], "e1")
-    assert enviados[0][1]["model"] == "gemini-2.5-flash-lite" and enviados[1][1]["model"] == "gemini-2.5-flash"
+    assert enviados[0][1]["model"] == "gemini-3.8-flash" and enviados[1][1]["model"] == "gemini-3.8-flash"
+    monkeypatch.setenv("IA_MODEL_TUTOR", "modelo-leve")
+    ia.perguntar_tutor("pergunta 2", "t", "c", [], "bia")
+    assert enviados[2][1]["model"] == "modelo-leve"
+    monkeypatch.delenv("IA_MODEL_TUTOR")
+    del enviados[2:]
     monkeypatch.setenv("IA_MODEL_TUTOR", "meu-modelo")
     ia.perguntar_tutor("outra", "t", "c", [], "rui")
     assert enviados[2][1]["model"] == "meu-modelo"
@@ -429,3 +434,33 @@ def test_explicacoes_padrao_vem_do_glossario_e_nao_usam_ia():
     assert {"Accuracy", "F1-Score", "Média CV", "Desvio Padrão"} <= set(nomes) and "RMSE" not in nomes
     assert [n for n, _ in explicacoes_padrao("R²: 0.812\nRMSE: 3.2")] == ["R²", "RMSE"]
     assert explicacoes_padrao("sem métricas aqui") == []
+
+
+def test_resposta_cortada_acaba_na_ultima_frase_completa():
+    from modules import ia
+    t = "Classificar é descobrir a que grupo algo pertence. O algoritmo KNN pergunta aos vizinhos. O algoritmo **"
+    assert ia._cortar_na_frase(t).endswith("vizinhos.")
+    assert ia._cortar_na_frase("Texto completo.") == "Texto completo."
+
+
+def test_gemini_pede_pouco_pensamento_e_repete_sem_o_parametro(monkeypatch):
+    from modules import ia
+    monkeypatch.delenv("XAI_API_KEY")
+    monkeypatch.setenv("IA_API_KEY", "k")
+    monkeypatch.setenv("IA_PROVEDOR", "gemini")
+    corpos = []
+
+    def falso(url, json=None, headers=None, timeout=None):
+        corpos.append(dict(json))
+        return _Resp("{}", 400) if "reasoning_effort" in json else _Resp("ok", 200)
+    monkeypatch.setattr(ia.requests, "post", falso)
+    assert ia.chamar([{"role": "user", "content": "x"}], "e1") == "ok"
+    assert corpos[0]["reasoning_effort"] == "minimal" and "reasoning_effort" not in corpos[1]
+
+
+def test_tutor_recebe_o_estado_do_grafico(monkeypatch):
+    from modules import ia
+    enviados = []
+    _responder(monkeypatch, "resposta curta ok", enviados=enviados)
+    ia.perguntar_tutor("explica o gráfico", "t", "c", [], "ana", estado="K=5, 4 dizem Compra")
+    assert "K=5, 4 dizem Compra" in enviados[0][1]["messages"][0]["content"]

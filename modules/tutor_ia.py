@@ -136,7 +136,7 @@ def _contexto_da_pagina(pagina: str):
 # ══════════════════════════════════════════════════════
 def render_tutor(username: str, chave: str, titulo: str, contexto: str, sugestoes: list = None,
                  rotulo: str = "Perguntar à IA sobre isto", nao_revelar: bool = False, aberto: bool = False,
-                 usar_cache: bool = False, padrao_primeiro: bool = False):
+                 usar_cache: bool = False, padrao_primeiro: bool = False, estado: str = ""):
     """Caixa de perguntas ao tutor. `chave` tem de ser única por sítio (lição, teste, página).
     `usar_cache`: lições e testes (respostas partilhadas, sem gastar limite). `padrao_primeiro`: resultados de treino,
     mostra primeiro as explicações padrão dos números (sem IA) e tira o botão «Explica estes números»."""
@@ -170,7 +170,7 @@ def render_tutor(username: str, chave: str, titulo: str, contexto: str, sugestoe
             with st.spinner(tr("A pensar...")):
                 try:
                     resposta = ia.perguntar_tutor(pergunta, titulo, contexto, historico, username, idioma_actual(), nao_revelar,
-                                                  usar_cache=usar_cache)
+                                                  usar_cache=usar_cache, estado=estado)
                 except ia.IAErro as e:
                     st.error(tr(str(e)))
                 else:
