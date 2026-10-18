@@ -940,6 +940,14 @@ section[data-testid="stSidebar"] [data-testid^="stBaseButton"]:hover {
     border-color: var(--df-accent) !important;
 }
 
+/* Caixa de carregar ficheiros (upload): segue o tema, com texto legível nos dois */
+[data-testid="stFileUploaderDropzone"] { background: var(--df-surface2) !important; border: 1px dashed var(--df-border2) !important; border-radius: 10px !important; }
+[data-testid="stFileUploaderDropzone"] *, [data-testid="stFileUploaderDropzoneInstructions"] * { color: var(--df-text-sec) !important; }
+[data-testid="stFileUploaderDropzone"] button, [data-testid="stFileUploaderDropzone"] [data-testid^="stBaseButton"] {
+    background: var(--df-accent) !important; border: none !important; }
+[data-testid="stFileUploaderDropzone"] button * { color: #FFFFFF !important; }
+[data-testid="stFileUploaderFile"] *, [data-testid="stFileUploaderFileName"] { color: var(--df-text) !important; }
+
 /* Texto branco em tudo o que tem fundo azul (botões, separador activo, menu activo) */
 .stButton > button:not([kind="secondary"]) *,
 .stDownloadButton > button:not([kind="secondary"]) *,
