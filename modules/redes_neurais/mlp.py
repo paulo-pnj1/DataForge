@@ -59,68 +59,51 @@ def _loss_curve(loss_curve_):
 
 
 def _network_diagram(hidden_layers, n_inputs, n_outputs):
-    """Diagrama visual da arquitectura da rede"""
-    layers = [n_inputs] + list(hidden_layers) + [n_outputs]
-    n_layers = len(layers)
-    max_nodes = max(layers)
+    """Diagrama visual da arquitectura da rede. Camadas grandes mostram só alguns neurónios (com «⋮» e o total real)."""
+    MAX_VISIVEIS = 8
+    reais = [n_inputs] + list(hidden_layers) + [n_outputs]
+    mostrados = [min(n, MAX_VISIVEIS) for n in reais]
+    n_layers = len(reais)
 
-    node_x, node_y, node_text = [], [], []
-    edge_x, edge_y = [], []
-
-    node_positions = []
-    for l_idx, n_nodes in enumerate(layers):
+    posicoes = []           # por camada: lista de (x, y)
+    for l_idx, n_nodes in enumerate(mostrados):
         x = l_idx / (n_layers - 1)
-        positions = []
-        for n_idx in range(n_nodes):
-            y = (n_idx + 0.5) / n_nodes
-            node_x.append(x)
-            node_y.append(y)
-            node_text.append(f"L{l_idx}N{n_idx}")
-            positions.append((x, y))
-        node_positions.append(positions)
+        ys = [0.5] if n_nodes == 1 else [0.92 - 0.84 * k / (n_nodes - 1) for k in range(n_nodes)]
+        posicoes.append([(x, y) for y in ys])
 
-    # Arestas entre camadas adjacentes (limitar para não sobrecarregar)
-    for l_idx in range(len(node_positions) - 1):
-        src_pos = node_positions[l_idx][:min(8, len(node_positions[l_idx]))]
-        dst_pos = node_positions[l_idx+1][:min(8, len(node_positions[l_idx+1]))]
-        for sx, sy in src_pos:
-            for dx, dy in dst_pos:
+    edge_x, edge_y = [], []
+    for l_idx in range(n_layers - 1):
+        for sx, sy in posicoes[l_idx]:
+            for dx, dy in posicoes[l_idx + 1]:
                 edge_x += [sx, dx, None]
                 edge_y += [sy, dy, None]
 
+    cor_camada = [C_ACCENT] + [C_GREEN] * len(hidden_layers) + [C_AMBER]
     fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=edge_x, y=edge_y, mode="lines",
-        line=dict(color="rgba(107,163,255,0.2)", width=1),
-        hoverinfo="none", showlegend=False
-    ))
+    fig.add_trace(go.Scatter(x=edge_x, y=edge_y, mode="lines", line=dict(color="rgba(107,163,255,0.18)", width=1),
+                             hoverinfo="none", showlegend=False))
+    for l_idx, pos in enumerate(posicoes):
+        fig.add_trace(go.Scatter(
+            x=[p[0] for p in pos], y=[p[1] for p in pos], mode="markers",
+            marker=dict(size=20, color=cor_camada[l_idx], line=dict(color="#FFFFFF", width=1.5)),
+            hoverinfo="none", showlegend=False))
 
-    colors = [C_ACCENT] * layers[0] + \
-             sum([[C_GREEN]*n for n in hidden_layers], []) + \
-             [C_AMBER] * layers[-1]
-
-    fig.add_trace(go.Scatter(
-        x=node_x, y=node_y, mode="markers",
-        marker=dict(size=18, color=colors,
-                    line=dict(color="#FFFFFF", width=1.5)),
-        hoverinfo="none", showlegend=False
-    ))
-
-    # Labels das camadas
-    labels_x = [l_idx / (n_layers - 1) for l_idx in range(n_layers)]
-    labels_text = ["Input"] + [f"Hidden {i+1}\n({n})" for i, n in enumerate(hidden_layers)] + ["Output"]
-    for lx, lt in zip(labels_x, labels_text):
-        fig.add_annotation(x=lx, y=-0.08, text=lt.replace("\n", "<br>"),
-                           showarrow=False, font=dict(color="#B8C4D8", size=11),
-                           xanchor="center")
+    nomes = ["Entrada"] + [f"Oculta {i + 1}" for i in range(len(hidden_layers))] + ["Saída"]
+    for l_idx, (nome, n_real) in enumerate(zip(nomes, reais)):
+        x = l_idx / (n_layers - 1)
+        fig.add_annotation(x=x, y=-0.06, yanchor="top", text=(f"<b>{nome}</b><br>1 neurónio" if n_real == 1 else
+                                 f"<b>{nome}</b><br>{n_real} neurónios" + (f"<br><i>(desenho {MAX_VISIVEIS})</i>" if n_real > MAX_VISIVEIS else "")),
+                           showarrow=False,
+                           font=dict(color="#B8C4D8", size=11), xanchor="center")
 
     fig.update_layout(
-        title=dict(text="Arquitectura da Rede Neural", font=dict(color="#FFFFFF", size=14)),
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-0.1, 1.1]),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-0.2, 1.1]),
+        title=dict(text="Arquitectura da Rede Neural", x=0.02, xanchor="left", y=0.97, yanchor="top",
+                   font=dict(color="#FFFFFF", size=14)),
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-0.12, 1.12], fixedrange=True),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-0.34, 1.02], fixedrange=True),
         plot_bgcolor=C_SURFACE, paper_bgcolor=C_SURFACE,
-        font=dict(color="#FFFFFF"), height=350,
-        margin=dict(t=50, b=50, l=20, r=20)
+        font=dict(color="#FFFFFF"), height=400,
+        margin=dict(t=56, b=20, l=20, r=20)
     )
     return fig
 
@@ -187,8 +170,8 @@ def render_mlp(username: str):
                         n_out = df[target].nunique()
                     except Exception:
                         n_out = 1
-                    st.plotly_chart(_network_diagram(tuple(hidden), min(n_in, 8), min(n_out, 4)),
-                                    width='stretch')
+                    st.plotly_chart(_network_diagram(tuple(hidden), n_in, n_out), width='stretch',
+                                    config={"displayModeBar": False})
 
                 if st.button("Treinar Rede Neural", width='stretch', key="mlp_c_run"):
                     if not features:

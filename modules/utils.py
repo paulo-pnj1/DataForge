@@ -940,6 +940,23 @@ section[data-testid="stSidebar"] [data-testid^="stBaseButton"]:hover {
     border-color: var(--df-accent) !important;
 }
 
+/* Barra de rolagem sempre visível na página principal, no menu lateral e nas listas (segue o tema) */
+[data-testid="stMain"], [data-testid="stAppViewContainer"] > section.main, section.main,
+[data-testid="stSidebarContent"], [data-testid="stSidebar"] > div:first-child {
+    overflow-y: scroll !important; scrollbar-width: auto; scrollbar-color: var(--df-border2) var(--df-surface);
+}
+[data-testid="stMain"]::-webkit-scrollbar, section.main::-webkit-scrollbar,
+[data-testid="stSidebarContent"]::-webkit-scrollbar, [data-testid="stSidebar"] > div:first-child::-webkit-scrollbar,
+.st-key-ia_msgs::-webkit-scrollbar { width: 12px; height: 12px; }
+[data-testid="stMain"]::-webkit-scrollbar-track, section.main::-webkit-scrollbar-track,
+[data-testid="stSidebarContent"]::-webkit-scrollbar-track, [data-testid="stSidebar"] > div:first-child::-webkit-scrollbar-track,
+.st-key-ia_msgs::-webkit-scrollbar-track { background: var(--df-surface); }
+[data-testid="stMain"]::-webkit-scrollbar-thumb, section.main::-webkit-scrollbar-thumb,
+[data-testid="stSidebarContent"]::-webkit-scrollbar-thumb, [data-testid="stSidebar"] > div:first-child::-webkit-scrollbar-thumb,
+.st-key-ia_msgs::-webkit-scrollbar-thumb { background: var(--df-border2); border-radius: 8px; border: 2px solid var(--df-surface); }
+[data-testid="stMain"]::-webkit-scrollbar-thumb:hover, section.main::-webkit-scrollbar-thumb:hover,
+.st-key-ia_msgs::-webkit-scrollbar-thumb:hover { background: var(--df-accent); }
+
 /* Caixa de carregar ficheiros (upload): segue o tema, com texto legível nos dois */
 [data-testid="stFileUploaderDropzone"] { background: var(--df-surface2) !important; border: 1px dashed var(--df-border2) !important; border-radius: 10px !important; }
 [data-testid="stFileUploaderDropzone"] *, [data-testid="stFileUploaderDropzoneInstructions"] * { color: var(--df-text-sec) !important; }
