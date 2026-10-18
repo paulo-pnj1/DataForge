@@ -947,10 +947,11 @@ section[data-testid="stSidebar"] [data-testid^="stBaseButton"]:hover {
 .stTabs [aria-selected="true"], .stTabs [aria-selected="true"] * { color: #FFFFFF !important; }
 
 /* Etiquetas dos selectores múltiplos (Colunas a usar, Algoritmos…), opções escolhidas em pílulas e controlos segmentados */
-[data-baseweb="tag"], [data-baseweb="tag"] *,
+div[data-baseweb="select"] [data-baseweb="tag"], div[data-baseweb="select"] [data-baseweb="tag"] *,
+[data-baseweb="tag"], [data-baseweb="tag"] *, [data-testid="stMultiSelect"] [data-baseweb="tag"] span,
 [data-testid="stBaseButton-pillsActive"], [data-testid="stBaseButton-pillsActive"] *,
 [data-testid="stBaseButton-segmented_controlActive"], [data-testid="stBaseButton-segmented_controlActive"] * { color: #FFFFFF !important; }
-[data-baseweb="tag"] svg, [data-baseweb="tag"] [role="presentation"] { fill: #FFFFFF !important; color: #FFFFFF !important; }
+div[data-baseweb="select"] [data-baseweb="tag"] svg, [data-baseweb="tag"] svg, [data-baseweb="tag"] [role="presentation"] { fill: #FFFFFF !important; color: #FFFFFF !important; }
 [data-baseweb="tag"] { background-color: var(--df-accent) !important; border-color: var(--df-accent) !important; }
 
 /* Menu lateral: a página onde estás fica marcada a azul */
