@@ -247,6 +247,8 @@ with st.sidebar:
 BUSINESS_PAGINAS = {"business_home": "render_inicio", "business_dados": "render_dados",
                     "business_analises": "render_analises", "business_previsoes": "render_previsoes",
                     "business_relatorios": "render_relatorios", "business_equipa": "render_equipa"}
+TUTOR_PAGINAS = {"primeiro_modelo", "classificacao", "regressao", "clustering", "reducao", "anomalias", "mlp", "visao",
+                 "nlp", "series", "generativo", "reforco", "comparador", "projeto"}
 pagina = st.session_state.get("pagina", INICIO[painel])
 
 try:
@@ -402,6 +404,11 @@ try:
     else:  # página desconhecida: volta ao início do painel actual
         st.session_state.pagina = INICIO[painel]
         st.rerun()
+
+    # Tutor de IA depois de cada treino (só no painel do aluno; só aparece se houver um resultado para explicar)
+    if painel == "aluno" and pagina in TUTOR_PAGINAS:
+        from modules.tutor_ia import render_tutor_pagina
+        render_tutor_pagina(username, pagina, next((l for l, k, _, _ in MENU if k == pagina), pagina))
 except Exception as _e:  # nunca mostrar uma página partida ao aluno
     import traceback
     from modules import db as _db

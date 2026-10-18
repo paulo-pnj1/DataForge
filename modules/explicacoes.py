@@ -64,6 +64,11 @@ def explicar_classificacao(r: dict):
     acc, prec, rec, f1 = r["acc"], r["prec"], r["rec"], r["f1"]
     cv = r["cv_scores"]
     rotulo, _ = nivel_qualidade(acc)
+    from modules.tutor_ia import registar
+    registar("Resultado de classificação", "\n".join([
+        f"Accuracy (taxa de acerto): {acc:.1%}", f"Precision: {prec:.1%}", f"Recall: {rec:.1%}", f"F1: {f1:.1%}"]
+        + ([f"ROC-AUC: {r['auc']:.3f}"] if r.get("auc") is not None else [])
+        + [f"Validação cruzada ({len(cv)} provas): média {cv.mean():.1%}, variação ±{cv.std():.1%}", f"Avaliação geral: {rotulo}"]))
 
     with st.expander("Explica-me estes números (linguagem simples)", expanded=False):
         st.markdown(f"""
@@ -122,6 +127,11 @@ def explicar_regressao(y_test, y_pred, r2: float, rmse: float, mae: float,
     media = float(np.mean(np.abs(y_test))) or 1.0
     erro_rel = mae / media
     rotulo, _ = nivel_r2(r2)
+    from modules.tutor_ia import registar
+    registar("Resultado de regressão", "\n".join([
+        f"A prever: {target_nome}", f"R²: {r2:.3f}", f"MAE (erro médio): {mae:.4g}", f"RMSE: {rmse:.4g}",
+        f"Erro médio em relação ao valor típico: {erro_rel:.0%}",
+        f"Validação cruzada: média {float(np.mean(cv_scores)):.3f}, variação ±{float(np.std(cv_scores)):.3f}", f"Avaliação geral: {rotulo}"]))
 
     with st.expander("Explica-me estes números (linguagem simples)", expanded=False):
         st.markdown(f"""

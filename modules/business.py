@@ -147,6 +147,14 @@ def _assistente_ia(m: dict, df: pd.DataFrame, did: str):
         msg = st.session_state.pop("bn_ia_msg", None)
         if msg:
             sucesso_box(msg)
+        if st.button("Testar a ligação à IA", key="bn_ia_testar"):
+            with st.spinner(tr("A testar...")):
+                try:
+                    ia.testar(m["org_id"])
+                except ia.IAErro as e:
+                    erro_box(tr(str(e)))
+                else:
+                    sucesso_box(bc.T("A ligação à IA funciona ({} · modelo {}).", ia.provedor(), ia.modelo()))
         pergunta = st.text_area("O que queres saber?", key="bn_ia_pergunta", max_chars=500,
                                 placeholder=tr("ex.: quero descobrir que clientes vão cancelar o serviço"))
         st.caption(bc.T("Pedidos à IA que restam hoje: {}", ia.pedidos_restantes(m["org_id"])))

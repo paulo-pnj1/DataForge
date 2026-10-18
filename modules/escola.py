@@ -946,6 +946,25 @@ def _opcoes_embaralhadas(chave: str, certa: str, erradas: list) -> list:
     return opcoes
 
 
+def _tutor_do_teste(username: str, licao: dict, quiz: list, estados: list, dadas: list):
+    """Dúvidas sobre o resultado do mini-teste: o aluno escolhe a pergunta e pergunta à IA."""
+    from modules.tutor_ia import SUGESTOES_TESTE, render_tutor
+    primeira_errada = next((i for i, e in enumerate(estados) if e == "errada"), 0)
+    idx = st.selectbox("Sobre que pergunta tens dúvidas?", list(range(len(quiz))), index=primeira_errada,
+                       format_func=lambda i: f"{i + 1}. {quiz[i][0]}"[:90], key=f"tutor_q_{licao['id']}")
+    pergunta, certa, erradas = quiz[idx]
+    estado = estados[idx]
+    linhas = [f"Lição: {licao['titulo']}", f"Pergunta do teste: {pergunta}", "Opções: " + "; ".join([certa] + list(erradas))]
+    if estado == "vazio":
+        linhas.append("O aluno ainda não respondeu a esta pergunta.")
+    else:
+        linhas.append(f"Resposta do aluno: {dadas[idx]}")
+        linhas.append(f"Resposta certa: {certa}")
+        linhas.append("O aluno acertou." if estado == "certa" else "O aluno errou.")
+    render_tutor(username, f"teste_{licao['id']}_{idx}", f"Teste da lição {licao['titulo']}", "\n".join(linhas),
+                 SUGESTOES_TESTE, "Perguntar à IA sobre este teste", nao_revelar=(estado == "vazio"), usar_cache=True)
+
+
 def _render_quiz(username: str, licao: dict):
     quiz = licao["quiz"]
     if not quiz:
@@ -968,6 +987,7 @@ def _render_quiz(username: str, licao: dict):
         for i, (_, certa, _) in enumerate(quiz):
             estados.append("vazio" if respostas[i] is None else ("certa" if respostas[i] == certa else "errada"))
         st.session_state[chave_res] = estados
+        st.session_state[chave_res + "_dadas"] = list(respostas)
         registar_quiz(username, licao["id"], [i for i, e in enumerate(estados) if e == "errada"])
         if all(e == "certa" for e in estados):
             if concluir_licao(username, licao["id"], licao["titulo"], PONTOS_LICAO):
@@ -984,6 +1004,7 @@ def _render_quiz(username: str, licao: dict):
                 st.error(f"Pergunta {i + 1}: não é bem isso. Resposta certa: **{certa}**. Vou voltar a perguntar-te isto na Revisão do dia.")
         if all(e == "certa" for e in estados):
             st.success("Lição concluída! +%d pontos (só da primeira vez)." % PONTOS_LICAO)
+        _tutor_do_teste(username, licao, quiz, estados, st.session_state.get(chave_res + "_dadas") or respostas)
 
 
 # ══════════════════════════════════════════════════════
@@ -1058,6 +1079,12 @@ def _render_licao(username: str, lid: str):
     st.markdown("### Em resumo")
     for ponto in licao["resumo"]:
         st.markdown(f"- {ponto}")
+
+    from modules.tutor_ia import SUGESTOES_LICAO, render_tutor
+    contexto = (f"Lição: {licao['titulo']}\nIdeia principal: {licao['ideia']}\nResumo da lição:\n"
+                + "\n".join(f"- {p}" for p in licao["resumo"]) + "\nPerguntas do teste desta lição:\n"
+                + "\n".join(f"- {q[0]}" for q in licao["quiz"]))
+    render_tutor(username, f"licao_{lid}", licao["titulo"], contexto, SUGESTOES_LICAO, "Perguntar à IA sobre esta lição", usar_cache=True)
 
     _render_quiz(username, licao)
 

@@ -8,7 +8,7 @@ import secrets
 import pandas as pd
 import streamlit as st
 
-from modules import acesso, db, email_service
+from modules import acesso, db, email_service, ia
 from modules.utils import page_header
 
 
@@ -74,6 +74,16 @@ def render_admin_home(username: str):
         st.bar_chart(pd.DataFrame({"Utilizadores": por_papel}))
     else:
         st.info("Ainda não há utilizadores na base de dados.")
+
+    if ia.configurada():
+        g = ia.estado_global()
+        st.markdown("### IA: uso da chave hoje")
+        d1, d2, d3 = st.columns(3)
+        d1.metric("Pedidos hoje", f"{g['dia']} / {g['tecto_dia'] or '∞'}")
+        d2.metric("Neste minuto", f"{g['minuto']} / {g['tecto_minuto'] or '∞'}")
+        d3.metric("Reservado a empresas e professores", f"{g['reserva_pct']}%")
+        st.caption(f"Provedor {g['provedor']} · modelo geral {g['modelo']} · modelo do tutor {g['modelo_tutor']}. "
+                   "Os tectos são os de ia_limite_global_dia e ia_limite_global_minuto: confirma na consola do teu provedor quais são os limites do teu plano.")
 
     st.caption("Utilizadores sem organização continuam a funcionar como alunos independentes do EDU.")
 
