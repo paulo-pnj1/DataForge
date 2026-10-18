@@ -940,6 +940,15 @@ section[data-testid="stSidebar"] [data-testid^="stBaseButton"]:hover {
     border-color: var(--df-accent) !important;
 }
 
+/* Uma só barra de rolagem, no lado direito da janela: a página principal rola dentro da janela (sem rolagem lateral)
+   e o cabeçalho do Streamlit não desenha linhas por cima do conteúdo */
+html, body, .stApp, [data-testid="stApp"] { height: 100vh !important; overflow: hidden !important; }
+[data-testid="stAppViewContainer"] { height: 100vh !important; overflow: hidden !important; }
+[data-testid="stMain"], section.main { height: 100vh !important; overflow-x: hidden !important; overflow-y: scroll !important; }
+[data-testid="stMainBlockContainer"], .block-container { max-width: 100% !important; box-sizing: border-box !important; }
+[data-testid="stHeader"], header[data-testid="stHeader"] { background: var(--df-bg) !important; border: none !important; box-shadow: none !important; }
+[data-testid="stDecoration"] { display: none !important; }
+
 /* Barra de rolagem sempre visível na página principal, no menu lateral e nas listas (segue o tema) */
 [data-testid="stMain"], [data-testid="stAppViewContainer"] > section.main, section.main,
 [data-testid="stSidebarContent"], [data-testid="stSidebar"] > div:first-child {
