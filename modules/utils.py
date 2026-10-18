@@ -946,6 +946,13 @@ section[data-testid="stSidebar"] [data-testid^="stBaseButton"]:hover {
 .stFormSubmitButton > button:not([kind="secondary"]) *,
 .stTabs [aria-selected="true"], .stTabs [aria-selected="true"] * { color: #FFFFFF !important; }
 
+/* Etiquetas dos selectores múltiplos (Colunas a usar, Algoritmos…), opções escolhidas em pílulas e controlos segmentados */
+[data-baseweb="tag"], [data-baseweb="tag"] *,
+[data-testid="stBaseButton-pillsActive"], [data-testid="stBaseButton-pillsActive"] *,
+[data-testid="stBaseButton-segmented_controlActive"], [data-testid="stBaseButton-segmented_controlActive"] * { color: #FFFFFF !important; }
+[data-baseweb="tag"] svg, [data-baseweb="tag"] [role="presentation"] { fill: #FFFFFF !important; color: #FFFFFF !important; }
+[data-baseweb="tag"] { background-color: var(--df-accent) !important; border-color: var(--df-accent) !important; }
+
 /* Menu lateral: a página onde estás fica marcada a azul */
 section[data-testid="stSidebar"] .stButton > button[kind="primary"],
 section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] {
@@ -989,7 +996,7 @@ _CSS_ESCURO = """
 <style>
 /* Azul mais fundo no tema escuro, para o texto branco ler-se bem */
 .stButton > button:not([kind="secondary"]), .stDownloadButton > button:not([kind="secondary"]),
-.stFormSubmitButton > button:not([kind="secondary"]), .stTabs [aria-selected="true"],
+.stFormSubmitButton > button:not([kind="secondary"]), .stTabs [aria-selected="true"], [data-baseweb="tag"],
 section[data-testid="stSidebar"] .stButton > button[kind="primary"],
 section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] { background: #1F6FEB !important; }
 [data-testid="stDataFrame"], [data-testid="stArrowVegaLiteChart"] { filter: invert(.91) hue-rotate(180deg); }   /* .91: fundo cinzento-escuro em vez de preto puro */

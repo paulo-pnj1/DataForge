@@ -136,7 +136,7 @@ def _contexto_da_pagina(pagina: str):
 # ══════════════════════════════════════════════════════
 def render_tutor(username: str, chave: str, titulo: str, contexto: str, sugestoes: list = None,
                  rotulo: str = "Perguntar à IA sobre isto", nao_revelar: bool = False, aberto: bool = False,
-                 usar_cache: bool = False, padrao_primeiro: bool = False, estado: str = ""):
+                 usar_cache: bool = False, padrao_primeiro: bool = False, estado: str = "", compacto: bool = False):
     """Caixa de perguntas ao tutor. `chave` tem de ser única por sítio (lição, teste, página).
     `usar_cache`: lições e testes (respostas partilhadas, sem gastar limite). `padrao_primeiro`: resultados de treino,
     mostra primeiro as explicações padrão dos números (sem IA) e tira o botão «Explica estes números»."""
@@ -144,7 +144,7 @@ def render_tutor(username: str, chave: str, titulo: str, contexto: str, sugestoe
         return
     hist_key = f"_tutor_h_{chave}"
     historico = st.session_state.setdefault(hist_key, [])
-    with st.expander(tr(rotulo), expanded=aberto):
+    with (st.container() if compacto else st.expander(tr(rotulo), expanded=aberto)):
         st.caption(tr("Pergunta o que não percebeste. A IA responde com base no que estás a ver e pode enganar-se: confirma com a lição ou com o professor."))
         if padrao_primeiro:
             padrao = explicacoes_padrao(contexto)
@@ -191,3 +191,59 @@ def render_tutor_pagina(username: str, pagina: str, rotulo_pagina: str):
     titulo, texto = ctx
     render_tutor(username, f"pag_{pagina}", f"{rotulo_pagina}: {titulo}", texto, SUGESTOES_TREINO,
                  rotulo="Perguntar à IA sobre este resultado", padrao_primeiro=True)     # números do aluno: sem cache
+
+
+# ══════════════════════════════════════════════════════
+# PAINEL DA IA NA LATERAL DIREITA
+# A página regista o que o aluno está a ver (registar_painel); o painel abre à direita, a página encolhe para lhe dar
+# espaço e, ao fechar, tudo volta ao que era. O estado (aberto/fechado) fica na sessão.
+# ══════════════════════════════════════════════════════
+LARGURA_PAINEL = 400
+
+
+def registar_painel(chave: str, titulo: str, contexto: str, sugestoes: list = None, usar_cache: bool = False,
+                    estado: str = "", padrao_primeiro: bool = False):
+    """Uma página diz ao painel da IA o que o aluno está a ver. Chamada em cada execução da página."""
+    st.session_state["_ia_pagina"] = dict(chave=chave, titulo=titulo, contexto=contexto, sugestoes=sugestoes,
+                                          usar_cache=usar_cache, estado=estado, padrao_primeiro=padrao_primeiro)
+
+
+def _alternar_painel():
+    st.session_state["ia_painel_aberto"] = not st.session_state.get("ia_painel_aberto", False)
+
+
+def render_painel_ia(username: str, pagina: str, rotulo_pagina: str):
+    """Botão flutuante «Tutor IA» e, quando aberto, o painel à direita. Chamar depois de desenhar a página."""
+    if not ia.configurada():
+        return
+    aberto = bool(st.session_state.get("ia_painel_aberto", False))
+    L = LARGURA_PAINEL
+    css = ("<style>"
+           ".st-key-ia_fab { position: fixed; right: 18px; bottom: 18px; z-index: 1001; width: auto !important; }"
+           ".st-key-ia_fab button { border-radius: 999px !important; box-shadow: 0 6px 20px rgba(0,0,0,.25) !important; }")
+    if aberto:
+        css += ("[data-testid='stMainBlockContainer'], .block-container { padding-right: %dpx !important; max-width: none !important; }"
+                ".st-key-ia_painel { position: fixed; top: 0; right: 0; width: %dpx; height: 100vh; overflow-y: auto; z-index: 1000;"
+                " background: var(--df-surface); border-left: 1px solid var(--df-border); padding: 3.2rem 1rem 1rem;"
+                " box-shadow: -6px 0 24px rgba(0,0,0,.12); }"
+                ".st-key-ia_fechar { position: fixed; top: 10px; right: 14px; z-index: 1002; width: auto !important; }"
+                "@media (max-width: 900px) { [data-testid='stMainBlockContainer'], .block-container { padding-right: 1rem !important; }"
+                " .st-key-ia_painel { width: 100vw; } }") % (L + 24, L)
+    st.markdown(css + "</style>", unsafe_allow_html=True)
+
+    if not aberto:
+        with st.container(key="ia_fab"):
+            st.button(tr("Tutor IA"), key="ia_abrir", on_click=_alternar_painel, icon=":material/smart_toy:")
+        return
+
+    ctx = st.session_state.get("_ia_pagina")
+    if not ctx:
+        ctx = dict(chave=f"geral_{pagina}", titulo=rotulo_pagina, contexto=f"O aluno está na página: {rotulo_pagina}.",
+                   sugestoes=["Explica-me o que posso fazer aqui", "Por onde devo começar?"], usar_cache=False,
+                   estado="", padrao_primeiro=False)
+    with st.container(key="ia_fechar"):
+        st.button(tr("Fechar"), key="ia_fechar_b", on_click=_alternar_painel, icon=":material/close:")
+    with st.container(key="ia_painel"):
+        st.markdown(f"**{tr('Tutor IA')}** · {tr(ctx['titulo'])}")
+        render_tutor(username, ctx["chave"], ctx["titulo"], ctx["contexto"], ctx["sugestoes"], usar_cache=ctx["usar_cache"],
+                     padrao_primeiro=ctx["padrao_primeiro"], estado=ctx["estado"], compacto=True)

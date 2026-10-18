@@ -271,6 +271,7 @@ for _k, _v in _alvo_url.items():
 if pagina != "escola" and "licao" in st.query_params:
     del st.query_params["licao"]
 
+st.session_state.pop("_ia_pagina", None)      # cada página regista de novo o que o aluno está a ver (painel da IA)
 try:
 
     if pagina == "dashboard":
@@ -427,8 +428,14 @@ try:
 
     # Tutor de IA depois de cada treino (só no painel do aluno; só aparece se houver um resultado para explicar)
     if painel == "aluno" and pagina in TUTOR_PAGINAS:
-        from modules.tutor_ia import render_tutor_pagina
-        render_tutor_pagina(username, pagina, next((l for l, k, _, _ in MENU if k == pagina), pagina))
+        from modules.tutor_ia import SUGESTOES_TREINO, _contexto_da_pagina, registar_painel
+        _c = _contexto_da_pagina(pagina)
+        if _c:
+            registar_painel(f"pag_{pagina}", f"{next((l for l, k, _, _ in MENU if k == pagina), pagina)}: {_c[0]}", _c[1],
+                            SUGESTOES_TREINO, padrao_primeiro=True)
+    if painel == "aluno":
+        from modules.tutor_ia import render_painel_ia
+        render_painel_ia(username, pagina, next((l for l, k, _, _ in MENU if k == pagina), pagina))
 except Exception as _e:  # nunca mostrar uma página partida ao aluno
     import traceback
     from modules import db as _db

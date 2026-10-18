@@ -1086,12 +1086,12 @@ def _render_licao(username: str, lid: str):
     for ponto in licao["resumo"]:
         st.markdown(f"- {ponto}")
 
-    from modules.tutor_ia import SUGESTOES_LICAO, render_tutor
+    from modules.tutor_ia import SUGESTOES_LICAO, registar_painel
     contexto = (f"Lição: {licao['titulo']}\nIdeia principal: {licao['ideia']}\nResumo da lição:\n"
                 + "\n".join(f"- {p}" for p in licao["resumo"]) + "\nPerguntas do teste desta lição:\n"
                 + "\n".join(f"- {q[0]}" for q in licao["quiz"]))
-    render_tutor(username, f"licao_{lid}", licao["titulo"], contexto, SUGESTOES_LICAO, "Perguntar à IA sobre esta lição", usar_cache=True,
-                 estado=(st.session_state.get("_licao_estado") or {}).get("texto", ""))
+    registar_painel(f"licao_{lid}", licao["titulo"], contexto, SUGESTOES_LICAO, usar_cache=True,
+                    estado=(st.session_state.get("_licao_estado") or {}).get("texto", ""))
 
     _render_quiz(username, licao)
 
