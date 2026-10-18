@@ -477,6 +477,20 @@ def _tab_resultado(res, an):
     }
     st.dataframe(df.style.format("{:.4f}"), width="stretch", column_config=cfg)
 
+    # O que o aluno está a ver, para o tutor de IA (só nomes de algoritmos e métricas, nunca linhas de dados)
+    try:
+        from modules.tutor_ia import registar
+        graficos = (["barras da Accuracy na prova (casos novos), uma barra por algoritmo",
+                     "barras da CV Accuracy (média de várias provas), uma barra por algoritmo",
+                     "gráfico de radar com Accuracy, F1 Score e CV Accuracy"] if tipo == "Classificação" else
+                    ["barras do R² na prova, uma barra por algoritmo", "barras do RMSE (quanto menor, melhor)"])
+        linhas_tab = [f"- {n}: " + ", ".join(f"{c} = {float(df.loc[n, c]):.4f}" for c in df.columns) for n in nomes]
+        registar("Comparação de algoritmos", f"Tipo: {tipo}\nVeredicto mostrado: {an['veredicto']}\n"
+                 "Tabela de resultados (uma linha por algoritmo):\n" + "\n".join(linhas_tab)
+                 + "\nGráficos no ecrã: " + "; ".join(graficos) + ".")
+    except Exception:
+        pass
+
     if tipo == "Classificação":
         st.plotly_chart(_bar_comparison(nomes, df["Accuracy"].tolist(), "Accuracy - prova (casos novos)", "Accuracy"), width="stretch")
         st.plotly_chart(_bar_comparison(nomes, df["CV Accuracy"].tolist(), "Accuracy - média de várias provas (CV)", "CV Accuracy"), width="stretch")

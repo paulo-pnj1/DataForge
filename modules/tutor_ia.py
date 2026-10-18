@@ -226,7 +226,8 @@ def render_painel_ia(username: str, pagina: str, rotulo_pagina: str):
                 ".st-key-ia_painel { position: fixed; top: 0; right: 0; width: %dpx; height: 100vh; overflow-y: auto; z-index: 1000;"
                 " background: var(--df-surface); border-left: 1px solid var(--df-border); padding: 3.2rem 1rem 1rem;"
                 " box-shadow: -6px 0 24px rgba(0,0,0,.12); }"
-                ".st-key-ia_fechar { position: fixed; top: 10px; right: 14px; z-index: 1002; width: auto !important; }"
+                ".st-key-ia_fechar { position: sticky; top: -3.2rem; z-index: 5; background: var(--df-surface); margin: -3.2rem -1rem .5rem;"
+                " padding: .7rem 1rem; text-align: right; border-bottom: 1px solid var(--df-border); }"
                 "@media (max-width: 900px) { [data-testid='stMainBlockContainer'], .block-container { padding-right: 1rem !important; }"
                 " .st-key-ia_painel { width: 100vw; } }") % (L + 24, L)
     st.markdown(css + "</style>", unsafe_allow_html=True)
@@ -241,9 +242,9 @@ def render_painel_ia(username: str, pagina: str, rotulo_pagina: str):
         ctx = dict(chave=f"geral_{pagina}", titulo=rotulo_pagina, contexto=f"O aluno está na página: {rotulo_pagina}.",
                    sugestoes=["Explica-me o que posso fazer aqui", "Por onde devo começar?"], usar_cache=False,
                    estado="", padrao_primeiro=False)
-    with st.container(key="ia_fechar"):
-        st.button(tr("Fechar"), key="ia_fechar_b", on_click=_alternar_painel, icon=":material/close:")
     with st.container(key="ia_painel"):
+        with st.container(key="ia_fechar"):
+            st.button(tr("Fechar"), key="ia_fechar_b", on_click=_alternar_painel, icon=":material/close:")
         st.markdown(f"**{tr('Tutor IA')}** · {tr(ctx['titulo'])}")
         render_tutor(username, ctx["chave"], ctx["titulo"], ctx["contexto"], ctx["sugestoes"], usar_cache=ctx["usar_cache"],
                      padrao_primeiro=ctx["padrao_primeiro"], estado=ctx["estado"], compacto=True)
