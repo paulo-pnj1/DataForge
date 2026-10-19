@@ -17,7 +17,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from modules.i18n import iniciar_idioma, idioma_actual
+from modules.i18n import iniciar_idioma
 from modules.i18n_patch import instalar as _instalar_i18n
 _instalar_i18n()      # texto, rótulos, tabelas e gráficos passam pela tradução (Português / English)
 iniciar_idioma()
@@ -224,47 +224,30 @@ with st.sidebar:
     from modules.pesquisa import render_pesquisa_sidebar
     render_pesquisa_sidebar([(l, k) for l, k, _, _ in MENU], so_paginas=(painel == "business"))
 
-    from modules.navegacao import AJUDA_PAGINA, MODULOS_INFO
+    ultima_seccao = "__start__"
+    for label, key, seccao, icone_svg in MENU:
+        if seccao and seccao != ultima_seccao:
+            ultima_seccao = seccao
+            st.markdown(f"""<div style="font-size:10px;font-weight:800;letter-spacing:.14em; color:var(--df-text3,#7A8BA8);padding:14px 0 4px;text-transform:uppercase; border-top:1px solid {C_BORDER};margin-top:4px;">{seccao}</div>""", unsafe_allow_html=True)
 
-    def _botao_menu(label, key):
-        if st.button(f"  {label}", key=f"nav_{key}", width='stretch', help=AJUDA_PAGINA.get(key) if painel == "aluno" else None,
-                     type="primary" if st.session_state.pagina == key else "secondary"):
-            st.session_state.pagina = key
-            if "guiado_step" in st.session_state:
-                st.session_state.guiado_step = 1
-            st.rerun()
+        ativo = st.session_state.pagina == key
+        bg    = f"background:rgba(107,163,255,.15);border-left:3px solid {C_ACCENT};" if ativo else ""
 
-    from modules.navegacao import agrupar_menu
-    if painel == "aluno":
-        # Menu em módulos recolhíveis: abre o que contém a página actual e mostra quantas páginas do módulo já treinaste
-        try:
-            from modules.utils import PAGINA_PARA_MODULO, get_user_progress
-            _feitos = set(get_user_progress(username).get("completados", []))
-        except Exception:
-            PAGINA_PARA_MODULO, _feitos = {}, set()
-        _todas = [k for _, k, _, _ in MENU if k in PAGINA_PARA_MODULO]
-        _feitas = sum(1 for k in _todas if PAGINA_PARA_MODULO[k] in _feitos)
-        if _todas:
-            st.progress(_feitas / len(_todas), text=f"O teu percurso: {_feitas} de {len(_todas)} práticas feitas" if idioma_actual() != "en" else f"Your path: {_feitas} of {len(_todas)} practices done")
-        for g_idx, (seccao, itens) in enumerate(agrupar_menu(MENU)):
-            contem_activa = any(k == st.session_state.pagina for _, k, _, _ in itens)
-            com_modulo = [k for _, k, _, _ in itens if k in PAGINA_PARA_MODULO]
-            progresso = ""
-            if com_modulo:
-                progresso = f"  ({sum(1 for k in com_modulo if PAGINA_PARA_MODULO[k] in _feitos)}/{len(com_modulo)})"
-            emoji, descricao = MODULOS_INFO.get(seccao, ("", ""))
-            with st.expander(f"{emoji} {seccao}{progresso}".strip(), expanded=contem_activa or g_idx == 0):
-                if descricao:
-                    st.caption(descricao)
-                for label, key, _, _ in itens:
-                    _botao_menu(label, key)
-    else:
-        ultima_seccao = "__start__"
-        for label, key, seccao, icone_svg in MENU:
-            if seccao and seccao != ultima_seccao:
-                ultima_seccao = seccao
-                st.markdown(f"""<div style="font-size:10px;font-weight:800;letter-spacing:.14em; color:var(--df-text3,#7A8BA8);padding:14px 0 4px;text-transform:uppercase; border-top:1px solid {C_BORDER};margin-top:4px;">{seccao}</div>""", unsafe_allow_html=True)
-            _botao_menu(label, key)
+        # Botão invisível com HTML de apresentação em cima
+        st.markdown(f"""<div style="{bg}border-radius:8px;padding:0;margin-bottom:2px;"></div>""", unsafe_allow_html=True)
+
+        col_btn = st.container()
+        with col_btn:
+            if st.button(
+                f"  {label}",
+                key=f"nav_{key}",
+                width='stretch',
+                type="primary" if ativo else "secondary",
+            ):
+                st.session_state.pagina = key
+                if "guiado_step" in st.session_state:
+                    st.session_state.guiado_step = 1
+                st.rerun()
 
     st.markdown("---")
     st.markdown(f'<div style="font-size:11px;font-weight:600;color:var(--df-text3,#7A8BA8);text-align:center;padding:4px;">{PRODUTO_DO_PAINEL[painel]} v2.0 · Angola 🇦🇴</div>', unsafe_allow_html=True)

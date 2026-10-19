@@ -988,10 +988,6 @@ div[data-baseweb="select"] [data-baseweb="tag"], div[data-baseweb="select"] [dat
 div[data-baseweb="select"] [data-baseweb="tag"] svg, [data-baseweb="tag"] svg, [data-baseweb="tag"] [role="presentation"] { fill: #FFFFFF !important; color: #FFFFFF !important; }
 [data-baseweb="tag"] { background-color: var(--df-accent) !important; border-color: var(--df-accent) !important; }
 
-/* Menu lateral: botões com dica (tooltip) ocupam a largura toda */
-section[data-testid="stSidebar"] [data-testid="stTooltipHoverTarget"], section[data-testid="stSidebar"] .stButton { width: 100% !important; }
-section[data-testid="stSidebar"] [data-testid^="stBaseButton"] { width: 100% !important; border-radius: 8px !important; }
-
 /* Menu lateral: a página onde estás fica marcada a azul */
 section[data-testid="stSidebar"] .stButton > button[kind="primary"],
 section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] {
