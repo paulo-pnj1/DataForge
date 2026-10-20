@@ -440,7 +440,7 @@ def _step1_dataset(username: str):
             c3.metric("Valores nulos", int(df.isnull().sum().sum()))
 
         st.session_state["clf_df"] = df
-        if st.button("▶ Continuar para Algoritmo", key="step1_next"):
+        if st.button("Continuar para Algoritmo", key="step1_next"):
             st.session_state.guiado_step = max(st.session_state.guiado_step, 2)
             st.rerun()
 
@@ -466,7 +466,7 @@ def _step2_algoritmo(username: str):
                 st.markdown(f"""<div class="teoria-box"><h4>Quando usar</h4><p>{t['quando_usar']}</p></div><div class="teoria-box"><h4>Cuidados</h4><p>{t['cuidados']}</p></div>""", unsafe_allow_html=True)
 
     st.session_state["clf_algo"] = chave
-    if st.button("▶ Continuar para Pré-processamento", key="step2_next"):
+    if st.button("Continuar para Pré-processamento", key="step2_next"):
         st.session_state.guiado_step = max(st.session_state.guiado_step, 3)
         st.rerun()
 
@@ -510,7 +510,7 @@ def _step3_preprocessamento(username: str):
     st.session_state["clf_scaler"] = scaler_opt
     st.session_state["clf_test_size"] = test_size
 
-    if st.button("▶ Continuar para Treino", key="step3_next"):
+    if st.button("Continuar para Treino", key="step3_next"):
         st.session_state.guiado_step = max(st.session_state.guiado_step, 4)
         st.rerun()
 
@@ -804,7 +804,7 @@ def _render_resultados(r: dict, algo: str, username: str):
                  "features": r["feature_names"]}, buf)
     buf.seek(0)
     st.download_button(
-        "⬇ Descarregar modelo (.pkl)",
+        "Descarregar modelo (.pkl)",
         data=buf, file_name=f"{algo.replace(' ','_').lower()}_model.pkl",
         mime="application/octet-stream"
     )

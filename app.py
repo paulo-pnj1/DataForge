@@ -81,7 +81,7 @@ def _render_historico(username: str):
     page_header("Historial de Modelos", "Todos os modelos que treinaste", "")
     historico = get_historico_modelos(username)
     if not historico:
-        st.markdown(f"""<div style="text-align:center;padding:3rem;color:var(--df-text2,#B8C4D8);"><div style="font-size:48px;margin-bottom:1rem;">📂</div>Ainda sem modelos treinados. Começa por <b>O Meu Primeiro Modelo</b> no menu.</div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style="text-align:center;padding:3rem;color:var(--df-text2,#B8C4D8);">Ainda sem modelos treinados. Começa por <b>O Meu Primeiro Modelo</b> no menu.</div>""", unsafe_allow_html=True)
         return
     for h in reversed(historico[-20:]):
         tipo  = h.get("tipo", "")
@@ -267,7 +267,7 @@ with st.sidebar:
             _botao_menu(label, key)
 
     st.markdown("---")
-    st.markdown(f'<div style="font-size:11px;font-weight:600;color:var(--df-text3,#7A8BA8);text-align:center;padding:4px;">{PRODUTO_DO_PAINEL[painel]} v2.0 · Angola 🇦🇴</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-size:11px;font-weight:600;color:var(--df-text3,#7A8BA8);text-align:center;padding:4px;">{PRODUTO_DO_PAINEL[painel]} v2.0 · Angola</div>', unsafe_allow_html=True)
 
 
 # ── ROTEADOR ─────────────────────────────────────────

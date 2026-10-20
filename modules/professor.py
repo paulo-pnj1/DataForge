@@ -198,7 +198,7 @@ def _render_ia_professor(username: str, turma: dict, df, erros_por_licao: list, 
             for i, e in enumerate(lista, 1):
                 st.markdown(f"**{i}. {e['pergunta']}**")
                 for j, o in enumerate(e["opcoes"]):
-                    st.markdown(f"- {'ABCD'[j]}) {o}" + (" ✅" if j == e["certa"] else ""))
+                    st.markdown(f"- {'ABCD'[j]}) {o}" + (" (certa)" if j == e["certa"] else ""))
                 if e["explicacao"]:
                     st.caption(e["explicacao"])
             st.download_button("Descarregar (texto)", _exercicios_em_texto(lista).encode("utf-8"),

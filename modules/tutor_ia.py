@@ -311,7 +311,7 @@ def render_painel_ia(username: str, pagina: str, rotulo_pagina: str):
             ca, cb = st.columns([5, 1], vertical_alignment="center")
             texto = ca.text_input("A tua dúvida", max_chars=400, label_visibility="collapsed",
                                   placeholder=tr("Escreve a tua dúvida..."))
-            enviar = cb.form_submit_button("➤")
+            enviar = cb.form_submit_button("Enviar")
         if enviar and texto.strip():
             pergunta = texto.strip()
         st.caption(tr("Perguntas à IA que restam hoje: {}").format(ia.pedidos_restantes(ia.id_aluno(username), ia.limite_aluno())))
@@ -340,7 +340,7 @@ def render_painel_ia(username: str, pagina: str, rotulo_pagina: str):
                                               False, usar_cache=ctx["usar_cache"], estado=ctx["estado"])
             except ia.IAErro as e:
                 nova.empty()
-                _bolha("a", "erro", "⚠️ " + tr(str(e)), nova)
+                _bolha("a", "erro", "Aviso: " + tr(str(e)), nova)
             else:
                 historico.append((pergunta, resposta))
                 del historico[:-6]

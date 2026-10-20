@@ -106,7 +106,7 @@ def _preparar(df, e):
 def _resumo_preparacao(dados):
     st.success(f"{dados.n_treino} exemplos para treinar e {dados.n_teste} para testar. O teste só serve para a nota final.")
     for n in dados.notas:
-        st.caption("ℹ️ " + n)
+        st.caption("" + n)
     for a in dados.avisos:
         st.warning(a)
 
@@ -194,11 +194,11 @@ def _mostrar_comparacao(comp, rec, chave: str, username: str, origem: str):
             st.warning(a)
         _bloco_guardar(comp, r, chave, username, origem)
     for r in comp.falhas():
-        st.caption(f"⚠️ {r.nome}: {r.motivo}")
+        st.caption(f"{r.nome}: {r.motivo}")
 
 
 def _bloco_guardar(comp, r, chave, username, origem):
-    with st.expander("💾 Guardar este modelo"):
+    with st.expander("Guardar este modelo"):
         nome = st.text_input("Nome", value=f"{r.nome} – {comp.dados.alvo}", key=f"{chave}_nome", max_chars=80)
         if st.button("Guardar modelo", key=f"{chave}_guardar"):
             try:
@@ -263,7 +263,7 @@ def _tab_treinar(df, ident, username):
     if len(escolha) > max_m:
         st.warning(f"Escolheste {len(escolha)} algoritmos mas o limite é {max_m}: os últimos ficam de fora.")
     chave = hashlib.sha256(json.dumps([ident, e, escolha, params, cv, max_m], sort_keys=True, default=str).encode()).hexdigest()
-    if st.button("▶ Treinar e comparar", type="primary", disabled=not escolha, key="lab_tr_go"):
+    if st.button("Treinar e comparar", type="primary", disabled=not escolha, key="lab_tr_go"):
         dados = _preparar(df, e)
         if dados is None:
             return
@@ -294,7 +294,7 @@ def _tab_automl(df, ident, username):
     max_m = int(c1.number_input("Máximo de modelos", 2, MAX_MODELOS_COMPARACAO, 6, key="lab_au_max"))
     orc = int(c2.number_input("Tempo máximo (s)", 20, 900, 120, 10, key="lab_au_orc"))
     cv = int(c3.selectbox("Blocos de validação cruzada", [3, 5], key="lab_au_cv"))
-    if st.button("🤖 Executar AutoML", type="primary", key="lab_au_go"):
+    if st.button("Executar AutoML", type="primary", key="lab_au_go"):
         barra = st.progress(0.0, text="A preparar…")
         try:
             res = auto_ml.executar_automl(df, e["alvo"], e["tipo"], e["feats"], max_m, orc, cv, e["teste"], e["seed"],
@@ -346,7 +346,7 @@ def _tab_series(df, ident, username):
         st.error(str(ex))
         return
     for n in serie.notas:
-        st.caption("ℹ️ " + n)
+        st.caption("" + n)
     for a in serie.avisos:
         st.warning(a)
     st.caption(f"{serie.n} pontos, frequência {serie.freq or 'irregular'}, período sazonal {serie.periodo}.")
@@ -360,7 +360,7 @@ def _tab_series(df, ident, username):
     if ind:
         st.caption("Indisponíveis neste ambiente: " + "; ".join(f"{m.nome} (precisa de «{m.dependencia}»)" for m in ind))
     chave = hashlib.sha256(json.dumps([ident, cd, cv_, dup, horizonte, n_splits, escolha], default=str).encode()).hexdigest()
-    if st.button("▶ Comparar modelos de séries", type="primary", disabled=not escolha, key="lab_se_go"):
+    if st.button("Comparar modelos de séries", type="primary", disabled=not escolha, key="lab_se_go"):
         if st.session_state.get("lab_serie_chave") != chave:
             barra = st.progress(0.0, text="A começar…")
             try:
@@ -413,7 +413,7 @@ def _tab_series(df, ident, username):
         fig.update_layout(height=380, margin=dict(l=10, r=10, t=30, b=10))
         st.plotly_chart(fig, use_container_width=True)
         st.download_button("Descarregar previsões (CSV)", pv.to_csv(index=False).encode("utf-8"), "previsoes.csv", "text/csv", key="lab_se_dl")
-        with st.expander("💾 Guardar este modelo"):
+        with st.expander("Guardar este modelo"):
             nome = st.text_input("Nome", value=f"{nomes[sel]} – {comp.serie.col_valor}", key="lab_se_nome", max_chars=80)
             if st.button("Guardar modelo", key="lab_se_guardar"):
                 try:
@@ -529,16 +529,16 @@ def _tab_guardados(username):
         except mp.ErroPersistencia as e:
             st.error(str(e))
     confirmar = c2.checkbox("Confirmo que quero apagar", key=f"lab_gd_conf_{mid}")
-    if c2.button("🗑 Apagar", disabled=not confirmar, key="lab_gd_del"):
+    if c2.button("Apagar", disabled=not confirmar, key="lab_gd_del"):
         mp.apagar_modelo(username, mid)
         st.rerun()
 
 
 # ── Entrada ────────────────────────────────────────────────────────────────────
 def render_laboratorio(username: str):
-    page_header("Laboratório de ML", "Treina, compara e guarda modelos com os teus próprios dados.", "🧪")
+    page_header("Laboratório de ML", "Treina, compara e guarda modelos com os teus próprios dados.")
     st.caption("Tudo o que o Laboratório mostra são resultados reais calculados nos teus dados. Nada é inventado: se um modelo falha ou não está instalado, vês o motivo.")
-    t = st.tabs(["📚 Biblioteca", "🏋️ Treinar e comparar", "🤖 AutoML", "📈 Séries temporais", "🔮 Previsões", "💾 Modelos guardados"])
+    t = st.tabs(["Biblioteca", "Treinar e comparar", "AutoML", "Séries temporais", "Previsões", "Modelos guardados"])
     with t[0]:
         _tab_biblioteca()
     df = ident = None

@@ -443,7 +443,7 @@ def _treinar_regressao(df, features, target, algo, params,
     buf = io.BytesIO()
     joblib.dump({"model": model, "scaler": scaler, "encoders": encoders, "features": features}, buf)
     buf.seek(0)
-    st.download_button("⬇ Descarregar modelo (.pkl)", data=buf,
+    st.download_button("Descarregar modelo (.pkl)", data=buf,
                        file_name=f"{algo.replace(' ','_').lower()}_reg.pkl",
                        mime="application/octet-stream")
     sucesso_box("Modelo treinado! +10 pontos ")
