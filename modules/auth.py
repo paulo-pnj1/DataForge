@@ -65,9 +65,16 @@ def load_config() -> dict:
     return {"credentials": {"usernames": usernames}, "cookie": _cookie_cfg()}
 
 
+@st.cache_data(ttl=300, show_spinner=False, max_entries=2)
+def _config_partilhada(versao_users: int) -> dict:
+    """A lista de contas é igual para todas as sessões: lê-se da base de dados uma vez (e de novo se uma conta mudar),
+    em vez de descarregar a tabela de utilizadores inteira em cada sessão nova."""
+    return load_config()
+
+
 def get_authenticator(force: bool = False):
     if force or "authenticator" not in st.session_state or "auth_config" not in st.session_state:
-        config = load_config()
+        config = load_config() if force else _config_partilhada(db.versao_users())
         st.session_state.auth_config = config
         st.session_state.authenticator = stauth.Authenticate(
             config["credentials"], config["cookie"]["name"], config["cookie"]["key"], config["cookie"]["expiry_days"])

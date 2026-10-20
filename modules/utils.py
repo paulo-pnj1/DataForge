@@ -101,8 +101,8 @@ def _css_vars() -> str:
 # ══════════════════════════════════════════════════════
 # CSS GLOBAL - Cobertura completa do Streamlit
 # ══════════════════════════════════════════════════════
-def inject_css():
-    st.markdown(f"""
+def _css_global() -> str:
+    return f"""
     <style>
     /* ── GOOGLE FONTS ── */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -910,10 +910,30 @@ def inject_css():
     }}
 
     </style>
-    """, unsafe_allow_html=True)
-    st.markdown(_CSS_NATIVOS, unsafe_allow_html=True)
-    if tema_actual() == "escuro":
-        st.markdown(_CSS_ESCURO, unsafe_allow_html=True)
+    """
+
+
+def _minificar_css(css: str) -> str:
+    """Tira comentários e espaços a mais: o CSS vai por rede a cada interacção, por isso quanto menor melhor."""
+    import re
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    css = re.sub(r"\s+", " ", css)
+    css = re.sub(r"\s*([{};,])\s*", r"\1", css)
+    return css.replace("</style><style>", "").strip()
+
+
+_CSS_CACHE = {}
+
+
+def inject_css():
+    """Um único bloco de CSS por execução, já minificado e guardado em memória por tema (o resultado é igual em todas
+    as execuções e sessões; só muda com o tema)."""
+    tema = tema_actual()
+    css = _CSS_CACHE.get(tema)
+    if css is None:
+        css = _minificar_css(_css_global() + _CSS_NATIVOS + (_CSS_ESCURO if tema == "escuro" else ""))
+        _CSS_CACHE[tema] = css
+    st.markdown(css, unsafe_allow_html=True)
 
 
 # A base do Streamlit (.streamlit/config.toml) é clara. Aqui os elementos nativos seguem o tema escolhido

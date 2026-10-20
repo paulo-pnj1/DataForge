@@ -13,13 +13,18 @@ Para poupar o limite da chave: nas lições e nos testes as respostas ficam em c
 depois de um treino as explicações padrão dos números (as que já estão escritas no sistema) aparecem primeiro,
 sem IA, e a IA só é chamada quando o aluno pergunta mais.
 """
+import hashlib
+import json
 import numbers
 import re
+import threading
+import time
 
 import html
 import streamlit as st
 
-from modules import ia
+from modules import db, ia
+from modules.settings import usando_supabase
 from modules.i18n import idioma_actual, tr
 
 # Chaves da sessão onde cada módulo de treino guarda o último resultado
@@ -222,7 +227,7 @@ def _css_painel(aberto: bool) -> str:
         return css + "</style>"
     css += ("[data-testid='stMainBlockContainer'], .block-container { padding-right: %dpx !important; max-width: none !important; }"
             # painel: cabeçalho em cima, mensagens ao meio (a rolar), caixa de escrever em baixo
-            ".st-key-ia_painel { position: fixed; top: 0; right: 0; width: %dpx; height: 100vh; z-index: 1000; display: flex;"
+            ".st-key-ia_painel { position: fixed; top: 0; right: 0; width: %dpx; height: 100vh; height: 100dvh; z-index: 1000; display: flex;"
             " flex-direction: column; gap: 0 !important; padding: 0 !important; overflow: hidden; background: var(--df-bg);"
             " border-left: 1px solid var(--df-border); box-shadow: -6px 0 24px rgba(0,0,0,.12); }"
             ".st-key-ia_head { flex: 0 0 auto; padding: .7rem 1rem; border-bottom: 1px solid var(--df-border); background: var(--df-surface); }"
@@ -231,15 +236,21 @@ def _css_painel(aberto: bool) -> str:
             ".st-key-ia_head button * { color: var(--df-text-sec) !important; font-size: 18px !important; }"
             # os blocos do painel ficam dentro de invólucros do Streamlit: o das mensagens é o que cresce
             ".st-key-ia_painel > div { min-height: 0; }"
-            ".st-key-ia_painel > div:has(.st-key-ia_msgs) { flex: 1 1 0 !important; position: relative; overflow: hidden; }"
+            ".st-key-ia_painel > div:has(.st-key-ia_msgs), .st-key-ia_painel > div:has(.st-key-ia_hist) { flex: 1 1 0 !important; position: relative; overflow: hidden; }"
             ".st-key-ia_painel > div:has(.st-key-ia_head), .st-key-ia_painel > div:has(.st-key-ia_comp) { flex: 0 0 auto !important; }"
             "[data-testid='InputInstructions'] { display: none !important; }"
-            # mensagens: column-reverse faz a conversa ficar encostada em baixo e a mais recente sempre visível
-            ".st-key-ia_msgs { position: absolute !important; inset: 0; overflow-y: scroll !important; overscroll-behavior: contain; scrollbar-width: auto; scrollbar-color: var(--df-accent) var(--df-surface2); display: flex; flex-direction: column-reverse;"
-            " gap: .7rem !important; padding: 1rem; background: var(--df-bg); }"
-            ".st-key-ia_msgs::-webkit-scrollbar { width: 14px; }"
-            ".st-key-ia_msgs::-webkit-scrollbar-track { background: var(--df-surface2); border-left: 1px solid var(--df-border); }"
-            ".st-key-ia_msgs::-webkit-scrollbar-thumb { background: var(--df-accent); border-radius: 8px; border: 3px solid var(--df-surface2); min-height: 40px; }"
+            # mensagens: coluna normal que rola (o scroll para a mensagem nova é feito por um pequeno script, _scroll_js).
+            # flex-shrink:0 nos filhos: sem isto o flexbox ENCOLHE e corta as mensagens em vez de as deixar transbordar.
+            ".st-key-ia_msgs, .st-key-ia_hist { position: absolute !important; inset: 0; overflow-y: auto !important; overflow-x: hidden !important;"
+            " overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: auto; scrollbar-color: var(--df-accent) var(--df-surface2);"
+            " display: flex !important; flex-direction: column !important; gap: .7rem !important; padding: 1rem; background: var(--df-bg); }"
+            ".st-key-ia_msgs > *, .st-key-ia_hist > * { flex: 0 0 auto !important; min-height: min-content !important; }"
+            # em ecrãs estreitos o Streamlit empilha as colunas: aqui o cabeçalho e a caixa de escrever ficam sempre numa linha
+            ".st-key-ia_painel [data-testid='stHorizontalBlock'] { flex-wrap: nowrap !important; flex-direction: row !important; }"
+            ".st-key-ia_js { position: fixed !important; width: 0 !important; height: 0 !important; overflow: hidden !important; }"
+            ".st-key-ia_msgs::-webkit-scrollbar, .st-key-ia_hist::-webkit-scrollbar { width: 12px; }"
+            ".st-key-ia_msgs::-webkit-scrollbar-track, .st-key-ia_hist::-webkit-scrollbar-track { background: var(--df-surface2); border-left: 1px solid var(--df-border); }"
+            ".st-key-ia_msgs::-webkit-scrollbar-thumb, .st-key-ia_hist::-webkit-scrollbar-thumb { background: var(--df-accent); border-radius: 8px; border: 3px solid var(--df-surface2); min-height: 40px; }"
             "[class*='st-key-ia_u_'], [class*='st-key-ia_a_'] { width: fit-content !important; max-width: 88%%; padding: .6rem .9rem;"
             " border-radius: 16px; font-size: 14.5px; line-height: 1.5; gap: .3rem !important; }"
             "[class*='st-key-ia_u_'] { margin-left: auto; background: var(--df-accent); border-bottom-right-radius: 4px; }"
@@ -258,7 +269,8 @@ def _css_painel(aberto: bool) -> str:
             " border: 1px solid var(--df-accent) !important; box-shadow: none !important; transform: none !important; }"
             ".st-key-ia_chips .stButton > button:not([kind='secondary']) * { color: var(--df-accent) !important; }"
             "@media (max-width: 900px) { [data-testid='stMainBlockContainer'], .block-container { padding-right: 1rem !important; }"
-            " .st-key-ia_painel { width: 100vw; } }") % (L + 24, L)
+            " .st-key-ia_painel { width: 100vw; } }"
+            ".st-key-ia_painel [data-testid='stColumn'] { min-width: 0 !important; }") % (L + 24, L)
     return css + "</style>"
 
 
@@ -269,64 +281,163 @@ def _bolha(papel: str, chave: str, texto: str, recipiente=None):
         st.markdown(texto)
 
 
-def render_painel_ia(username: str, pagina: str, rotulo_pagina: str):
-    """Botão flutuante «Tutor IA» e, quando aberto, o painel de conversa à direita. Chamar depois de desenhar a página."""
-    if not ia.configurada():
-        return
-    aberto = bool(st.session_state.get("ia_painel_aberto", False))
-    st.markdown(_css_painel(aberto), unsafe_allow_html=True)
-    if not aberto:
-        with st.container(key="ia_fab"):
-            st.button(tr("Tutor IA"), key="ia_abrir", on_click=_alternar_painel, icon=":material/smart_toy:")
-        return
+# ── Histórico das conversas: guardado na conta (tabela progress, chave «chat:<utilizador>») ──
+_MAX_TROCAS = 16        # trocas guardadas por conversa
+_MAX_CONVERSAS = 10     # conversas guardadas por aluno (as mais antigas saem)
 
-    ctx = st.session_state.get("_ia_pagina")
-    if not ctx:
-        ctx = dict(chave=f"geral_{pagina}", titulo=rotulo_pagina, contexto=f"O aluno está na página: {rotulo_pagina}.",
-                   sugestoes=["Explica-me o que posso fazer aqui", "Por onde devo começar?"], usar_cache=False,
-                   estado="", padrao_primeiro=False)
+
+def _doc_chat(username: str) -> dict:
+    """Conversas do aluno: {'c': {chave: {'titulo', 't', 'm': [[pergunta, resposta], ...]}}}. Lê da base de dados 1 vez por sessão."""
+    d = st.session_state.get("_chat_doc")
+    if d is None or d.get("_u") != username:
+        try:
+            bruto = (db.get_progress(f"chat:{username}") or {}).get("c", {})
+        except Exception:
+            bruto = {}
+        d = {"_u": username, "c": bruto if isinstance(bruto, dict) else {}}
+        st.session_state["_chat_doc"] = d
+    return d
+
+
+def _guardar_chat(username: str, doc: dict):
+    """Grava as conversas sem fazer o aluno esperar (fio à parte quando há Supabase)."""
+    c = doc["c"]
+    for k in sorted(c, key=lambda k: c[k].get("t", 0))[:max(0, len(c) - _MAX_CONVERSAS)]:
+        c.pop(k, None)
+    copia = {"c": json.loads(json.dumps(c))}
+
+    def _gravar():
+        try:
+            db.save_progress(f"chat:{username}", copia)
+        except Exception:
+            pass
+    if usando_supabase():
+        threading.Thread(target=_gravar, daemon=True).start()
+    else:
+        _gravar()
+
+
+def _restantes(username: str) -> int:
+    """Perguntas que restam hoje: guardado na sessão 2 min (em vez de 1 pedido à base de dados por interacção)."""
+    c = st.session_state.get("_ia_rest")
+    if c and c[0] == username and time.time() - c[1] < 120:
+        return c[2]
+    n = ia.pedidos_restantes(ia.id_aluno(username), ia.limite_aluno())
+    st.session_state["_ia_rest"] = (username, time.time(), n)
+    return n
+
+
+def _gastou_uma(username: str):
+    c = st.session_state.get("_ia_rest")
+    if c and c[0] == username:
+        st.session_state["_ia_rest"] = (username, c[1], max(0, c[2] - 1))
+
+
+def _alt_historico():
+    st.session_state["_ia_ver_hist"] = not st.session_state.get("_ia_ver_hist", False)
+
+
+def _fechar_painel():
+    st.session_state["ia_painel_aberto"] = False
+    st.rerun()                      # a página inteira volta a ocupar a largura toda (fora do fragmento)
+
+
+def _nova_conversa(username: str, skey: str):
+    doc = _doc_chat(username)
+    ent = doc["c"].pop(skey, None)
+    if ent and ent.get("m"):
+        doc["c"][f"{skey}#{int(time.time())}"] = ent         # a conversa antiga fica no histórico
+        _guardar_chat(username, doc)
+    st.session_state["_ia_ver_hist"] = False
+
+
+def _scroll_js(foco: str):
+    """Leva o scroll da conversa: «pergunta» = início da pergunta acabada de fazer (para ler a resposta de cima para baixo);
+    «fim» = última mensagem. Corre num iframe invisível com o mesmo domínio; o carimbo de tempo força-o a correr de novo."""
+    import streamlit.components.v1 as components
+    components.html(
+        "<script>(function(){var d=window.parent.document;function go(){var m=d.querySelector('.st-key-ia_msgs');if(!m)return;"
+        "var f=%s;if(f){var u=m.querySelectorAll(\"[class*='st-key-ia_u_']\");var l=u[u.length-1];"
+        "if(l){m.scrollTop+=l.getBoundingClientRect().top-m.getBoundingClientRect().top-10;return;}}"
+        "m.scrollTop=m.scrollHeight;}go();setTimeout(go,80);setTimeout(go,300);})();</script><!--%s-->"
+        % ("true" if foco == "pergunta" else "false", time.time()), height=0)
+
+
+def _data_curta(t) -> str:
+    try:
+        return time.strftime("%d/%m %H:%M", time.localtime(float(t)))
+    except (TypeError, ValueError):
+        return ""
+
+
+@st.fragment
+def _painel_ia(username: str, ctx: dict):
+    """O painel é um fragmento: perguntar, abrir o histórico ou começar nova conversa só volta a desenhar o painel,
+    não a página inteira por trás (antes cada pergunta re-executava toda a página)."""
     chave = ctx["chave"]
-    historico = st.session_state.setdefault(f"_tutor_h_{chave}", [])
+    skey = f"{chave}~{hashlib.md5((ctx['contexto'] or '').encode('utf-8')).hexdigest()[:6]}"     # resultado novo = conversa nova
+    doc = _doc_chat(username)
+    conv = doc["c"]
+    historico = (conv.get(skey) or {}).get("m", [])
+    ver_hist = bool(st.session_state.get("_ia_ver_hist", False))
     sugestoes = [x for x in (ctx["sugestoes"] or []) if not (ctx["padrao_primeiro"] and x == EXPLICA_NUMEROS)]
 
     with st.container(key="ia_painel"):
         with st.container(key="ia_head"):
-            c1, c2 = st.columns([6, 1], vertical_alignment="center")
+            c1, c2, c3, c4 = st.columns([6, 1, 1, 1], vertical_alignment="center")
             c1.markdown(
                 '<div style="display:flex;align-items:center;gap:10px;">'
                 '<div style="width:36px;height:36px;border-radius:50%;background:var(--df-accent);color:#fff;display:flex;'
-                'align-items:center;justify-content:center;font-weight:800;font-size:13px;">IA</div>'
-                f'<div><div style="font-weight:700;font-size:15px;line-height:1.2;">{tr("Tutor IA")}</div>'
-                f'<div style="font-size:12px;color:var(--df-text-sec);line-height:1.3;">{html.escape(tr(ctx["titulo"])[:60])}</div></div></div>',
-                unsafe_allow_html=True)
-            c2.button("✕", key="ia_fechar_b", on_click=_alternar_painel)
-        msgs = st.container(key="ia_msgs")
+                'align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;">IA</div>'
+                f'<div style="min-width:0;"><div style="font-weight:700;font-size:15px;line-height:1.2;">{tr("Tutor IA")}</div>'
+                f'<div style="font-size:12px;color:var(--df-text-sec);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+                f'{html.escape(tr(ctx["titulo"])[:60])}</div></div></div>', unsafe_allow_html=True)
+            c2.button(" ", key="ia_hist_b", icon=":material/history:", on_click=_alt_historico,
+                      help=tr("Conversas anteriores"))
+            c3.button(" ", key="ia_nova_b", icon=":material/add_comment:", on_click=_nova_conversa, args=(username, skey),
+                      help=tr("Nova conversa"), disabled=not historico)
+            if c4.button("✕", key="ia_fechar_b", help=tr("Fechar")):
+                _fechar_painel()
+        msgs = st.container(key="ia_hist" if ver_hist else "ia_msgs")
         comp = st.container(key="ia_comp")
 
     pergunta = None
     with comp:
-        if not historico and sugestoes:
-            with st.container(key="ia_chips"):
-                for i, sug in enumerate(sugestoes):
-                    if st.button(sug, key=f"ia_chip_{chave}_{i}", use_container_width=True):
-                        pergunta = tr(sug)
-        with st.form(f"ia_form_{chave}", clear_on_submit=True, border=False):
-            ca, cb = st.columns([5, 1], vertical_alignment="center")
-            texto = ca.text_input("A tua dúvida", max_chars=400, label_visibility="collapsed",
-                                  placeholder=tr("Escreve a tua dúvida..."))
-            enviar = cb.form_submit_button("Enviar")
-        if enviar and texto.strip():
-            pergunta = texto.strip()
-        st.caption(tr("Perguntas à IA que restam hoje: {}").format(ia.pedidos_restantes(ia.id_aluno(username), ia.limite_aluno())))
+        if ver_hist:
+            st.button(tr("Voltar à conversa"), key="ia_voltar_b", on_click=_alt_historico, use_container_width=True)
+            cap = None
+        else:
+            chips = st.empty()
+            if not historico and sugestoes:
+                with chips.container(key="ia_chips"):
+                    for i, sug in enumerate(sugestoes):
+                        if st.button(sug, key=f"ia_chip_{chave}_{i}", use_container_width=True):
+                            pergunta = tr(sug)
+            with st.form(f"ia_form_{chave}", clear_on_submit=True, border=False):
+                ca, cb = st.columns([5, 1], vertical_alignment="center")
+                texto = ca.text_input("A tua dúvida", max_chars=400, label_visibility="collapsed",
+                                      placeholder=tr("Escreve a tua dúvida..."))
+                enviar = cb.form_submit_button("", icon=":material/send:", help=tr("Enviar"))
+            if enviar and texto.strip():
+                pergunta = texto.strip()
+            if pergunta:
+                chips.empty()        # as sugestões desaparecem logo que há pergunta
+            cap = st.empty()
 
-    with msgs:                      # a ordem é da mais recente para a mais antiga (column-reverse põe a mais recente em baixo)
-        nova = st.empty() if pergunta else None
-        if pergunta:
-            _bolha("u", "novo", pergunta)
-        for i in range(len(historico) - 1, -1, -1):
-            p, r = historico[i]
-            _bolha("a", str(i), r)
-            _bolha("u", str(i), p)
+    if ver_hist:
+        with msgs:
+            antigas = sorted(((k, v) for k, v in conv.items() if k != skey and v.get("m")),
+                             key=lambda kv: kv[1].get("t", 0), reverse=True)
+            if not antigas:
+                st.markdown(f"_{tr('Ainda não tens conversas anteriores.')}_")
+            for n, (k, v) in enumerate(antigas):
+                with st.expander(f"{v.get('titulo', '')[:55]} · {_data_curta(v.get('t'))}", expanded=(n == 0)):
+                    for j, (p, r) in enumerate(v["m"]):
+                        _bolha("u", f"h{n}_{j}", p)
+                        _bolha("a", f"h{n}_{j}", r)
+        return
+
+    with msgs:
         with st.container(key="ia_a_boasvindas"):
             if historico or pergunta:
                 st.markdown(f"{tr('Estou a ver')}: **{tr(ctx['titulo'])}**. "
@@ -340,7 +451,12 @@ def render_painel_ia(username: str, pagina: str, rotulo_pagina: str):
                         st.markdown(f"**{tr('O que significam estes números (sem IA)')}**")
                         for nome, texto_padrao in padrao:
                             st.markdown(f"- **{nome}:** {tr(texto_padrao)}")
+        for i, (p, r) in enumerate(historico):
+            _bolha("u", str(i), p)
+            _bolha("a", str(i), r)
         if pergunta:
+            _bolha("u", "novo", pergunta)
+            nova = st.empty()
             _bolha("a", "pensa", "_" + tr("A pensar...") + "_", nova)
             try:
                 resposta = ia.perguntar_tutor(pergunta, ctx["titulo"], ctx["contexto"], historico, username, idioma_actual(),
@@ -349,7 +465,32 @@ def render_painel_ia(username: str, pagina: str, rotulo_pagina: str):
                 nova.empty()
                 _bolha("a", "erro", "Aviso: " + tr(str(e)), nova)
             else:
-                historico.append((pergunta, resposta))
-                del historico[:-6]
+                ent = conv.setdefault(skey, {"titulo": ctx["titulo"], "m": []})
+                ent["t"] = time.time()
+                ent["m"].append([pergunta, resposta])
+                del ent["m"][:-_MAX_TROCAS]
+                _guardar_chat(username, doc)
+                _gastou_uma(username)
                 nova.empty()
                 _bolha("a", "novo", resposta, nova)
+    cap.caption(tr("Perguntas à IA que restam hoje: {}").format(_restantes(username)))
+    with st.container(key="ia_js"):
+        _scroll_js("pergunta" if pergunta else "fim")
+
+
+def render_painel_ia(username: str, pagina: str, rotulo_pagina: str):
+    """Botão flutuante «Tutor IA» e, quando aberto, o painel de conversa à direita. Chamar depois de desenhar a página."""
+    if not ia.configurada():
+        return
+    aberto = bool(st.session_state.get("ia_painel_aberto", False))
+    st.markdown(_css_painel(aberto), unsafe_allow_html=True)
+    if not aberto:
+        with st.container(key="ia_fab"):
+            st.button(tr("Tutor IA"), key="ia_abrir", on_click=_alternar_painel, icon=":material/smart_toy:")
+        return
+    ctx = st.session_state.get("_ia_pagina")
+    if not ctx:
+        ctx = dict(chave=f"geral_{pagina}", titulo=rotulo_pagina, contexto=f"O aluno está na página: {rotulo_pagina}.",
+                   sugestoes=["Explica-me o que posso fazer aqui", "Por onde devo começar?"], usar_cache=False,
+                   estado="", padrao_primeiro=False)
+    _painel_ia(username, ctx)

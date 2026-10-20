@@ -39,9 +39,10 @@ import re
 import time
 
 import requests
+from concurrent.futures import ThreadPoolExecutor
 
 from modules import db
-from modules.settings import secret
+from modules.settings import secret, usando_supabase
 
 PROVEDORES = {          # nome: (endereço base, modelo por omissão). Confirma o modelo actual na consola do provedor.
     "xai": ("https://api.x.ai/v1", "grok-4.7"),
@@ -60,6 +61,30 @@ CACHE_DIAS = 30
 TEMPO_MAXIMO = 45
 CHAVE_GLOBAL = "ia:*global"          # contador da chave inteira (tabela progress; o «*» nunca aparece em nomes de utilizador)
 PREFIXO_CACHE = "iacache:"
+
+
+_HTTP = None
+
+
+def _http():
+    """Sessão HTTP partilhada (reutiliza a ligação ao serviço de IA entre perguntas)."""
+    global _HTTP
+    if _HTTP is None:
+        _HTTP = requests.Session()
+    return _HTTP
+
+
+def _post(url, **kw):
+    return _http().post(url, **kw)
+
+
+def _em_paralelo(*tarefas):
+    """Corre pedidos independentes à base de dados ao mesmo tempo (cada um espera pela rede; juntos custam o do mais lento)."""
+    if len(tarefas) == 1 or not usando_supabase():       # TinyDB (modo local) escreve num só ficheiro: sem paralelismo
+        return [t() for t in tarefas]
+    with ThreadPoolExecutor(max_workers=len(tarefas)) as ex:
+        futuros = [ex.submit(t) for t in tarefas]
+        return [f.result() for f in futuros]
 
 
 class IAErro(Exception):
@@ -177,9 +202,11 @@ def usos_hoje(org_id: str) -> int:
     return int(_doc_uso(org_id).get("n", 0))
 
 
-def _registar_uso(org_id: str):
+def _registar_uso(org_id: str, doc: dict = None):
+    """`doc`: o documento de uso já lido neste pedido (evita voltar a lê-lo)."""
     try:
-        db.save_progress(_chave_uso(org_id), {"dia": str(datetime.date.today()), "n": usos_hoje(org_id) + 1, "t": time.time()})
+        n = int((doc if doc is not None else _doc_uso(org_id)).get("n", 0))
+        db.save_progress(_chave_uso(org_id), {"dia": str(datetime.date.today()), "n": n + 1, "t": time.time()})
     except Exception:
         pass
 
@@ -204,9 +231,9 @@ def uso_global() -> dict:
             "minuto": int(d.get("nm", 0)) if d.get("min") == _minuto_actual() else 0}
 
 
-def _registar_global():
+def _registar_global(g: dict = None):
     try:
-        g = uso_global()
+        g = g if g is not None else uso_global()
         db.save_progress(CHAVE_GLOBAL, {"dia": str(datetime.date.today()), "n": g["dia"] + 1,
                                         "min": _minuto_actual(), "nm": g["minuto"] + 1})
     except Exception:
@@ -220,19 +247,23 @@ def estado_global() -> dict:
             "reserva_pct": reserva_pct(), "modelo": modelo(), "modelo_tutor": modelo("tutor"), "provedor": provedor()}
 
 
-def _verificar_limites(org_id: str, limite: int = None):
-    """Limite da pessoa/empresa, intervalo mínimo e tecto da chave. Levanta IAErro com uma mensagem para mostrar."""
+def _verificar_limites(org_id: str, limite: int = None, doc: dict = None, g: dict = None):
+    """Limite da pessoa/empresa, intervalo mínimo e tecto da chave. Levanta IAErro com uma mensagem para mostrar.
+    `doc` e `g` (uso da pessoa e da chave) podem vir já lidos: cada leitura é um pedido à base de dados."""
     c = classe(org_id)
-    if pedidos_restantes(org_id, limite) <= 0:
+    if doc is None:
+        doc = _doc_uso(org_id)
+    if g is None:
+        g = uso_global()
+    if max(0, (limite if limite is not None else limite_diario()) - int(doc.get("n", 0))) <= 0:
         raise IAErro("Atingiste o limite de perguntas à IA por hoje. Volta amanhã." if c == "aluno"
                      else "Atingiste o limite de pedidos à IA por hoje. Volta amanhã." if c == "professor"
                      else "A empresa atingiu o limite de pedidos à IA por hoje. Volta amanhã.")
     espera = intervalo_minimo()
     if espera and c in ("aluno", "professor"):
-        passou = time.time() - float(_doc_uso(org_id).get("t", 0) or 0)
+        passou = time.time() - float(doc.get("t", 0) or 0)
         if 0 <= passou < espera:
             raise IAErro("Espera uns segundos antes de fazeres outro pedido à IA.")
-    g = uso_global()
     tecto_min = limite_global_minuto()
     if tecto_min and g["minuto"] >= tecto_min:
         raise IAErro("A IA está muito ocupada neste momento. Tenta daqui a um minuto.")
@@ -307,7 +338,7 @@ def _tentar(destino: dict, mensagens: list, max_tokens: int, json_modo: bool, te
 
     def enviar(c):
         try:
-            return requests.post(f"{destino['base']}/chat/completions", json=c, timeout=TEMPO_MAXIMO, headers=cabecalhos)
+            return _post(f"{destino['base']}/chat/completions", json=c, timeout=TEMPO_MAXIMO, headers=cabecalhos)
         except requests.RequestException:
             raise _Indisponivel("Não consegui ligar à IA. Tenta daqui a pouco.")
 
@@ -359,7 +390,8 @@ def chamar(mensagens: list, org_id: str, max_tokens: int = 700, json_modo: bool 
     """`uso="tutor"` usa o modelo mais leve. Só os pedidos que resultam gastam o limite (da pessoa e da chave)."""
     if not configurada():
         raise IAErro("A IA está desligada: falta a chave «ia_api_key» nos segredos da aplicação.")
-    _verificar_limites(org_id, limite)
+    doc, g = _em_paralelo(lambda: _doc_uso(org_id), uso_global)      # 2 leituras ao mesmo tempo, em vez de 4 seguidas
+    _verificar_limites(org_id, limite, doc, g)
     erro = None
     for destino in _destinos(uso):
         try:
@@ -367,8 +399,7 @@ def chamar(mensagens: list, org_id: str, max_tokens: int = 700, json_modo: bool 
         except _Indisponivel as e:               # tenta a chave de reserva, se houver
             erro = e
             continue
-        _registar_uso(org_id)
-        _registar_global()
+        _em_paralelo(lambda: _registar_uso(org_id, doc), lambda: _registar_global(g))
         return texto
     raise erro
 

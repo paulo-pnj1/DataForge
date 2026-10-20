@@ -32,15 +32,34 @@ class TabelaEmFalta(DBError):
     """A tabela ainda não existe no Supabase (falta correr o schema.sql)."""
 
 
+_SESSAO_HTTP = None
+_CRED = None
+
+
+def _sessao_http():
+    """Uma só sessão HTTP para todo o processo: reutiliza a ligação (TCP+TLS) em vez de abrir uma nova por pedido.
+    De Angola até ao Supabase cada ligação nova custa várias centenas de ms; com a sessão só o 1.º pedido paga."""
+    global _SESSAO_HTTP, _CRED
+    if _SESSAO_HTTP is None:
+        s = requests.Session()
+        ad = requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=16)
+        s.mount("https://", ad)
+        s.mount("http://", ad)
+        _SESSAO_HTTP = s
+        base = str(secret("supabase_url")).rstrip("/")
+        chave = str(secret("supabase_key"))
+        _CRED = (base, {"apikey": chave, "Authorization": f"Bearer {chave}", "Content-Type": "application/json"})
+    return _SESSAO_HTTP, _CRED
+
+
 def _sb(method: str, tabela: str, params=None, body=None, prefer=None):
-    base = str(secret("supabase_url")).rstrip("/")
-    chave = str(secret("supabase_key"))
-    headers = {"apikey": chave, "Authorization": f"Bearer {chave}", "Content-Type": "application/json"}
+    sessao, (base, cab) = _sessao_http()
+    headers = dict(cab)
     if prefer:
         headers["Prefer"] = prefer
     try:
-        r = requests.request(method, f"{base}/rest/v1/{tabela}", params=params,
-                             data=json.dumps(body) if body is not None else None, headers=headers, timeout=15)
+        r = sessao.request(method, f"{base}/rest/v1/{tabela}", params=params,
+                           data=json.dumps(body) if body is not None else None, headers=headers, timeout=15)
     except requests.RequestException as e:
         raise DBError(f"Sem ligação à base de dados: {e}")
     if r.status_code >= 400:
@@ -108,6 +127,14 @@ def _delete(tabela: str, eq: dict):
 # ══════════════════════════════════════════════════════
 # UTILIZADORES
 # ══════════════════════════════════════════════════════
+_VERSAO_USERS = [0]
+
+
+def versao_users() -> int:
+    """Muda sempre que uma conta é criada ou alterada: serve para saber se a lista de contas em cache ainda vale."""
+    return _VERSAO_USERS[0]
+
+
 def get_user(username: str):
     r = _select("users", username=username)
     return r[0] if r else None
@@ -121,10 +148,12 @@ def create_user(row: dict):
     row = dict(row)
     row.setdefault("created_at", _agora())
     _insert("users", row)
+    _VERSAO_USERS[0] += 1
 
 
 def update_user(username: str, campos: dict):
     _update("users", {"username": username}, campos)
+    _VERSAO_USERS[0] += 1
 
 
 # ══════════════════════════════════════════════════════

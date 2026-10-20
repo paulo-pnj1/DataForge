@@ -2817,7 +2817,15 @@
   "Perguntar": "Ask",
   "Laboratório de ML": "ML Lab",
   "Treina dezenas de algoritmos nos teus dados, usa o AutoML, prevê séries e guarda modelos.": "Train dozens of algorithms on your data, use AutoML, forecast series and save models.",
-  "Treina, compara e guarda modelos com os teus próprios dados.": "Train, compare and save models with your own data."
+  "Treina, compara e guarda modelos com os teus próprios dados.": "Train, compare and save models with your own data.",
+  "Tutor IA": "AI Tutor",
+  "Conversas anteriores": "Previous conversations",
+  "Nova conversa": "New conversation",
+  "Fechar": "Close",
+  "Voltar à conversa": "Back to the conversation",
+  "Ainda não tens conversas anteriores.": "You have no previous conversations yet.",
+  "Escreve a tua dúvida...": "Type your question...",
+  "Enviar": "Send"
  },
  "inline": [
   "(código",

@@ -150,11 +150,17 @@ _tem_turma = bool(config["credentials"]["usernames"].get(username, {}).get("turm
 _disponiveis = paineis_disponiveis(role, _membros_do(username), _tem_turma)
 _empresa_pendente = None
 if role != "admin" and "business" not in _disponiveis:
-    try:
-        from modules import acesso as _acesso
-        _empresa_pendente = _acesso.empresa_do_dono(username)
-    except Exception:
-        _empresa_pendente = None
+    # Guardado 60 s na sessão: antes isto era um pedido à base de dados em CADA clique de qualquer aluno
+    _c_emp = st.session_state.get("_emp_pend")
+    if _c_emp and _c_emp[0] == username and time.time() - _c_emp[1] < 60:
+        _empresa_pendente = _c_emp[2]
+    else:
+        try:
+            from modules import acesso as _acesso
+            _empresa_pendente = _acesso.empresa_do_dono(username)
+        except Exception:
+            _empresa_pendente = None
+        st.session_state["_emp_pend"] = (username, time.time(), _empresa_pendente)
 if _empresa_pendente:      # dono de uma empresa ainda não aprovada: só vê o estado do pedido
     with st.sidebar:
         render_sidebar_user(name, username, role, authenticator, produto="DataForge Business",
@@ -226,13 +232,16 @@ with st.sidebar:
 
     from modules.navegacao import AJUDA_PAGINA, MODULOS_INFO
 
+    def _ir_para_pagina(key):
+        st.session_state.pagina = key
+        if "guiado_step" in st.session_state:
+            st.session_state.guiado_step = 1
+
     def _botao_menu(label, key):
-        if st.button(f"  {label}", key=f"nav_{key}", width='stretch', help=AJUDA_PAGINA.get(key) if painel == "aluno" else None,
-                     type="primary" if st.session_state.pagina == key else "secondary"):
-            st.session_state.pagina = key
-            if "guiado_step" in st.session_state:
-                st.session_state.guiado_step = 1
-            st.rerun()
+        # on_click em vez de st.rerun(): o botão muda a página ANTES do script correr, por isso o script corre uma vez
+        # por clique (com st.rerun() o topo da página - login, CSS, menu - corria duas vezes em cada mudança de página)
+        st.button(f"  {label}", key=f"nav_{key}", width='stretch', help=AJUDA_PAGINA.get(key) if painel == "aluno" else None,
+                  type="primary" if st.session_state.pagina == key else "secondary", on_click=_ir_para_pagina, args=(key,))
 
     from modules.navegacao import agrupar_menu
     if painel == "aluno":

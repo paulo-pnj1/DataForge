@@ -35,7 +35,7 @@ def _responder(monkeypatch, conteudo, status=200, enviados=None):
         if enviados is not None:
             enviados.append((url, json, headers))
         return _Resp(conteudo, status)
-    monkeypatch.setattr(ia.requests, "post", falso)
+    monkeypatch.setattr(ia, "_post", falso)
 
 
 def test_ia_desligada_sem_chave(monkeypatch):
@@ -134,7 +134,7 @@ def test_repete_sem_response_format_quando_o_modelo_nao_o_aceita(monkeypatch):
     def falso(url, json=None, headers=None, timeout=None):
         corpos.append(dict(json))
         return _Resp("{}", 400) if "response_format" in json else _Resp("{\"ok\": 1}", 200)
-    monkeypatch.setattr(ia.requests, "post", falso)
+    monkeypatch.setattr(ia, "_post", falso)
     assert ia.chamar([{"role": "user", "content": "x"}], "e1", json_modo=True) == "{\"ok\": 1}"
     assert "response_format" in corpos[0] and "response_format" not in corpos[1]
     assert ia.usos_hoje("e1") == 1                                              # só o pedido que resultou conta
@@ -148,7 +148,7 @@ def test_recusa_mostra_o_motivo_do_servico_sem_a_chave(monkeypatch):
 
         def json(self):
             return [{"error": {"message": "API key not valid. Please pass a valid API key. xai-teste"}}]
-    monkeypatch.setattr(ia.requests, "post", lambda *a, **k: Recusa())
+    monkeypatch.setattr(ia, "_post", lambda *a, **k: Recusa())
     with pytest.raises(ia.IAErro) as e:
         ia.chamar([{"role": "user", "content": "x"}], "e1")
     assert "API key not valid" in str(e.value) and "xai-teste" not in str(e.value)
@@ -329,14 +329,14 @@ def test_chave_de_reserva_so_entra_quando_a_principal_esgota(monkeypatch):
     def falso(url, json=None, headers=None, timeout=None):
         chaves.append(headers["Authorization"])
         return _Resp("x", 429) if headers["Authorization"] == "Bearer xai-teste" else _Resp("da reserva", 200)
-    monkeypatch.setattr(ia.requests, "post", falso)
+    monkeypatch.setattr(ia, "_post", falso)
     assert ia.chamar([{"role": "user", "content": "x"}], "e1") == "da reserva"
     assert chaves == ["Bearer xai-teste", "Bearer reserva"]
-    monkeypatch.setattr(ia.requests, "post", lambda *a, **k: _Resp("x", 401))   # chave recusada não vai para a reserva
+    monkeypatch.setattr(ia, "_post", lambda *a, **k: _Resp("x", 401))   # chave recusada não vai para a reserva
     with pytest.raises(ia.IAErro) as e:
         ia.chamar([{"role": "user", "content": "x"}], "e2")
     assert "recusada" in str(e.value)
-    monkeypatch.setattr(ia.requests, "post", lambda *a, **k: _Resp("x", 429))   # as duas esgotadas
+    monkeypatch.setattr(ia, "_post", lambda *a, **k: _Resp("x", 429))   # as duas esgotadas
     with pytest.raises(ia.IAErro) as e:
         ia.chamar([{"role": "user", "content": "x"}], "e3")
     assert "reserva" not in str(e.value) and ia.usos_hoje("e3") == 0
@@ -453,7 +453,7 @@ def test_gemini_pede_pouco_pensamento_e_repete_sem_o_parametro(monkeypatch):
     def falso(url, json=None, headers=None, timeout=None):
         corpos.append(dict(json))
         return _Resp("{}", 400) if "reasoning_effort" in json else _Resp("ok", 200)
-    monkeypatch.setattr(ia.requests, "post", falso)
+    monkeypatch.setattr(ia, "_post", falso)
     assert ia.chamar([{"role": "user", "content": "x"}], "e1") == "ok"
     assert corpos[0]["reasoning_effort"] == "minimal" and "reasoning_effort" not in corpos[1]
 
