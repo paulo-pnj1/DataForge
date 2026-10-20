@@ -11,7 +11,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from modules.ml_engine import auto_ml, data_loader, forecasting as fc, model_evaluation as ev, model_persistence as mp
+from modules.ml_engine import auto_ml, data_loader, datasets_demo as demo, forecasting as fc, model_evaluation as ev, model_persistence as mp
 from modules.ml_engine import model_registry as reg, prediction_service as ps
 from modules.ml_engine.data_validation import sugerir_tipo_problema, validar_dados
 from modules.ml_engine.model_comparison import comparar_modelos, recomendar
@@ -23,13 +23,54 @@ NOMES_TIPO = {"regressao": "Regressão (prever um número)", "classificacao": "C
 
 
 # ── Dados ──────────────────────────────────────────────────────────────────────
+def _limpar_resultados():
+    for k in ("lab_comp", "lab_comp_chave", "lab_auto", "lab_serie_comp", "lab_serie_chave"):
+        st.session_state.pop(k, None)
+
+
+def _bloco_exemplos():
+    """Datasets fictícios para experimentar sem ficheiro próprio."""
+    with st.expander("Não tens dados? Usa um dataset de exemplo (fictício)"):
+        st.caption("Dados gerados por código, sem pessoas nem empresas reais. Têm padrões reais para os modelos "
+                   "aprenderem, ruído e alguns valores em falta.")
+        ds = demo.listar()
+        i = st.selectbox("Dataset", [d.id for d in ds], key="lab_demo_id",
+                         format_func=lambda k: f"{demo.NOMES_TIPO[demo.DATASETS[k].tipo]} · {demo.DATASETS[k].nome}")
+        d = demo.DATASETS[i]
+        st.write(d.descricao)
+        st.caption(f"Variável a prever: «{d.alvo}»" + (" (separador «Séries temporais»)" if d.tipo == "serie"
+                                                         else " (separadores «Treinar e comparar» ou «AutoML»)"))
+        n = int(st.number_input("Número de linhas", 30, 20000, d.n_padrao, key=f"lab_demo_n_{i}"))
+        c1, c2 = st.columns(2)
+        if c1.button("Usar este dataset", key="lab_demo_usar", type="primary"):
+            df = demo.gerar(i, n)
+            st.session_state.update(lab_id=f"demo:{i}:{n}", lab_df=df, lab_amostrado=None,
+                                    lab_up_n=st.session_state.get("lab_up_n", 0) + 1)
+            _limpar_resultados()
+            st.rerun()
+        c2.download_button("Descarregar em CSV", demo.para_csv(demo.gerar(i, n)), file_name=f"{i}.csv",
+                           mime="text/csv", key="lab_demo_csv")
+
+
 def _fonte_dados():
-    """Carrega CSV/Excel para a sessão. Devolve (df, identificador) ou (None, None)."""
+    """Carrega CSV/Excel (ou um dataset de exemplo) para a sessão. Devolve (df, identificador) ou (None, None)."""
     st.markdown("#### 1. Os teus dados")
-    ficheiro = st.file_uploader("Ficheiro CSV ou Excel (.xlsx)", type=["csv", "xlsx", "xlsm", "txt"], key="lab_upload",
+    ficheiro = st.file_uploader("Ficheiro CSV ou Excel (.xlsx)", type=["csv", "xlsx", "xlsm", "txt"],
+                                key=f"lab_upload_{st.session_state.get('lab_up_n', 0)}",
                                 help="Máximo 50 MB. A primeira linha tem de ter os nomes das colunas.")
+    _bloco_exemplos()
     if ficheiro is None:
-        st.info("Carrega um ficheiro para começar. Não tens um? Experimenta um CSV pequeno com uma coluna que queiras prever.")
+        ident_atual = st.session_state.get("lab_id") or ""
+        if ident_atual.startswith("demo:") and st.session_state.get("lab_df") is not None:
+            df = st.session_state["lab_df"]
+            _, id_demo, _ = ident_atual.split(":")
+            st.success(f"A usar o dataset de exemplo «{demo.DATASETS[id_demo].nome}» (fictício). "
+                       f"Variável a prever: «{demo.DATASETS[id_demo].alvo}».")
+            st.caption(f"{len(df)} linhas × {df.shape[1]} colunas")
+            with st.expander("Ver as primeiras linhas"):
+                st.dataframe(df.head(20), use_container_width=True)
+            return df, ident_atual
+        st.info("Carrega um ficheiro ou escolhe um dataset de exemplo para começar.")
         return None, None
     conteudo = ficheiro.getvalue()
     folha = None
@@ -52,8 +93,7 @@ def _fonte_dados():
             return None, None
         df, amostrado = data_loader.amostrar(df)
         st.session_state.update(lab_id=ident, lab_df=df, lab_amostrado=amostrado)
-        for k in ("lab_comp", "lab_comp_chave", "lab_auto", "lab_serie_comp", "lab_serie_chave"):
-            st.session_state.pop(k, None)
+        _limpar_resultados()
     df = st.session_state["lab_df"]
     if st.session_state.get("lab_amostrado"):
         st.warning(st.session_state["lab_amostrado"])
@@ -550,12 +590,12 @@ def render_laboratorio(username: str):
     ident = st.session_state.get("lab_id")
     with t[2]:
         if df is None:
-            st.info("Carrega primeiro um ficheiro no separador «Treinar e comparar».")
+            st.info("Carrega um ficheiro (ou escolhe um dataset de exemplo) no separador «Treinar e comparar».")
         else:
             _tab_automl(df, ident, username)
     with t[3]:
         if df is None:
-            st.info("Carrega primeiro um ficheiro no separador «Treinar e comparar».")
+            st.info("Carrega um ficheiro (ou escolhe um dataset de exemplo) no separador «Treinar e comparar».")
         else:
             _tab_series(df, ident, username)
     with t[4]:
