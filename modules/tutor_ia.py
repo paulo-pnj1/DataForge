@@ -235,8 +235,11 @@ def _css_painel(aberto: bool) -> str:
             ".st-key-ia_painel > div:has(.st-key-ia_head), .st-key-ia_painel > div:has(.st-key-ia_comp) { flex: 0 0 auto !important; }"
             "[data-testid='InputInstructions'] { display: none !important; }"
             # mensagens: column-reverse faz a conversa ficar encostada em baixo e a mais recente sempre visível
-            ".st-key-ia_msgs { position: absolute !important; inset: 0; overflow-y: scroll !important; overscroll-behavior: contain; scrollbar-width: thin; display: flex; flex-direction: column-reverse;"
+            ".st-key-ia_msgs { position: absolute !important; inset: 0; overflow-y: scroll !important; overscroll-behavior: contain; scrollbar-width: auto; scrollbar-color: var(--df-accent) var(--df-surface2); display: flex; flex-direction: column-reverse;"
             " gap: .7rem !important; padding: 1rem; background: var(--df-bg); }"
+            ".st-key-ia_msgs::-webkit-scrollbar { width: 14px; }"
+            ".st-key-ia_msgs::-webkit-scrollbar-track { background: var(--df-surface2); border-left: 1px solid var(--df-border); }"
+            ".st-key-ia_msgs::-webkit-scrollbar-thumb { background: var(--df-accent); border-radius: 8px; border: 3px solid var(--df-surface2); min-height: 40px; }"
             "[class*='st-key-ia_u_'], [class*='st-key-ia_a_'] { width: fit-content !important; max-width: 88%%; padding: .6rem .9rem;"
             " border-radius: 16px; font-size: 14.5px; line-height: 1.5; gap: .3rem !important; }"
             "[class*='st-key-ia_u_'] { margin-left: auto; background: var(--df-accent); border-bottom-right-radius: 4px; }"
@@ -325,14 +328,18 @@ def render_painel_ia(username: str, pagina: str, rotulo_pagina: str):
             _bolha("a", str(i), r)
             _bolha("u", str(i), p)
         with st.container(key="ia_a_boasvindas"):
-            st.markdown(f"{tr('Olá! Sou o teu tutor de Machine Learning.')} {tr('Estou a ver')}: **{tr(ctx['titulo'])}**. "
-                        f"{tr('Pergunta o que não percebeste. A IA pode enganar-se: confirma com a lição ou com o professor.')}")
-            if ctx["padrao_primeiro"]:
-                padrao = explicacoes_padrao(ctx["contexto"])
-                if padrao:
-                    st.markdown(f"**{tr('O que significam estes números (sem IA)')}**")
-                    for nome, texto_padrao in padrao:
-                        st.markdown(f"- **{nome}:** {tr(texto_padrao)}")
+            if historico or pergunta:
+                st.markdown(f"{tr('Estou a ver')}: **{tr(ctx['titulo'])}**. "
+                            f"{tr('A IA pode enganar-se: confirma com a lição ou com o professor.')}")
+            else:
+                st.markdown(f"{tr('Olá! Sou o teu tutor de Machine Learning.')} {tr('Estou a ver')}: **{tr(ctx['titulo'])}**. "
+                            f"{tr('Pergunta o que não percebeste. A IA pode enganar-se: confirma com a lição ou com o professor.')}")
+                if ctx["padrao_primeiro"]:
+                    padrao = explicacoes_padrao(ctx["contexto"])
+                    if padrao:
+                        st.markdown(f"**{tr('O que significam estes números (sem IA)')}**")
+                        for nome, texto_padrao in padrao:
+                            st.markdown(f"- **{nome}:** {tr(texto_padrao)}")
         if pergunta:
             _bolha("a", "pensa", "_" + tr("A pensar...") + "_", nova)
             try:
