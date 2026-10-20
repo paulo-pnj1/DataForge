@@ -5,3 +5,6 @@ env_IA/
 venv/
 data/db.json
 .streamlit/secrets.toml
+
+# Modelos treinados e chave de assinatura (nunca versionar)
+artifacts/

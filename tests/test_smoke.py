@@ -11,7 +11,7 @@ from streamlit.testing.v1 import AppTest  # noqa: E402
 
 PAGINAS = ["dashboard", "escola", "primeiro_modelo", "assistente", "dicionario", "revisao", "projeto", "conquistas",
            "certificados", "perfil", "classificacao", "regressao", "clustering", "reducao", "anomalias", "mlp",
-           "reforco", "comparador", "historico"]                      # painel do aluno
+           "reforco", "comparador", "laboratorio", "historico"]                      # painel do aluno
 PAGINAS_PROFESSOR = ["professor", "escola", "dicionario", "perfil"]
 PAGINAS_BUSINESS = ["business_home", "business_dados", "business_analises", "business_previsoes", "business_relatorios",
                     "business_equipa", "perfil"]

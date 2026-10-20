@@ -113,3 +113,16 @@ Como funciona (para quem mexe no código):
 - Para acrescentar ou corrigir uma tradução, edita `modules/locales/en.json` (`"texto em português": "English text"`). Frases sem tradução aparecem em português.
 - Ficam em português de propósito: os e-mails enviados, e os textos de exemplo dos datasets de NLP (são dados, não interface).
 - Testes: `pytest -q tests/test_idioma.py`.
+
+## Laboratório de ML (treino, comparação, AutoML, séries, modelos guardados)
+
+Página **Laboratório de ML** (menu do aluno › Ferramentas). Carrega um CSV/Excel e:
+
+- **Biblioteca**: 16 algoritmos de regressão, 13 de classificação e 11 de séries temporais, com descrição e disponibilidade (XGBoost, LightGBM, statsmodels e PyTorch são opcionais: se faltarem, o algoritmo aparece como «indisponível» e nada parte).
+- **Treinar e comparar**: pré-processamento em `Pipeline` (ajustado só com o treino), validação cruzada, tabela comparativa ordenável, gráficos (real × previsto, matriz de confusão, ROC, Precision-Recall) e recomendação justificada. A recomendação usa só a validação cruzada do treino; o teste nunca decide.
+- **AutoML**: escolhe os algoritmos compatíveis, com limite de modelos e de tempo. Não afina hiperparâmetros. «Melhor» = melhor entre os avaliados.
+- **Séries temporais**: ordem cronológica, divisão treino/validação/teste temporal, validação progressiva, referências ingénuas, MAE/RMSE/MAPE/MASE; intervalos só nos modelos que os dão (ARIMA/SARIMAX).
+- **Previsões** e **Modelos guardados**: modelos guardados por utilizador em `artifacts/modelos/` (joblib + metadados JSON + versões), com assinatura HMAC verificada antes de abrir. Define `modelos_key` em `secrets.toml` (ver `secrets.toml.example`). Em alojamentos com disco temporário os modelos podem desaparecer ao reiniciar.
+
+O código está em `modules/ml_engine/` (sem Streamlit, testável) e `modules/laboratorio.py` (interface).
+Testes do motor: `pytest -q tests/test_data_loader.py tests/test_preprocessing.py tests/test_regression.py tests/test_classification.py tests/test_model_comparison.py tests/test_auto_ml.py tests/test_model_persistence.py tests/test_prediction_service.py tests/test_forecasting.py`
