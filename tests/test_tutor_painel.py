@@ -66,4 +66,5 @@ def test_css_minificado_mantem_chavetas_equilibradas():
     mini = utils._minificar_css(bruto)
     assert mini.count("{") == mini.count("}")
     assert len(mini) < len(bruto) * 0.75
-    assert "@import url('https://fonts.googleapis.com" in mini
+    assert "@import" not in mini                       # as fontes carregam sem bloquear a página (ver _carregar_fontes)
+    assert "fonts.googleapis.com" in utils._FONTES_URL

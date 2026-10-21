@@ -14,3 +14,8 @@ showWidgetBorder = false
 
 [server]
 headless = true
+
+[runner]
+# Não correr o coletor de lixo completo (~100 ms com as bibliotecas de ML carregadas) depois de CADA execução do script;
+# o coletor automático do Python continua a funcionar.
+postScriptGC = false

@@ -2,8 +2,11 @@
 
 Toda a lógica está em `modules/ml_engine` (testável sem Streamlit); aqui só há interface.
 """
+import collections
+import copy
 import hashlib
 import json
+import threading
 import time
 
 import numpy as np
@@ -15,6 +18,7 @@ from modules.ml_engine import auto_ml, data_loader, datasets_demo as demo, forec
 from modules.ml_engine import model_registry as reg, prediction_service as ps
 from modules.ml_engine.data_validation import sugerir_tipo_problema, validar_dados
 from modules.ml_engine.model_comparison import comparar_modelos, recomendar
+from modules.ml_engine.model_training import IGNORADO
 from modules.ml_engine.preprocessing import ErroDados, preparar_dados, sugerir_features
 from modules.utils import page_header, section_title
 
@@ -133,6 +137,41 @@ def _escolhas_problema(df, prefixo: str):
     if not rel.ok:
         return None
     return dict(alvo=alvo, tipo=tipo, feats=feats, teste=teste, seed=seed)
+
+
+# Comparações já feitas, partilhadas por TODAS as sessões: numa aula os alunos treinam os mesmos dados com as mesmas
+# escolhas; só o primeiro espera. As entradas são cópias (ninguém altera o resultado de outro) e guardam-se poucas
+# (memória do servidor).
+_COMPARACOES = collections.OrderedDict()
+_COMPARACOES_LOCK = threading.Lock()
+_COMPARACOES_MAX = 12
+
+
+def _chave_comparacao(df, e, escolha, params, cv, max_m, orc) -> str:
+    cols = list(e["feats"]) + [e["alvo"]]
+    h = hashlib.sha256(pd.util.hash_pandas_object(df[cols], index=True).values.tobytes())
+    h.update(json.dumps([cols, e["tipo"], e["teste"], e["seed"], escolha, params, cv, max_m, orc],
+                        sort_keys=True, default=str).encode())
+    return h.hexdigest()
+
+
+def _comparacao_guardada(chave):
+    with _COMPARACOES_LOCK:
+        achada = _COMPARACOES.get(chave)
+        if achada is not None:
+            _COMPARACOES.move_to_end(chave)
+    return copy.deepcopy(achada) if achada is not None else None
+
+
+def _guardar_comparacao(chave, comp, rec):
+    # Resultados incompletos (cancelados, sem tempo, servidor ocupado) não se reaproveitam
+    if comp.interrompido or any(r.estado == IGNORADO for r in comp.resultados):
+        return
+    copia = copy.deepcopy((comp, rec))
+    with _COMPARACOES_LOCK:
+        _COMPARACOES[chave] = copia
+        while len(_COMPARACOES) > _COMPARACOES_MAX:
+            _COMPARACOES.popitem(last=False)
 
 
 def _preparar(df, e):
@@ -310,12 +349,19 @@ def _tab_treinar(df, ident, username):
         if st.session_state.get("lab_comp_chave") == chave:
             st.info("Estes são os mesmos dados e as mesmas escolhas de há pouco: reutilizei o resultado em vez de treinar de novo.")
         else:
-            barra = st.progress(0.0, text="A começar…")
-            comp = comparar_modelos(escolha, dados, params, cv, e["seed"], max_m, orc,
-                                    progresso=lambda i, n, nome: barra.progress(i / max(n, 1), text=f"A treinar {nome} ({i + 1}/{n})"))
-            barra.empty()
-            comp_rec = recomendar(comp)
-            st.session_state.update(lab_comp=(comp, comp_rec), lab_comp_chave=chave)
+            gchave = _chave_comparacao(df, e, escolha, params, cv, max_m, orc)
+            feito = _comparacao_guardada(gchave)
+            if feito is not None:
+                st.info("Estes dados e estas escolhas já foram treinados há pouco: reutilizei o resultado em vez de treinar de novo.")
+                st.session_state.update(lab_comp=feito, lab_comp_chave=chave)
+            else:
+                barra = st.progress(0.0, text="A começar…")
+                comp = comparar_modelos(escolha, dados, params, cv, e["seed"], max_m, orc,
+                                        progresso=lambda i, n, nome: barra.progress(i / max(n, 1), text=f"A treinar {nome} ({i + 1}/{n})"))
+                barra.empty()
+                comp_rec = recomendar(comp)
+                _guardar_comparacao(gchave, comp, comp_rec)
+                st.session_state.update(lab_comp=(comp, comp_rec), lab_comp_chave=chave)
     guardado = st.session_state.get("lab_comp")
     if guardado:
         comp, rec = guardado

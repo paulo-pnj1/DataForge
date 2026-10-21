@@ -104,8 +104,8 @@ def _css_vars() -> str:
 def _css_global() -> str:
     return f"""
     <style>
+    .st-key-df_fontes {{ position: fixed !important; width: 0 !important; height: 0 !important; overflow: hidden !important; }}
     /* ── GOOGLE FONTS ── */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
     /* ══════════════════════════════════════════════
        ROOT & RESET - tema escuro ou claro (variáveis --df-*)
@@ -913,6 +913,25 @@ def _css_global() -> str:
     """
 
 
+_FONTES_URL = ("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800"
+               "&family=JetBrains+Mono:wght@400;500&display=swap")
+
+
+def _carregar_fontes():
+    """Pede as fontes ao Google SEM bloquear a página. O @import dentro do CSS fazia o navegador esperar pelo Google
+    antes de mostrar o conteúdo (lento em Angola); assim a página aparece logo com a letra do sistema e a Inter entra
+    quando chega. Corre uma vez por sessão."""
+    if st.session_state.get("_fontes_pedidas"):
+        return
+    st.session_state["_fontes_pedidas"] = True
+    import streamlit.components.v1 as components
+    with st.container(key="df_fontes"):
+        components.html(
+            "<script>(function(){try{var d=window.parent.document;if(d.getElementById('df-fontes'))return;"
+            "var l=d.createElement('link');l.id='df-fontes';l.rel='stylesheet';l.href='%s';d.head.appendChild(l);}catch(e){}})();</script>"
+            % _FONTES_URL, height=0)
+
+
 def _minificar_css(css: str) -> str:
     """Tira comentários e espaços a mais: o CSS vai por rede a cada interacção, por isso quanto menor melhor."""
     import re
@@ -934,6 +953,7 @@ def inject_css():
         css = _minificar_css(_css_global() + _CSS_NATIVOS + (_CSS_ESCURO if tema == "escuro" else ""))
         _CSS_CACHE[tema] = css
     st.markdown(css, unsafe_allow_html=True)
+    _carregar_fontes()
 
 
 # A base do Streamlit (.streamlit/config.toml) é clara. Aqui os elementos nativos seguem o tema escolhido
@@ -1497,8 +1517,11 @@ def _gerar_alunos(n: int = 500, seed: int = 11) -> pd.DataFrame:
                          "passou_de_ano": np.where(score > 0, "sim", "nao")})
 
 
+@st.cache_data(show_spinner=False, max_entries=32, ttl=3600)
 def carregar_dataset_embutido(nome: str) -> tuple:
-    """Retorna (df, descricao, tipo_problema)"""
+    """Retorna (df, descricao, tipo_problema).
+    Em cache (1 h): antes cada execução voltava a gerar o dataset e, no Titanic e na Califórnia, a descarregá-lo.
+    Cada chamada recebe a sua própria cópia, por isso alterar o DataFrame não afecta os outros alunos."""
     from sklearn import datasets
     import seaborn as sns
 

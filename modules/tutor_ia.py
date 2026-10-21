@@ -164,7 +164,7 @@ def render_tutor(username: str, chave: str, titulo: str, contexto: str, sugestoe
         if sugestoes:
             cols = st.columns(len(sugestoes))
             for i, (col, s) in enumerate(zip(cols, sugestoes)):
-                if col.button(s, key=f"_tutor_s_{chave}_{i}", use_container_width=True):
+                if col.button(s, key=f"_tutor_s_{chave}_{i}", width="stretch"):
                     pergunta = tr(s)
         with st.form(f"_tutor_f_{chave}", clear_on_submit=True):
             texto = st.text_input("A tua dúvida", max_chars=400, key=f"_tutor_t_{chave}",
@@ -404,14 +404,14 @@ def _painel_ia(username: str, ctx: dict):
     pergunta = None
     with comp:
         if ver_hist:
-            st.button(tr("Voltar à conversa"), key="ia_voltar_b", on_click=_alt_historico, use_container_width=True)
+            st.button(tr("Voltar à conversa"), key="ia_voltar_b", on_click=_alt_historico, width="stretch")
             cap = None
         else:
             chips = st.empty()
             if not historico and sugestoes:
                 with chips.container(key="ia_chips"):
                     for i, sug in enumerate(sugestoes):
-                        if st.button(sug, key=f"ia_chip_{chave}_{i}", use_container_width=True):
+                        if st.button(sug, key=f"ia_chip_{chave}_{i}", width="stretch"):
                             pergunta = tr(sug)
             with st.form(f"ia_form_{chave}", clear_on_submit=True, border=False):
                 ca, cb = st.columns([5, 1], vertical_alignment="center")

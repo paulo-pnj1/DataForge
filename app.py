@@ -17,6 +17,32 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+
+
+@st.cache_resource(show_spinner=False)
+def _aquecer_bibliotecas():
+    """Carrega em segundo plano as bibliotecas de ML mais usadas, uma vez por arranque do servidor, enquanto a pessoa
+    ainda está no ecrã de login. Sem isto o 1.º aluno de cada arranque esperava 1-3 s em cada página nova só por
+    importações. (torch fica de fora de propósito: pesa muita memória e só as páginas de redes neuronais o usam.)"""
+    import threading
+
+    def _carregar():
+        time.sleep(2.0)       # deixa o 1.º ecrã (login) aparecer primeiro: a CPU é partilhada
+        for m in ("sklearn.model_selection", "sklearn.preprocessing", "sklearn.compose", "sklearn.pipeline", "sklearn.impute",
+                  "sklearn.metrics", "sklearn.linear_model", "sklearn.tree", "sklearn.ensemble", "sklearn.neighbors",
+                  "sklearn.svm", "sklearn.naive_bayes", "sklearn.neural_network", "sklearn.cluster",
+                  "sklearn.decomposition", "sklearn.manifold", "sklearn.datasets", "scipy.stats", "plotly.express",
+                  "plotly.graph_objects", "matplotlib.pyplot", "seaborn", "xgboost", "lightgbm"):
+            try:
+                __import__(m)
+            except Exception:
+                pass
+    threading.Thread(target=_carregar, daemon=True, name="aquecer-bibliotecas").start()
+    return True
+
+
+_aquecer_bibliotecas()
+
 from modules.i18n import iniciar_idioma, idioma_actual
 from modules.i18n_patch import instalar as _instalar_i18n
 _instalar_i18n()      # texto, rótulos, tabelas e gráficos passam pela tradução (Português / English)
