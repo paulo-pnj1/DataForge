@@ -68,3 +68,11 @@ def test_css_minificado_mantem_chavetas_equilibradas():
     assert len(mini) < len(bruto) * 0.75
     assert "@import" not in mini                       # as fontes carregam sem bloquear a página (ver _carregar_fontes)
     assert "fonts.googleapis.com" in utils._FONTES_URL
+
+
+def test_css_do_expansor_aberto_nao_deixa_o_rotulo_invisivel():
+    """O cabeçalho aberto ficava claro sobre claro no tema escuro (menu lateral sem rótulo)."""
+    from modules import utils
+    mini = utils._minificar_css(utils._CSS_NATIVOS)
+    assert "details[open]>summary" in mini.replace(" ", "")
+    assert "background:transparent!important" in mini.replace(" ", "")

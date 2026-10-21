@@ -978,6 +978,19 @@ _CSS_NATIVOS = """
 [data-testid="stCode"] pre, .stCode pre { background: var(--df-surface2) !important; }
 [data-testid="stCode"] code, [data-testid="stCode"] code span, .stCode code span { color: var(--df-text) !important; }
 
+/* Expansores (menu lateral e páginas): o cabeçalho ABERTO ficava com o fundo claro do tema base do Streamlit mas com o texto
+   do tema escuro (claro sobre claro = rótulo invisível). Fundo transparente e cores do nosso tema em todos os estados. */
+[data-testid="stExpander"] details > summary,
+[data-testid="stExpander"] details[open] > summary,
+[data-testid="stExpander"] details > summary:focus,
+[data-testid="stExpander"] details > summary:active {
+    background: transparent !important;
+    color: var(--df-text) !important;
+}
+[data-testid="stExpander"] details > summary:hover { background: var(--df-surface2) !important; }
+[data-testid="stExpander"] details > summary p,
+[data-testid="stExpander"] details > summary span:not([data-testid="stIconMaterial"]) { color: var(--df-text) !important; opacity: 1 !important; }
+
 /* Botões do menu lateral */
 section[data-testid="stSidebar"] .stButton > button,
 section[data-testid="stSidebar"] [data-testid^="stBaseButton"] {
