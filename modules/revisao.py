@@ -39,9 +39,7 @@ def render_revisao(username: str):
     fb = st.session_state.get("rev_fb")
     if fb:
         (st.success if fb["ok"] else st.error)(fb["msg"])
-        if st.button("Próxima pergunta", type="primary", key="rev_next"):
-            st.session_state.pop("rev_fb")
-            st.rerun()
+        st.button("Próxima pergunta", type="primary", key="rev_next", on_click=lambda: st.session_state.pop("rev_fb", None))
         return
 
     total = len(progress.get("revisao", {}))

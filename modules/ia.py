@@ -554,7 +554,7 @@ def perguntar_tutor(pergunta: str, titulo: str, contexto: str, historico: list, 
     for p, r in (historico or [])[-3:]:                 # as últimas 3 trocas, para poder fazer perguntas de seguimento
         msgs += [{"role": "user", "content": str(p)[:400]}, {"role": "assistant", "content": str(r)[:1200]}]
     msgs.append({"role": "user", "content": pergunta})
-    texto = chamar(msgs, id_aluno(username), max_tokens=1500, temperatura=0.4, limite=limite_aluno(), uso="tutor")
+    texto = chamar(msgs, id_aluno(username), max_tokens=700, temperatura=0.4, limite=limite_aluno(), uso="tutor")
     texto = re.sub(r"#{1,6}\s*", "", texto).strip()
     if len(texto) < 5:
         raise IAErro("A IA devolveu uma resposta demasiado curta. Tenta outra vez.")

@@ -72,7 +72,7 @@ def _fonte_dados():
                        f"Variável a prever: «{demo.DATASETS[id_demo].alvo}».")
             st.caption(f"{len(df)} linhas × {df.shape[1]} colunas")
             with st.expander("Ver as primeiras linhas"):
-                st.dataframe(df.head(20), use_container_width=True)
+                st.dataframe(df.head(20), width="stretch")
             return df, ident_atual
         st.info("Carrega um ficheiro ou escolhe um dataset de exemplo para começar.")
         return None, None
@@ -103,7 +103,7 @@ def _fonte_dados():
         st.warning(st.session_state["lab_amostrado"])
     st.caption(f"{len(df)} linhas × {df.shape[1]} colunas")
     with st.expander("Ver as primeiras linhas"):
-        st.dataframe(df.head(20), use_container_width=True)
+        st.dataframe(df.head(20), width="stretch")
     return df, ident
 
 
@@ -219,19 +219,19 @@ def _graficos_modelo(comp, r):
         fig.add_shape(type="line", x0=lo, y0=lo, x1=hi, y1=hi, line=dict(dash="dash", color="gray"))
         fig.update_layout(title="Real × previsto (no teste)", xaxis_title="Real", yaxis_title="Previsto", height=380, margin=dict(l=10, r=10, t=50, b=10))
         c1, c2 = st.columns(2)
-        c1.plotly_chart(fig, use_container_width=True)
+        c1.plotly_chart(fig, width="stretch")
         res = y - np.asarray(y_pred, dtype=float)
         f2 = go.Figure(go.Histogram(x=res, nbinsx=30))
         f2.update_layout(title="Erros (real − previsto)", height=380, margin=dict(l=10, r=10, t=50, b=10))
-        c2.plotly_chart(f2, use_container_width=True)
+        c2.plotly_chart(f2, width="stretch")
         return
     cm = ev.matriz_confusao(d.y_test, y_pred, len(d.classes))
     c1, c2 = st.columns(2)
-    c1.plotly_chart(_fig_matriz(cm, d.classes), use_container_width=True)
+    c1.plotly_chart(_fig_matriz(cm, d.classes), width="stretch")
     curvas = ev.curvas_binarias(d.y_test, r.predicoes.get("score")) if len(d.classes) == 2 else {}
     if curvas:
-        c2.plotly_chart(_fig_curva(*curvas["roc"], "Curva ROC", "Falsos positivos", "Verdadeiros positivos", True), use_container_width=True)
-        st.plotly_chart(_fig_curva(curvas["pr"][1], curvas["pr"][0], "Curva Precision-Recall", "Recall", "Precision"), use_container_width=True)
+        c2.plotly_chart(_fig_curva(*curvas["roc"], "Curva ROC", "Falsos positivos", "Verdadeiros positivos", True), width="stretch")
+        st.plotly_chart(_fig_curva(curvas["pr"][1], curvas["pr"][0], "Curva Precision-Recall", "Recall", "Precision"), width="stretch")
     else:
         c2.caption("As curvas ROC e Precision-Recall só se desenham com 2 classes e um modelo que dê probabilidades.")
 
@@ -247,7 +247,7 @@ def _mostrar_comparacao(comp, rec, chave: str, username: str, origem: str):
                          key=f"{chave}_ordem")
     tab = comp.tabela_visivel(ordem)
     fmt = {c: "{:.4f}" for c in tab.columns if c not in ("Modelo", "Estado")}
-    st.dataframe(tab.style.format(fmt, na_rep="—"), use_container_width=True, hide_index=True)
+    st.dataframe(tab.style.format(fmt, na_rep="—"), width="stretch", hide_index=True)
     st.caption("Notas do teste (dados que o modelo nunca viu). A coluna (CV) é a validação cruzada só com os dados de treino. "
                "«Referência» é um modelo sem inteligência (média ou classe mais frequente): um modelo útil tem de a superar.")
     if rec and rec.modelo_id:
@@ -302,7 +302,7 @@ def _tab_biblioteca():
     pesquisa = st.text_input("Procurar", key="lab_bib_q")
     if pesquisa:
         tab = tab[tab["Algoritmo"].str.contains(pesquisa, case=False, na=False) | tab["Descrição"].str.contains(pesquisa, case=False, na=False)]
-    st.dataframe(tab.drop(columns="id"), use_container_width=True, hide_index=True)
+    st.dataframe(tab.drop(columns="id"), width="stretch", hide_index=True)
     st.caption(f"{len(tab)} algoritmos. Disponíveis: {int((tab['Disponível'] == 'Sim').sum())}.")
 
 
@@ -336,7 +336,7 @@ def _tab_treinar(df, ident, username):
                 cols = st.columns(min(3, len(info.parametros)))
                 params[i] = {k: _controlo_param(k, s, f"lab_p_{i}_{k}") for (k, s), c in zip(info.parametros.items(), cols * 10)}
     c1, c2, c3 = st.columns(3)
-    cv = c1.selectbox("Validação cruzada", [0, 3, 5], index=1, key="lab_tr_cv", format_func=lambda v: "Sem" if v == 0 else f"{v} blocos")
+    cv = c1.selectbox("Validação cruzada", [0, 3, 5], index=0, key="lab_tr_cv", format_func=lambda v: "Sem" if v == 0 else f"{v} blocos")
     max_m = int(c2.number_input("Máximo de modelos", 1, MAX_MODELOS_COMPARACAO, 6, key="lab_tr_max"))
     orc = int(c3.number_input("Tempo máximo (s)", 10, 900, 180, 10, key="lab_tr_orc"))
     if len(escolha) > max_m:
@@ -401,7 +401,7 @@ def _tab_automl(df, ident, username):
                 st.caption(f"{n}: {m}")
     if len(res.triagem):
         with st.expander("Triagem rápida (amostra dos dados de treino)"):
-            st.dataframe(res.triagem, use_container_width=True, hide_index=True)
+            st.dataframe(res.triagem, width="stretch", hide_index=True)
     for a in res.avisos:
         st.warning(a)
     _resumo_preparacao(res.dados)
@@ -437,7 +437,7 @@ def _tab_series(df, ident, username):
         st.warning(a)
     st.caption(f"{serie.n} pontos, frequência {serie.freq or 'irregular'}, período sazonal {serie.periodo}.")
     st.plotly_chart(go.Figure(go.Scatter(x=serie.datas, y=serie.valores, mode="lines")).update_layout(
-        title="A série", height=300, margin=dict(l=10, r=10, t=50, b=10)), use_container_width=True)
+        title="A série", height=300, margin=dict(l=10, r=10, t=50, b=10)), width="stretch")
     infos = [m for m in reg.listar("serie")]
     disp = [m for m in infos if m.disponivel() and not m.id.startswith("serie_naive") and m.id != "serie_snaive"]
     escolha = st.multiselect("Modelos", [m.id for m in disp], default=[m.id for m in disp if m.id in ("serie_regressao", "serie_rf")],
@@ -469,7 +469,7 @@ def _tab_series(df, ident, username):
         st.warning(a)
     tab = comp.tabela().drop(columns=["_id", "_ok"])
     st.dataframe(tab.style.format({c: "{:.4f}" for c in tab.columns if c not in ("Modelo", "Estado")}, na_rep="—"),
-                 use_container_width=True, hide_index=True)
+                 width="stretch", hide_index=True)
     if rec and rec.modelo_id:
         st.success(f"**Recomendação: {rec.nome}** (critério: {rec.criterio})")
         st.write(rec.justificacao)
@@ -497,7 +497,7 @@ def _tab_series(df, ident, username):
         else:
             st.caption("Este modelo só dá previsões pontuais: não inventamos intervalos de confiança.")
         fig.update_layout(height=380, margin=dict(l=10, r=10, t=30, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.download_button("Descarregar previsões (CSV)", pv.to_csv(index=False).encode("utf-8"), "previsoes.csv", "text/csv", key="lab_se_dl")
         with st.expander("Guardar este modelo"):
             nome = st.text_input("Nome", value=f"{nomes[sel]} – {comp.serie.col_valor}", key="lab_se_nome", max_chars=80)
@@ -544,7 +544,7 @@ def _tab_previsoes(username):
             st.error("O modelo não conseguiu prever. Treina-o outra vez.")
             return
         st.caption(f"Previsões a partir de {meta['ultima_data']}, o fim dos dados com que o modelo foi treinado.")
-        st.dataframe(out, use_container_width=True, hide_index=True)
+        st.dataframe(out, width="stretch", hide_index=True)
         st.download_button("Descarregar (CSV)", out.to_csv(index=False).encode("utf-8"), "previsoes.csv", "text/csv", key="lab_pr_dl_s")
         return
     modo = st.radio("Como queres prever?", ["Um caso", "Um ficheiro"], horizontal=True, key="lab_pr_modo")
@@ -583,7 +583,7 @@ def _tab_previsoes(username):
             except (data_loader.ErroDados, ps.ErroPrevisao) as e:
                 st.error(str(e))
                 return
-            st.dataframe(saida.head(200), use_container_width=True)
+            st.dataframe(saida.head(200), width="stretch")
             st.download_button("Descarregar previsões (CSV)", saida.to_csv(index=False).encode("utf-8"), "previsoes.csv", "text/csv", key="lab_pr_dl")
 
 
@@ -600,7 +600,7 @@ def _tab_guardados(username):
         return
     tab = pd.DataFrame([{"Nome": m["nome"], "Versão": m["versao"], "Tipo": m["tipo"], "Algoritmo": m["algoritmo"], "Alvo": m.get("alvo"),
                          "Criado em": m["criado_em"], "Tamanho (KB)": round(m["tamanho_bytes"] / 1024, 1)} for m in modelos])
-    st.dataframe(tab, use_container_width=True, hide_index=True)
+    st.dataframe(tab, width="stretch", hide_index=True)
     nomes = {m["id"]: f"{m['nome']} (v{m['versao']})" for m in modelos}
     mid = st.selectbox("Modelo", list(nomes), format_func=nomes.get, key="lab_gd_mod")
     m = next(x for x in modelos if x["id"] == mid)

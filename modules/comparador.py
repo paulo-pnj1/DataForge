@@ -825,7 +825,7 @@ def render_comparador(username: str):
             if df is not None:
                 section_title("Prova")
                 test_size = st.slider("% dos dados guardados para a prova", 10, 40, 20, key="cmp_ts") / 100
-                cv_folds = st.slider("Número de provas repetidas (CV)", 3, 10, 5, key="cmp_cv")
+                cv_folds = st.slider("Número de provas repetidas (CV)", 3, 10, 3, key="cmp_cv")
                 section_title("Algoritmos (escolhe até 3)")
                 models_dict = CLF_MODELS if tipo == "Classificação" else REG_MODELS
                 algos = st.multiselect("Algoritmos", list(models_dict.keys()), default=list(models_dict.keys())[:3],

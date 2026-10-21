@@ -46,6 +46,11 @@ except ImportError:
     HAS_HDBSCAN = False
 
 
+def _ir_passo(n):
+    """Callback dos botões de passo: muda o passo ANTES do script correr (uma execução por clique, não duas)."""
+    st.session_state.cl_step = n
+
+
 def _build_model(algo: str, params: dict):
     if algo == "kmeans":
         return KMeans(n_clusters=params["n_clusters"], init="k-means++",
@@ -203,11 +208,9 @@ def render_clustering(username: str):
 
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("← Anterior", key="cl_s2b", width='stretch'):
-                    st.session_state.cl_step = 1; st.rerun()
+                st.button("← Anterior", key="cl_s2b", width='stretch', on_click=_ir_passo, args=(1,))
             with col2:
-                if st.button("Próximo →", key="cl_s2", width='stretch'):
-                    st.session_state.cl_step = 3; st.rerun()
+                st.button("Próximo →", key="cl_s2", width='stretch', on_click=_ir_passo, args=(3,))
 
         # ── PASSO 3: PARÂMETROS ──────────────────────
         elif st.session_state.cl_step == 3:
@@ -249,8 +252,7 @@ def render_clustering(username: str):
 
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("← Anterior", key="cl_s3b", width='stretch'):
-                    st.session_state.cl_step = 2; st.rerun()
+                st.button("← Anterior", key="cl_s3b", width='stretch', on_click=_ir_passo, args=(2,))
             with col2:
                 if st.button("Treinar Agora →", key="cl_s3", width='stretch'):
                     if not features:
@@ -369,11 +371,9 @@ def render_clustering(username: str):
 
                 col1, col2 = st.columns(2)
                 with col1:
-                    if st.button("← Recomeçar", width='stretch'):
-                        st.session_state.cl_step = 1; st.rerun()
+                    st.button("← Recomeçar", width='stretch', key="cl_s5_reiniciar", on_click=_ir_passo, args=(1,))
                 with col2:
-                    if st.button("Experimentar outro algoritmo →", width='stretch'):
-                        st.session_state.cl_step = 2; st.rerun()
+                    st.button("Experimentar outro algoritmo →", width='stretch', key="cl_s5_outro", on_click=_ir_passo, args=(2,))
 
     # ════════════════════════════════════════════════
     # MODO LIVRE

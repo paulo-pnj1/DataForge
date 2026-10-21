@@ -913,6 +913,21 @@ def _css_global() -> str:
     """
 
 
+def html_invisivel(codigo: str):
+    """Corre um pequeno script no navegador, num iframe sem altura, com acesso à página (mesmo domínio).
+    O Streamlit está a retirar `components.v1.html` (aviso: «removido depois de 2026-06-01») e a trocá-lo por `st.iframe`:
+    usa-se o novo quando existe, o antigo em versões mais velhas, e se nenhum funcionar a app segue sem o efeito
+    (o script só melhora o aspecto/posição; nada depende dele para funcionar)."""
+    try:
+        if hasattr(st, "iframe"):
+            st.iframe(codigo, height=1)
+        else:
+            import streamlit.components.v1 as components
+            components.html(codigo, height=0)
+    except Exception:
+        pass
+
+
 _FONTES_URL = ("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800"
                "&family=JetBrains+Mono:wght@400;500&display=swap")
 
@@ -924,12 +939,11 @@ def _carregar_fontes():
     if st.session_state.get("_fontes_pedidas"):
         return
     st.session_state["_fontes_pedidas"] = True
-    import streamlit.components.v1 as components
     with st.container(key="df_fontes"):
-        components.html(
+        html_invisivel(
             "<script>(function(){try{var d=window.parent.document;if(d.getElementById('df-fontes'))return;"
             "var l=d.createElement('link');l.id='df-fontes';l.rel='stylesheet';l.href='%s';d.head.appendChild(l);}catch(e){}})();</script>"
-            % _FONTES_URL, height=0)
+            % _FONTES_URL)
 
 
 def _minificar_css(css: str) -> str:

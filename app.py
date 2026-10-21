@@ -229,12 +229,15 @@ with st.sidebar:
         render_sidebar_user(name, username, role, authenticator, produto=PRODUTO_DO_PAINEL[painel])
 
     if len(_disponiveis) > 1:
-        escolhido = st.selectbox("Painel", _disponiveis, index=_disponiveis.index(painel),
-                                 format_func=PAINEIS.get, key="painel_sel")
-        if escolhido != painel:
-            st.session_state["painel"] = escolhido
-            st.session_state.pagina = INICIO[escolhido]
-            st.rerun()
+        def _mudar_painel():
+            # on_change: troca o painel ANTES do script correr (uma execução, em vez de duas com st.rerun())
+            novo = st.session_state.get("painel_sel")
+            if novo in INICIO and novo != st.session_state.get("painel"):
+                st.session_state["painel"] = novo
+                st.session_state.pagina = INICIO[novo]
+
+        st.selectbox("Painel", _disponiveis, index=_disponiveis.index(painel),
+                     format_func=PAINEIS.get, key="painel_sel", on_change=_mudar_painel)
 
     if painel == "business":
         render_seletor_empresa(username)
@@ -500,9 +503,8 @@ except Exception as _e:  # nunca mostrar uma página partida ao aluno
              "Tenta voltar ao Início ou recarregar a página.")
     with st.expander("Detalhes técnicos (para o professor ou programador)"):
         st.code(traceback.format_exc())
-    if st.button("Voltar ao Início", key="err_home"):
-        st.session_state.pagina = INICIO.get(painel, "dashboard")
-        st.rerun()
+    st.button("Voltar ao Início", key="err_home",
+              on_click=lambda: st.session_state.update(pagina=INICIO.get(painel, "dashboard")))
 
 # Tempo do servidor nesta execução (aparece nos logs: "Gerenciar aplicativo"). Se for baixo e a página
 # parecer lenta, a demora está na rede ou no navegador, não no código.

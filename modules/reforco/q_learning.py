@@ -279,7 +279,7 @@ def render_q_learning(username: str):
             </div>
             """, unsafe_allow_html=True)
 
-            if st.button("Treinar Agente", use_container_width=True, key="ql_run"):
+            if st.button("Treinar Agente", width="stretch", key="ql_run"):
                 env = GridWorld(n_grid, obstacles, traps)
                 with st.spinner(f"A treinar por {episodes} episódios..."):
                     Q, rewards, steps_h, eps_h = q_learning(
@@ -313,10 +313,10 @@ def render_q_learning(username: str):
                 c2.metric("Recomp. média",   f"{np.mean(res['rewards'][-100:]):.2f}")
                 c3.metric("Passos (optimo)", len(path) if res["reached_goal"] else "N/A")
 
-                st.plotly_chart(env_r.render_grid(Q, path), use_container_width=True)
-                st.plotly_chart(_plot_q_heatmap(Q, n_r), use_container_width=True)
+                st.plotly_chart(env_r.render_grid(Q, path), width="stretch")
+                st.plotly_chart(_plot_q_heatmap(Q, n_r), width="stretch")
                 st.plotly_chart(_plot_training_curves(res["rewards"], res["steps"], res["eps_hist"]),
-                                use_container_width=True)
+                                width="stretch")
 
                 teoria_box("Interpretar os resultados",
                     "As <strong>setas</strong> mostram a acção óptima em cada estado. "
@@ -354,7 +354,7 @@ def render_q_learning(username: str):
             </div>
             """, unsafe_allow_html=True)
 
-            if st.button("Animar Caminho", use_container_width=True, key="ql_anim"):
+            if st.button("Animar Caminho", width="stretch", key="ql_anim"):
                 placeholder = st.empty()
                 for i in range(len(path) + 1):
                     partial = path[:i]
@@ -364,7 +364,7 @@ def render_q_learning(username: str):
                         text=f"Passo {i}/{len(path)} - Posicao: {pos_txt}",
                         font=dict(color="#FFFFFF", size=14)
                     ))
-                    placeholder.plotly_chart(fig, use_container_width=True)
+                    placeholder.plotly_chart(fig, width="stretch")
                     time.sleep(0.45)
                 sucesso_box("Animação concluída!")
         else:

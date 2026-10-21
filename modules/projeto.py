@@ -34,6 +34,15 @@ PROJETOS = {
 PASSOS = ["Problema e dados", "Escolher colunas", "Comparar algoritmos", "Avaliar e concluir", "Relatório"]
 
 
+def _definir(d, chave, valor):
+    """Callback dos botões do projecto: muda o passo ANTES do script correr (uma execução por clique, não duas)."""
+    d[chave] = valor
+
+
+def _novo_projeto():
+    st.session_state["proj"] = {"passo": 0}
+
+
 def _modelos(tipo):
     if tipo == "clf":
         return {"Logistic Regression": lambda: LogisticRegression(max_iter=1000),
@@ -124,9 +133,7 @@ def render_projeto(username: str, nome: str):
         st.caption("Dica: lembra-te da lição sobre fuga de informação. Usa só colunas que terias disponíveis na hora de prever.")
         P["feats"] = st.multiselect("Colunas", cols, default=P.get("feats", cols), key="proj_feats")
         c1, c2 = st.columns(2)
-        if c1.button("Voltar", key="proj_b1"):
-            P["passo"] = 0
-            st.rerun()
+        c1.button("Voltar", key="proj_b1", on_click=_definir, args=(P, "passo", 0))
         if c2.button("Seguinte", type="primary", key="proj_p1"):
             if P["feats"]:
                 P["passo"] = 2
@@ -151,12 +158,9 @@ def render_projeto(username: str, nome: str):
             P["escolhido"] = st.selectbox("Que modelo escolhes?", list(P["cv"].keys()),
                                           index=list(P["cv"].keys()).index(P.get("escolhido", melhor)), key="proj_esc_mod")
         c1, c2 = st.columns(2)
-        if c1.button("Voltar", key="proj_b2"):
-            P["passo"] = 1
-            st.rerun()
-        if P.get("cv") and c2.button("Seguinte", type="primary", key="proj_p2"):
-            P["passo"] = 3
-            st.rerun()
+        c1.button("Voltar", key="proj_b2", on_click=_definir, args=(P, "passo", 1))
+        if P.get("cv"):
+            c2.button("Seguinte", type="primary", key="proj_p2", on_click=_definir, args=(P, "passo", 3))
 
     # ── 4 ──
     elif passo == 3:
@@ -176,9 +180,7 @@ def render_projeto(username: str, nome: str):
         P["conclusao"] = st.text_area("Conclusão (mínimo 40 caracteres): que modelo escolheste e porquê? Que cuidado terias antes de o usar na vida real?",
                                       value=P.get("conclusao", ""), key="proj_concl", height=140)
         c1, c2 = st.columns(2)
-        if c1.button("Voltar", key="proj_b3"):
-            P["passo"] = 2
-            st.rerun()
+        c1.button("Voltar", key="proj_b3", on_click=_definir, args=(P, "passo", 2))
         if c2.button("Concluir o projecto", type="primary", key="proj_p3"):
             if len(P["conclusao"].strip()) < 40:
                 st.warning("Escreve uma conclusão com pelo menos 40 caracteres.")
@@ -201,6 +203,4 @@ def render_projeto(username: str, nome: str):
         c1, c2 = st.columns(2)
         if c1.button("Ver os meus certificados", type="primary", key="proj_cert"):
             ir_para("certificados")
-        if c2.button("Fazer outro projecto", key="proj_novo"):
-            st.session_state["proj"] = {"passo": 0}
-            st.rerun()
+        c2.button("Fazer outro projecto", key="proj_novo", on_click=_novo_projeto)

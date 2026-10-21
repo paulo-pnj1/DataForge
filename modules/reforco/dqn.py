@@ -167,6 +167,47 @@ def _train_dqn_cartpole(episodes, hidden_str, lr, gamma, epsilon_start,
         erro_box(f"Erro DQN: {e}")
 
 
+def _figuras_dqn(res: dict):
+    """Gráficos dos resultados: recompensa por episódio e, noutro, loss e epsilon. Separado para se poder testar sem PyTorch.
+    Nota: `opacity` pertence ao traço, não a `line`: o Plotly rejeita `line=dict(opacity=...)` e a página rebentava
+    ("Algo correu mal") logo depois de cada treino terminar."""
+    window = max(1, len(res["rewards"]) // 20)
+    smooth = np.convolve(res["rewards"], np.ones(window) / window, mode="valid").tolist()
+    ep_all = list(range(len(res["rewards"])))
+    ep_sm = list(range(window - 1, len(res["rewards"])))
+
+    fig_r = go.Figure()
+    fig_r.add_trace(go.Scatter(x=ep_all, y=res["rewards"], mode="lines",
+                               line=dict(color=C_ACCENT, width=1), opacity=0.4, name="Reward"))
+    fig_r.add_trace(go.Scatter(x=ep_sm, y=smooth, mode="lines",
+                               line=dict(color=C_GREEN, width=2.5), name=f"Media({window})"))
+    fig_r.add_hline(y=195, line_color=C_AMBER, line_dash="dash",
+                    annotation_text="Meta: 195", annotation_font_color="#FFFFFF")
+    fig_r.update_layout(
+        title=dict(text="Reward por Episódio", font=dict(color="#FFFFFF", size=15)),
+        xaxis=dict(title="Episodio", color="#FFFFFF", gridcolor=C_BORDER),
+        yaxis=dict(title="Reward", color="#FFFFFF", gridcolor=C_BORDER),
+        plot_bgcolor=C_SURFACE, paper_bgcolor=C_SURFACE,
+        font=dict(color="#FFFFFF"), legend=dict(font=dict(color="#FFFFFF"))
+    )
+
+    fig_le = go.Figure()
+    ep_list = list(range(len(res["loss_hist"])))
+    fig_le.add_trace(go.Scatter(x=ep_list, y=res["loss_hist"], mode="lines",
+                                line=dict(color=C_RED, width=1.5), name="Loss", yaxis="y"))
+    fig_le.add_trace(go.Scatter(x=ep_list, y=res["eps_hist"], mode="lines",
+                                line=dict(color=C_AMBER, width=2), name="Epsilon", yaxis="y2"))
+    fig_le.update_layout(
+        title=dict(text="Loss e Epsilon ao longo do treino", font=dict(color="#FFFFFF", size=14)),
+        xaxis=dict(color="#FFFFFF", gridcolor=C_BORDER),
+        yaxis=dict(title="Loss", color=C_RED, gridcolor=C_BORDER),
+        yaxis2=dict(title="Epsilon", color=C_AMBER, overlaying="y", side="right"),
+        plot_bgcolor=C_SURFACE, paper_bgcolor=C_SURFACE,
+        font=dict(color="#FFFFFF"), legend=dict(font=dict(color="#FFFFFF"))
+    )
+    return fig_r, fig_le
+
+
 def render_dqn(username: str):
     inject_css()
     page_header("DQN - Deep Q-Network",
@@ -217,7 +258,7 @@ def render_dqn(username: str):
         eps_decay     = st.slider("Epsilon decay", 0.990, 0.9999, 0.995, 0.001, key="dqn_epd", format="%.4f")
         eps_min       = st.slider("Epsilon mínimo", 0.01, 0.1, 0.01, 0.01, key="dqn_epm")
 
-        if st.button("Treinar DQN", use_container_width=True, key="dqn_run"):
+        if st.button("Treinar DQN", width="stretch", key="dqn_run"):
             _train_dqn_cartpole(episodes, hidden_str, lr, gamma, eps_start,
                                 eps_decay, eps_min, batch_size, buffer_size,
                                 target_upd, username)
@@ -233,44 +274,9 @@ def render_dqn(username: str):
             if res["avg_last_50"] >= 195:
                 sucesso_box("CartPole RESOLVIDO! Media >= 195")
 
-            # Reward por episódio
-            window = max(1, len(res["rewards"]) // 20)
-            smooth = np.convolve(res["rewards"], np.ones(window)/window, mode='valid').tolist()
-            ep_all = list(range(len(res["rewards"])))
-            ep_sm  = list(range(window - 1, len(res["rewards"])))
-
-            fig_r = go.Figure()
-            fig_r.add_trace(go.Scatter(x=ep_all, y=res["rewards"], mode="lines",
-                line=dict(color=C_ACCENT, width=1, opacity=0.4), name="Reward"))
-            fig_r.add_trace(go.Scatter(x=ep_sm, y=smooth, mode="lines",
-                line=dict(color=C_GREEN, width=2.5), name=f"Media({window})"))
-            fig_r.add_hline(y=195, line_color=C_AMBER, line_dash="dash",
-                            annotation_text="Meta: 195", annotation_font_color="#FFFFFF")
-            fig_r.update_layout(
-                title=dict(text="Reward por Episódio", font=dict(color="#FFFFFF", size=15)),
-                xaxis=dict(title="Episodio", color="#FFFFFF", gridcolor=C_BORDER),
-                yaxis=dict(title="Reward", color="#FFFFFF", gridcolor=C_BORDER),
-                plot_bgcolor=C_SURFACE, paper_bgcolor=C_SURFACE,
-                font=dict(color="#FFFFFF"), legend=dict(font=dict(color="#FFFFFF"))
-            )
-            st.plotly_chart(fig_r, use_container_width=True)
-
-            # Loss e Epsilon
-            fig_le = go.Figure()
-            ep_list = list(range(len(res["loss_hist"])))
-            fig_le.add_trace(go.Scatter(x=ep_list, y=res["loss_hist"], mode="lines",
-                line=dict(color=C_RED, width=1.5), name="Loss", yaxis="y"))
-            fig_le.add_trace(go.Scatter(x=ep_list, y=res["eps_hist"], mode="lines",
-                line=dict(color=C_AMBER, width=2), name="Epsilon", yaxis="y2"))
-            fig_le.update_layout(
-                title=dict(text="Loss e Epsilon ao longo do treino", font=dict(color="#FFFFFF", size=14)),
-                xaxis=dict(color="#FFFFFF", gridcolor=C_BORDER),
-                yaxis=dict(title="Loss", color=C_RED, gridcolor=C_BORDER),
-                yaxis2=dict(title="Epsilon", color=C_AMBER, overlaying="y", side="right"),
-                plot_bgcolor=C_SURFACE, paper_bgcolor=C_SURFACE,
-                font=dict(color="#FFFFFF"), legend=dict(font=dict(color="#FFFFFF"))
-            )
-            st.plotly_chart(fig_le, use_container_width=True)
+            fig_r, fig_le = _figuras_dqn(res)
+            st.plotly_chart(fig_r, width="stretch")
+            st.plotly_chart(fig_le, width="stretch")
 
             teoria_box("Replay Buffer e Target Network",
                 "O <strong>Replay Buffer</strong> guarda as últimas experiências e amostra mini-batches aleatórios, "

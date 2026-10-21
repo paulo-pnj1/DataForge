@@ -25,6 +25,7 @@ import streamlit as st
 
 from modules import db, ia
 from modules.settings import usando_supabase
+from modules.utils import html_invisivel
 from modules.i18n import idioma_actual, tr
 
 # Chaves da sessão onde cada módulo de treino guarda o último resultado
@@ -354,13 +355,12 @@ def _nova_conversa(username: str, skey: str):
 def _scroll_js(foco: str):
     """Leva o scroll da conversa: «pergunta» = início da pergunta acabada de fazer (para ler a resposta de cima para baixo);
     «fim» = última mensagem. Corre num iframe invisível com o mesmo domínio; o carimbo de tempo força-o a correr de novo."""
-    import streamlit.components.v1 as components
-    components.html(
+    html_invisivel(
         "<script>(function(){var d=window.parent.document;function go(){var m=d.querySelector('.st-key-ia_msgs');if(!m)return;"
         "var f=%s;if(f){var u=m.querySelectorAll(\"[class*='st-key-ia_u_']\");var l=u[u.length-1];"
         "if(l){m.scrollTop+=l.getBoundingClientRect().top-m.getBoundingClientRect().top-10;return;}}"
         "m.scrollTop=m.scrollHeight;}go();setTimeout(go,80);setTimeout(go,300);})();</script><!--%s-->"
-        % ("true" if foco == "pergunta" else "false", time.time()), height=0)
+        % ("true" if foco == "pergunta" else "false", time.time()))
 
 
 def _data_curta(t) -> str:

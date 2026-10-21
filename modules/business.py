@@ -178,7 +178,7 @@ def _assistente_ia(m: dict, df: pd.DataFrame, did: str):
 
 def _fig(fig):
     fig = tema_figura_plotly(fig)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 # ══════════════════════════════════════════════════════
@@ -214,7 +214,7 @@ def render_inicio(username: str, name: str):
         with col:
             marca = badge(tr("Feito"), "green") if feito else badge(tr("Por fazer"), "amber")
             card(f"<b>{n}. {tr(titulo)}</b><br><span style='font-size:13px;opacity:.85'>{tr(desc)}</span><br><br>{marca}")
-            if st.button(botao, key=f"bn_passo_{n}", use_container_width=True):
+            if st.button(botao, key=f"bn_passo_{n}", width="stretch"):
                 ir_para(destino)
 
     section_title("Que problema queres resolver?")
@@ -222,7 +222,7 @@ def render_inicio(username: str, name: str):
     for col, (chave, cfg) in zip(cols, bc.PROBLEMAS.items()):
         with col:
             card(f"<b>{tr(cfg['titulo'])}</b><br><span style='font-size:13px;opacity:.85'>{tr(cfg['descricao'])}</span>")
-            if st.button("Começar", key=f"bn_prob_{chave}", use_container_width=True):
+            if st.button("Começar", key=f"bn_prob_{chave}", width="stretch"):
                 st.session_state["bn_problema"] = chave
                 ir_para("business_analises")
 
@@ -283,7 +283,7 @@ def _carregar_novo(m: dict, username: str):
         st.markdown("**" + tr("Ou experimenta com dados de exemplo") + "**")
         cols = st.columns(len(bc.EXEMPLOS))
         for col, (chave, (titulo, _)) in zip(cols, bc.EXEMPLOS.items()):
-            if col.button(titulo, key=f"bn_ex_{chave}", use_container_width=True):
+            if col.button(titulo, key=f"bn_ex_{chave}", width="stretch"):
                 st.session_state["bn_exemplo"] = chave
         if st.session_state.get("bn_exemplo"):
             ch = st.session_state["bn_exemplo"]
@@ -292,13 +292,13 @@ def _carregar_novo(m: dict, username: str):
         return
 
     section_title("Pré-visualização")
-    st.dataframe(df.head(50), use_container_width=True, height=260)
+    st.dataframe(df.head(50), width="stretch", height=260)
     section_title("Diagnóstico automático")
     _mostrar_diagnostico(df)
     with st.expander(tr("Ver as colunas")):
         r = bc.resumo_colunas(df)
         r["Tipo"] = r["Tipo"].map(tr)
-        st.dataframe(r, use_container_width=True, hide_index=True)
+        st.dataframe(r, width="stretch", hide_index=True)
 
     section_title("Guardar para a equipa")
     nome = st.text_input("Nome do conjunto de dados", value=nome_sug, key="bn_nome_dados", max_chars=60)
@@ -324,7 +324,7 @@ def _lista_dados(m: dict, username: str):
         return
     tabela = pd.DataFrame([{"Nome": d["nome"], "Linhas": d["linhas"], "Colunas": d["colunas"], "Carregado por": d["criado_por"],
                             "Data": _dt_curta(d["created_at"])} for d in dados])
-    st.dataframe(tabela, use_container_width=True, hide_index=True)
+    st.dataframe(tabela, width="stretch", hide_index=True)
     ids = [d["id"] for d in dados]
     nomes = {d["id"]: d["nome"] for d in dados}
     esc = st.selectbox("Abrir conjunto de dados", ids, format_func=lambda i: nomes[i], key="bn_abrir_dados")
@@ -335,17 +335,17 @@ def _lista_dados(m: dict, username: str):
     reg = next(d for d in dados if d["id"] == esc)
     if reg.get("reduzido"):
         aviso_box("Este conjunto guardou só uma amostra dos dados originais (eram grandes demais).")
-    st.dataframe(df.head(100), use_container_width=True, height=260)
+    st.dataframe(df.head(100), width="stretch", height=260)
     with st.expander(tr("Diagnóstico"), expanded=False):
         _mostrar_diagnostico(df)
     c1, c2, c3 = st.columns(3)
     c1.download_button("Descarregar CSV", df.to_csv(index=False).encode("utf-8-sig"), file_name=f"{reg['nome']}.csv",
-                       mime="text/csv", use_container_width=True, key="bn_dl_dados")
-    if c2.button("Analisar estes dados", use_container_width=True, key="bn_analisar_dados"):
+                       mime="text/csv", width="stretch", key="bn_dl_dados")
+    if c2.button("Analisar estes dados", width="stretch", key="bn_analisar_dados"):
         st.session_state["bn_dataset_id"] = esc
         ir_para("business_analises")
     pode_apagar = m["papel"] == "gestor" or reg["criado_por"] == username
-    if pode_apagar and c3.button("Apagar", use_container_width=True, key="bn_apagar_dados"):
+    if pode_apagar and c3.button("Apagar", width="stretch", key="bn_apagar_dados"):
         st.session_state["bn_confirmar_apagar_dados"] = esc
     if st.session_state.get("bn_confirmar_apagar_dados") == esc:
         aviso_box("Apagar estes dados não apaga as análises já feitas com eles. Confirmas?")
@@ -464,10 +464,10 @@ def render_analises(username: str, name: str):
         mostrar_resultado(ultima["saida"]["resultado"], ultima["problema"], tabela=ultima.get("df"), chave="bn_res")
         sucesso_box("Análise guardada em «Relatórios»: lá podes descarregar o PDF para a gestão.")
         c1, c2 = st.columns(2)
-        if c1.button("Usar este modelo em Previsões", key="bn_ir_prev", use_container_width=True):
+        if c1.button("Usar este modelo em Previsões", key="bn_ir_prev", width="stretch"):
             st.session_state["bn_analise_prev"] = ultima["id"]
             ir_para("business_previsoes")
-        if c2.button("Ir para Relatórios", key="bn_ir_rel", use_container_width=True):
+        if c2.button("Ir para Relatórios", key="bn_ir_rel", width="stretch"):
             st.session_state["bn_analise_rel"] = ultima["id"]
             ir_para("business_relatorios")
 
@@ -556,7 +556,7 @@ def _res_supervisionado(res: dict, chave: str):
         _fig(fig)
     with st.expander(tr("Algoritmos comparados")):
         t = pd.DataFrame([{"Algoritmo": tr(c["nome"]), "Pontuação na validação": c["pontuacao"]} for c in res["candidatos"]])
-        st.dataframe(t, use_container_width=True, hide_index=True)
+        st.dataframe(t, width="stretch", hide_index=True)
         st.caption(tr("O DataForge testa 3 algoritmos e fica com o melhor; a nota final é medida em dados que o modelo nunca viu."))
 
 
@@ -574,7 +574,7 @@ def _res_anomalia(res: dict, tabela, chave: str):
     section_title("As mais invulgares")
     linhas = [{"Linha": t["linha"], "Pontuação": t["pontuacao"],
                "Porquê": "; ".join(bc.texto_motivo(x) for x in t["motivos"]) or "-"} for t in res["top"][:25]]
-    st.dataframe(pd.DataFrame(linhas), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(linhas), width="stretch", hide_index=True)
     st.caption(tr("A «Linha» é o número da linha no ficheiro original (a linha 1 são os nomes das colunas)."))
     if tabela is not None:
         st.download_button("Descarregar lista completa (CSV)", tabela.to_csv(index=False).encode("utf-8-sig"),
@@ -689,15 +689,15 @@ def _aplicar_e_mostrar(meta, modelo, novo: pd.DataFrame, nome: str, tipo: str, c
         st.metric("Operações suspeitas", int((saida["suspeito"] == "sim").sum()))
         saida = saida.sort_values("pontuacao_anomalia", ascending=False)
     elif tipo == "segmentacao":
-        st.dataframe(saida["segmento"].value_counts().sort_index().rename(tr("Clientes")), use_container_width=True)
-    st.dataframe(saida.head(500), use_container_width=True, height=320)
+        st.dataframe(saida["segmento"].value_counts().sort_index().rename(tr("Clientes")), width="stretch")
+    st.dataframe(saida.head(500), width="stretch", height=320)
     c1, c2 = st.columns(2)
     c1.download_button("Descarregar CSV", saida.to_csv(index=False).encode("utf-8-sig"), file_name=f"previsoes_{nome}.csv",
-                       mime="text/csv", use_container_width=True, key=f"{chave}_csv")
+                       mime="text/csv", width="stretch", key=f"{chave}_csv")
     buf = io.BytesIO()
     try:
         saida.to_excel(buf, index=False, sheet_name="Previsoes")
-        c2.download_button("Descarregar Excel", buf.getvalue(), file_name=f"previsoes_{nome}.xlsx", use_container_width=True,
+        c2.download_button("Descarregar Excel", buf.getvalue(), file_name=f"previsoes_{nome}.xlsx", width="stretch",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"{chave}_xlsx")
     except Exception:
         pass
@@ -773,7 +773,7 @@ def render_relatorios(username: str, name: str):
         return
     st.dataframe(pd.DataFrame([{"Título": a["titulo"], "Problema": tr(bc.PROBLEMAS.get(a["problema"], {}).get("titulo", "")),
                                 "Dados": a.get("dataset_nome", ""), "Autor": a["criado_por"], "Data": _dt_curta(a["created_at"])}
-                               for a in lista]), use_container_width=True, hide_index=True)
+                               for a in lista]), width="stretch", hide_index=True)
     ids = [a["id"] for a in lista]
     pre = st.session_state.get("bn_analise_rel")
     esc = st.selectbox("Abrir análise", ids, index=ids.index(pre) if pre in ids else 0,
@@ -855,7 +855,7 @@ def render_equipa(username: str, name: str):
         u = db.get_user(x["username"]) or {}
         linhas.append({"Nome": u.get("name", x["username"]), "Utilizador": x["username"], "Papel": tr(PAPEIS.get(x["papel"], x["papel"])),
                        "Análises": por_autor.get(x["username"], 0), "Desde": _dt_curta(x.get("created_at"))})
-    st.dataframe(pd.DataFrame(linhas), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(linhas), width="stretch", hide_index=True)
 
     section_title("O que cada papel pode fazer")
     st.markdown("- **" + tr("Gestor") + "**: " + tr("tudo, incluindo gerir a equipa e apagar dados e análises.") + "\n"
@@ -883,12 +883,12 @@ def render_equipa(username: str, name: str):
             novo = st.selectbox("Papel", list(PAPEIS), index=list(PAPEIS).index(atual) if atual in PAPEIS else 2,
                                 format_func=lambda p: tr(PAPEIS[p]), key=f"bn_eq_papel_{alvo}")
             c1, c2 = st.columns(2)
-            if c1.button("Guardar papel", key="bn_eq_guardar", use_container_width=True) and novo != atual:
+            if c1.button("Guardar papel", key="bn_eq_guardar", width="stretch") and novo != atual:
                 db.add_membro(org, alvo, novo)
                 st.session_state.pop("_membros_cache", None)
                 st.success(bc.T("{} agora é {}.", alvo, tr(PAPEIS[novo])))
                 st.rerun()
-            if c2.button("Remover da empresa", key="bn_eq_remover", use_container_width=True):
+            if c2.button("Remover da empresa", key="bn_eq_remover", width="stretch"):
                 st.session_state["bn_eq_confirmar"] = alvo
             if st.session_state.get("bn_eq_confirmar") == alvo:
                 aviso_box(bc.T("Remover {} da empresa? Perde o acesso aos dados e às análises.", alvo))

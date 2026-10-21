@@ -142,12 +142,12 @@ def _descodificar_cookie(bruto, config):
 def _apagar_cookie_no_navegador(nome: str):
     """Apaga o cookie de sessão no navegador (JavaScript num iframe do mesmo domínio)."""
     try:
-        import streamlit.components.v1 as components
+        from modules.utils import html_invisivel
         js = ("<script>(function(){var n=%r,p='Thu, 01 Jan 1970 00:00:00 GMT';"
               "function k(d){try{d.cookie=n+'=; expires='+p+'; path=/';d.cookie=n+'=; Max-Age=0; path=/';"
               "d.cookie=n+'=; expires='+p+'; path=/; SameSite=Lax';}catch(e){}}"
               "k(document);try{k(window.parent.document);}catch(e){}})();</script>" % nome)
-        components.html(js, height=0)
+        html_invisivel(js)
     except Exception:
         pass
 
@@ -498,7 +498,7 @@ def render_sidebar_user(name: str, username: str, role: str, authenticator, prod
     st.markdown(f"""<div class="sidebar-brand"><div class="sidebar-brand-icon" style="font-size:15px;font-weight:900;color:var(--df-on-accent,#0D1117);letter-spacing:-1px;font-family:Inter,sans-serif;">DF</div><div><div class="sidebar-brand-name">{produto}</div><div class="sidebar-brand-sub">{subtitulo}</div></div></div><div class="user-pill"><div class="user-avatar">{initial}</div><div style="flex:1;min-width:0;"><div class="user-name">{name}</div><div class="user-role">{badge(role_label, role_color)}{pontos_html}</div></div></div>""", unsafe_allow_html=True)
     render_seletor_tema(username)
     render_seletor_idioma(username)
-    if st.button("Sair", key="logout_btn", use_container_width=True):
+    if st.button("Sair", key="logout_btn", width="stretch"):
         _terminar_sessao(username, authenticator)
 
 

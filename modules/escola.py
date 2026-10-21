@@ -42,6 +42,12 @@ def _caixa(titulo: str, corpo: str, cor: str = C_ACCENT):
     )
 
 
+def _abrir_licao(id_):
+    """Callback dos botões da Escola: muda a lição ANTES do script correr (o script corre uma vez por clique, em vez de duas
+    com st.rerun())."""
+    st.session_state.escola_aberta = id_
+
+
 def _secao(numero: int, titulo: str):
     st.markdown(
         f'<div style="display:flex;align-items:center;gap:10px;margin:1.8rem 0 .6rem;">'
@@ -1034,9 +1040,7 @@ def _render_trilha(username: str):
         pl = LICAO_POR_ID[proxima]
         _caixa("A tua próxima lição" if feitas else "Começa por aqui",
                f"<b>{pl['titulo']}</b> - {pl['tempo']}<br><span style='color:{C_TEXT_SEC};'>{pl['ideia']}</span>", C_GREEN)
-        if st.button("Continuar a aprender", type="primary", key="esc_continuar"):
-            st.session_state.escola_aberta = proxima
-            st.rerun()
+        st.button("Continuar a aprender", type="primary", key="esc_continuar", on_click=_abrir_licao, args=(proxima,))
     else:
         _caixa("Terminaste a Escola de ML!", "Agora pratica nos módulos da plataforma.", C_GREEN)
 
@@ -1056,9 +1060,8 @@ def _render_trilha(username: str):
                 f'<div style="font-size:12.5px;color:{C_TEXT_SEC};line-height:1.5;">{l["ideia"]}</div></div>',
                 unsafe_allow_html=True,
             )
-            if st.button("Rever" if feita else "Abrir", key=f"esc_abrir_{l['id']}", width="stretch"):
-                st.session_state.escola_aberta = l["id"]
-                st.rerun()
+            st.button("Rever" if feita else "Abrir", key=f"esc_abrir_{l['id']}", width="stretch",
+                      on_click=_abrir_licao, args=(l["id"],))
 
 
 def _render_licao(username: str, lid: str):
@@ -1068,9 +1071,7 @@ def _render_licao(username: str, lid: str):
 
     topo1, topo2 = st.columns([1, 3])
     with topo1:
-        if st.button("← Todas as lições", key="esc_voltar"):
-            st.session_state.escola_aberta = None
-            st.rerun()
+        st.button("← Todas as lições", key="esc_voltar", on_click=_abrir_licao, args=(None,))
     with topo2:
         progresso_bar((idx + 1) / len(LICOES), f"Lição {idx + 1} de {len(LICOES)}")
 
@@ -1104,13 +1105,11 @@ def _render_licao(username: str, lid: str):
     st.markdown("---")
     c1, c2, c3 = st.columns([1, 2, 1])
     with c1:
-        if idx > 0 and st.button("← Anterior", key="esc_ant", width="stretch"):
-            st.session_state.escola_aberta = LICOES[idx - 1]["id"]
-            st.rerun()
+        if idx > 0:
+            st.button("← Anterior", key="esc_ant", width="stretch", on_click=_abrir_licao, args=(LICOES[idx - 1]["id"],))
     with c3:
-        if idx < len(LICOES) - 1 and st.button("Seguinte →", key="esc_seg", type="primary", width="stretch"):
-            st.session_state.escola_aberta = LICOES[idx + 1]["id"]
-            st.rerun()
+        if idx < len(LICOES) - 1:
+            st.button("Seguinte →", key="esc_seg", type="primary", width="stretch", on_click=_abrir_licao, args=(LICOES[idx + 1]["id"],))
 
 
 def render_escola(username: str):
