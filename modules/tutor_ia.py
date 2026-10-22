@@ -274,7 +274,9 @@ def _css_painel(aberto: bool) -> str:
     L = LARGURA_PAINEL
     css = ("<style>"
            ".st-key-ia_fab { position: fixed; right: 18px; bottom: 18px; z-index: 1001; width: auto !important; }"
-           ".st-key-ia_fab button { border-radius: 999px !important; box-shadow: 0 6px 20px rgba(0,0,0,.25) !important; }")
+           ".st-key-ia_fab button { border-radius: 999px !important; box-shadow: 0 6px 20px rgba(0,0,0,.25) !important; }"
+           # no telemóvel sobe um pouco, para não ficar debaixo do selo vermelho do Streamlit Cloud
+           "@media (max-width: 768px) { .st-key-ia_fab { right: 12px; bottom: 84px; } }")
     if not aberto:
         return css + "</style>"
     css += ("[data-testid='stMainBlockContainer'], .block-container { padding-right: %dpx !important; max-width: none !important; }"

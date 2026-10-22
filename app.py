@@ -14,7 +14,7 @@ st.set_page_config(
     page_title="DataForge",
     page_icon="https://api.iconify.design/ph/brain-duotone.svg",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 

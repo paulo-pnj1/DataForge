@@ -238,33 +238,25 @@ def _css_global() -> str:
         z-index: 9999 !important;
     }}
 
-    /* Mobile - força sidebar visível e acessível */
+    /* Mobile: a barra lateral é uma gaveta do Streamlit (abre e fecha com o botão ☰). Não a forçamos aberta:
+       antes ficava sempre a tapar 80% do ecrã e nunca se fechava. */
     @media (max-width: 768px) {{
         section[data-testid="stSidebar"] {{
-            display: block !important;
-            position: fixed !important;
-            left: 0 !important;
-            top: 0 !important;
-            height: 100vh !important;
-            z-index: 1000 !important;
-            transform: none !important;
-            width: 80vw !important;
-            min-width: 260px !important;
-            max-width: 80vw !important;
-            overflow-y: auto !important;
+            max-width: 85vw !important;
             box-shadow: 4px 0 24px var(--df-shadow, rgba(0,0,0,.5)) !important;
         }}
-        /* Botão hamburger fixo no topo-esquerdo em mobile */
-        [data-testid="collapsedControl"] {{
+        /* o botão ☰ para a abrir fica sempre à vista no topo-esquerdo */
+        [data-testid="collapsedControl"], [data-testid="stSidebarCollapsedControl"], [data-testid="stExpandSidebarButton"] {{
             position: fixed !important;
-            top: 12px !important;
-            left: 12px !important;
+            top: 10px !important;
+            left: 10px !important;
             z-index: 1100 !important;
             background: {C_SURFACE} !important;
             border: 1px solid {C_BORDER} !important;
             border-radius: 8px !important;
-            padding: 6px 10px !important;
         }}
+        /* deixa espaço ao ☰ para não tapar o título da página */
+        [data-testid="stMainBlockContainer"], .block-container {{ padding-top: 3.6rem !important; padding-left: 1rem !important; padding-right: 1rem !important; }}
     }}
 
     /* ══════════════════════════════════════════════
