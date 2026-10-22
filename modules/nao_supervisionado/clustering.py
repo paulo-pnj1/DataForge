@@ -131,6 +131,30 @@ def _scatter_clusters(X_pca, labels, title="Clusters visualizados (PCA 2D)"):
     return fig
 
 
+def _descrever_para_tutor(algo, labels, X_pca, sil, db, features, dataset, normalizar, ch=None, params=None):
+    """Texto para o tutor de IA com o que o aluno vê (gráficos, eixos, números). Só nomes de colunas e números agregados."""
+    from modules.tutor_ia import intervalo
+    labels = np.asarray(labels)
+    unique, counts = np.unique(labels, return_counts=True)
+    n_cl = len(set(labels.tolist())) - (1 if -1 in labels else 0)
+    n_ruido = int(np.sum(labels == -1))
+    tam = ", ".join(f"{'Ruído' if l == -1 else 'Cluster ' + str(l)}: {c}" for l, c in zip(unique, counts))
+    forca = ("" if sil is None else " (separação excelente)" if sil >= 0.7 else " (boa separação)" if sil >= 0.5
+             else " (separação fraca)" if sil >= 0.25 else " (clusters muito misturados)")
+    return [
+        f"Página: Clustering (aprendizagem não supervisionada, sem rótulos). Algoritmo: {algo}. Dataset: {dataset} ({len(labels)} linhas). "
+        f"Features: {', '.join(features)}. Normalizado: {'sim' if normalizar else 'não'}."
+        + (f" Parâmetros: {', '.join(f'{k}={v}' for k, v in params.items())}." if params else ""),
+        f"Resultado: {n_cl} clusters, {n_ruido} pontos de ruído. Silhouette: " + (f"{sil:.3f}{forca}" if sil is not None else "N/A")
+        + ". Davies-Bouldin: " + (f"{db:.3f} (menor é melhor)" if db is not None else "N/A")
+        + (f". Calinski-Harabasz: {ch:.1f}" if ch is not None else "") + ". Há 4 caixas com estes números.",
+        f"GRÁFICO 1 «Clusters - {algo} (PCA 2D)»: cada ponto é uma linha do dataset, cada cor é um cluster (os pontos de ruído vêm à parte). "
+        "Eixos «PC1» e «PC2» NÃO são colunas originais: são 2 eixos novos que resumem as features só para se poder desenhar. "
+        f"O algoritmo agrupou nas features originais, não nestes 2 eixos. PC1 {intervalo(X_pca[:, 0])}, PC2 {intervalo(X_pca[:, 1])}.",
+        f"GRÁFICO 2 «Dimensão dos Clusters»: barras com o número de pontos em cada cluster. {tam}.",
+    ]
+
+
 def render_clustering(username: str):
     inject_css()
     page_header("Clustering", "Agrupa dados sem rótulos em grupos naturais", "")
@@ -362,6 +386,17 @@ def render_clustering(username: str):
                 )
                 st.plotly_chart(fig_dist, width='stretch')
 
+                try:    # o tutor de IA precisa de saber o que está nos gráficos
+                    from modules.tutor_ia import registar_ecra
+                    _ds = st.session_state.get("cl_ds_nome") if st.session_state.get("cl_fonte") == "Dataset embutido" else "CSV do aluno"
+                    registar_ecra(f"Clusters - {st.session_state.get('cl_algo_label', '')}",
+                                  _descrever_para_tutor(st.session_state.get("cl_algo_label", ""), labels, X_pca, res["sil"], res["db"],
+                                                        res.get("features", []), _ds or "?", st.session_state.get("cl_norm", True),
+                                                        ch=res.get("ch"), params=st.session_state.get("cl_params")),
+                                  f"Vê 4 caixas (clusters, ruído, Silhouette, Davies-Bouldin), um gráfico de pontos PC1 x PC2 colorido por cluster e barras com o tamanho de cada cluster.")
+                except Exception:
+                    pass
+
                 # Explicação das métricas
                 teoria_box("Interpretar os resultados",
                     "<strong>Silhouette Score</strong> (-1 a 1): quanto mais próximo de 1, melhor a separação dos clusters. "
@@ -427,7 +462,9 @@ def render_clustering(username: str):
                                 sil_l = silhouette_score(X_l_sc, lbl_l) if nc_l >= 2 else None
                             except Exception:
                                 sil_l = None
-                            st.session_state.cl_livre_res = {"lbl": lbl_l, "Xp": Xp_l, "nc": nc_l, "sil": sil_l, "algo": algo_l_label}
+                            st.session_state.cl_livre_res = {"lbl": lbl_l, "Xp": Xp_l, "nc": nc_l, "sil": sil_l, "algo": algo_l_label,
+                                                             "features": list(feats_l), "dataset": nm if fonte_l == "Embutido" else "CSV do aluno",
+                                                             "norm": bool(norm_l), "params": dict(params_l), "_acabou_de_correr": True}
                             add_pontos(username, 5, f"Clustering livre {algo_l_label}")
                         except Exception as e:
                             erro_box(str(e))
@@ -442,5 +479,14 @@ def render_clustering(username: str):
                     _scatter_clusters(res_l["Xp"], res_l["lbl"], f"{res_l['algo']} - PCA 2D"),
                     width='stretch'
                 )
+                if res_l.pop("_acabou_de_correr", False) or not st.session_state.get("cl_result"):
+                    try:    # o tutor de IA precisa de saber o que está nos gráficos
+                        from modules.tutor_ia import registar_ecra
+                        _l = _descrever_para_tutor(res_l["algo"], res_l["lbl"], res_l["Xp"], res_l["sil"], None, res_l.get("features", []),
+                                                   res_l.get("dataset", "?"), res_l.get("norm", True), params=res_l.get("params"))
+                        registar_ecra(f"Modo livre - {res_l['algo']}", _l[:3],
+                                      "Vê 2 caixas (clusters, Silhouette) e um gráfico de pontos PC1 x PC2 colorido por cluster.")
+                    except Exception:
+                        pass
             else:
                 st.markdown(f"""<div style="text-align:center;padding:4rem;color:var(--df-text3,#7A8BA8); border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:40px;margin-bottom:1rem;"></div><div style="font-size:16px;font-weight:700;">Configura e clica em <strong style="color:var(--df-text,#FFFFFF);">Agrupar</strong></div></div>""", unsafe_allow_html=True)

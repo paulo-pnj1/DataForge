@@ -431,6 +431,23 @@ def _treinar_regressao(df, features, target, algo, params,
     c2.metric("Desvio padrão", f"±{cv_scores.std():.4f}")
     st.pyplot(_plot_cv_scores_reg(cv_scores))
 
+    try:    # o tutor de IA precisa de saber o que está nos gráficos
+        from modules.tutor_ia import acrescentar_ecra, intervalo
+        _res = y_test - y_pred
+        acrescentar_ecra("Resultado de regressão", [
+            f"Página: Regressão. Algoritmo: {algo}. Alvo a prever (número): «{target}». Features ({len(features)}): {', '.join(str(f) for f in features[:20])}. "
+            f"{len(df)} linhas; {test_size:.0%} para teste; nulos: {nulos}; escala: {scaler_o}; validação cruzada com {cv_k} partes.",
+            f"Há 4 caixas: R² {r2:.4f} (1 = perfeito, 0 = tão mau como prever sempre a média), RMSE {rmse:.4f}, MAE {mae:.4f} (erros na mesma unidade de «{target}») e MSE {mse:.4f}.",
+            f"GRÁFICO «Validação Cruzada»: barras com o R² de cada fold ({', '.join(f'{v:.3f}' for v in cv_scores)}), linha verde = média {cv_scores.mean():.3f}.",
+            f"ABA «Real vs Previsto»: cada ponto é um caso do teste; eixo horizontal «Valor Real», vertical «Valor Previsto»; linha tracejada verde «Perfeito» é onde previsto = real. "
+            f"Real {intervalo(y_test)}, Previsto {intervalo(y_pred)}.",
+            "ABA «Resíduos»: dois gráficos. Esquerda «Resíduos vs Previsto»: resíduo = real - previsto (o erro de cada caso), com linha tracejada em 0; pontos espalhados ao acaso à volta do 0 é bom, "
+            f"um padrão (curva ou funil) sugere que o modelo falha algo. Direita «Distribuição dos Resíduos»: histograma dos erros; deve parecer um sino centrado em 0. "
+            f"Resíduos {intervalo(_res)}, média {float(np.mean(_res)):.4f}."],
+            "Vê 4 caixas (R², RMSE, MAE, MSE), barras de validação cruzada e abas com Real vs Previsto e Resíduos.")
+    except Exception:
+        pass
+
     section_title("VISUALIZAÇÕES")
     t1, t2 = st.tabs(["Real vs Previsto", "Resíduos"])
     with t1:

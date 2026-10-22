@@ -487,11 +487,11 @@ try:
 
     # Tutor de IA depois de cada treino (só no painel do aluno; só aparece se houver um resultado para explicar)
     if painel == "aluno" and pagina in TUTOR_PAGINAS:
-        from modules.tutor_ia import SUGESTOES_TREINO, _contexto_da_pagina, registar_painel
+        from modules.tutor_ia import SUGESTOES_TREINO, _contexto_da_pagina, _estado_da_pagina, registar_painel
         _c = _contexto_da_pagina(pagina)
         if _c:
             registar_painel(f"pag_{pagina}", f"{next((l for l, k, _, _ in MENU if k == pagina), pagina)}: {_c[0]}", _c[1],
-                            SUGESTOES_TREINO, padrao_primeiro=True)
+                            SUGESTOES_TREINO, padrao_primeiro=True, estado=_estado_da_pagina(pagina))
     if painel == "aluno":
         from modules.tutor_ia import render_painel_ia
         render_painel_ia(username, pagina, next((l for l, k, _, _ in MENU if k == pagina), pagina))

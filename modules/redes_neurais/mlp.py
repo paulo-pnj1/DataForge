@@ -233,6 +233,23 @@ def render_mlp(username: str):
 
 
 # ── HELPERS ──────────────────────────────────────────
+def _setup_para_tutor(res) -> str:
+    c = res.get("setup") or {}
+    if not c:
+        return ""
+    return (f"Rede neural (MLP). Alvo a prever: «{c['target']}». Features ({len(c['features'])}): {', '.join(c['features'])}. "
+            f"Camadas escondidas: {c['hidden']}. Activação: {c['activation']}. Solver: {c['solver']}. Learning rate: {c['lr']}. "
+            f"Máx. épocas: {c['max_iter']}. {c['test_size']:.0%} dos dados ficaram para teste ({c['n_test']} linhas), "
+            "com early stopping (a rede pára quando deixa de melhorar numa pequena parte de validação).")
+
+
+def _loss_para_tutor(res) -> str:
+    lc = [float(x) for x in res["loss_curve"]]
+    return (f"GRÁFICO «Curva de Perda (Loss) durante o Treino»: linha; eixo horizontal «Iteração» (épocas, 1 a {len(lc)}), eixo vertical «Loss» "
+            f"(o erro da rede: quanto menor, melhor). Começa em {lc[0]:.4f} e termina em {lc[-1]:.4f}"
+            + (", a descer ao longo do treino." if lc[-1] < lc[0] else ", sem descer (sinal de problema: tenta outro learning rate)."))
+
+
 def _train_mlp_clf(df, features, target, hidden, activation, solver, lr, max_iter, test_size, username):
     try:
         X = df[features].copy()
@@ -279,7 +296,9 @@ def _train_mlp_clf(df, features, target, hidden, activation, solver, lr, max_ite
                 "acc": acc, "f1": f1, "cm": cm, "classes": classes,
                 "loss_curve": model.loss_curve_,
                 "n_iter": model.n_iter_,
-                "report": rep, "model": model, "scaler": scaler
+                "report": rep, "model": model, "scaler": scaler,
+                "setup": {"features": list(features), "target": str(target), "hidden": list(hidden), "activation": str(activation),
+                          "solver": str(solver), "lr": lr, "max_iter": max_iter, "test_size": test_size, "n_test": int(len(y_test))}
             }
             add_pontos(username, 15, "MLP Classificação")
             save_historico_modelo(username, {"tipo": "classificacao", "algoritmo": "MLP",
@@ -304,6 +323,19 @@ def _show_mlp_clf_result():
 
     classes = [str(c) for c in res["classes"]]
     cm = res["cm"]
+    try:    # o tutor de IA precisa de saber o que está nos gráficos
+        from modules.tutor_ia import registar_ecra
+        _acertos = int(np.trace(cm))
+        registar_ecra("Resultado do MLP (classificação)", [
+            "Página: Redes Neurais, classificação. " + _setup_para_tutor(res),
+            f"Resultado no teste: Accuracy {res['acc']:.1%}, F1 {res['f1']:.1%}, treino parou em {res['n_iter']} épocas. Há 3 caixas com estes números.",
+            _loss_para_tutor(res),
+            (f"GRÁFICO «Matriz de Confusão»: tabela de cores; linhas = «Real» (a classe verdadeira), colunas = «Previsto» (o que a rede disse), "
+             f"classes: {', '.join(classes[:cm.shape[0]])}. A diagonal são os acertos ({_acertos} de {int(cm.sum())}); fora da diagonal são os erros. "
+             f"Matriz (linhas = real): {cm.tolist()}.") if cm.shape[0] <= 10 else ""],
+            "Vê 3 caixas (Accuracy, F1, Épocas), a curva de perda e a matriz de confusão (Real x Previsto).")
+    except Exception:
+        pass
     if cm.shape[0] <= 10:
         st.plotly_chart(_confusion_heatmap(cm, classes[:cm.shape[0]]), width='stretch')
 
@@ -355,7 +387,9 @@ def _train_mlp_reg(df, features, target, hidden, activation, solver, lr, max_ite
                 "y_test": y_test.to_numpy() if hasattr(y_test, "to_numpy") else y_test, "y_pred": y_pred,
                 "loss_curve": model.loss_curve_,
                 "n_iter": model.n_iter_,
-                "model": model, "scaler": scaler
+                "model": model, "scaler": scaler,
+                "setup": {"features": list(features), "target": str(target), "hidden": list(hidden), "activation": str(activation),
+                          "solver": str(solver), "lr": lr, "max_iter": max_iter, "test_size": test_size, "n_test": int(len(y_test))}
             }
             add_pontos(username, 15, "MLP Regressão")
             save_historico_modelo(username, {"tipo": "regressao", "algoritmo": "MLP",
@@ -378,6 +412,20 @@ def _show_mlp_reg_result():
     c4.metric("Épocas", res['n_iter'])
 
     st.plotly_chart(_loss_curve(res["loss_curve"]), width='stretch')
+
+    try:    # o tutor de IA precisa de saber o que está nos gráficos
+        from modules.tutor_ia import registar_ecra, intervalo
+        registar_ecra("Resultado do MLP (regressão)", [
+            "Página: Redes Neurais, regressão. " + _setup_para_tutor(res),
+            f"Resultado no teste: R² {res['r2']:.4f} (1 = perfeito, 0 = tão mau como prever sempre a média), RMSE {res['rmse']:.4f}, "
+            f"MAE {res['mae']:.4f} (erro médio, na mesma unidade do alvo), {res['n_iter']} épocas. Há 4 caixas com estes números.",
+            _loss_para_tutor(res),
+            "GRÁFICO «Real vs Previsto»: cada ponto azul é uma linha do teste; eixo horizontal «Real» (o valor verdadeiro), eixo vertical «Previsto» "
+            f"(o que a rede previu). A linha vermelha tracejada «Perfeito» é onde previsto = real: quanto mais perto dela, melhor. "
+            f"Real {intervalo(res['y_test'])}, Previsto {intervalo(res['y_pred'])}."],
+            "Vê 4 caixas (R², RMSE, MAE, Épocas), a curva de perda e o gráfico Real x Previsto com linha de referência.")
+    except Exception:
+        pass
 
     # Real vs Previsto
     fig_rv = go.Figure()

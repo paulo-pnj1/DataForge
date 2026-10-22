@@ -176,6 +176,21 @@ def _scatter_2d(X, title, color=None, colorscale="Viridis"):
     return fig
 
 
+def _registar_gen(chave: str, titulo: str, linhas: list, estado: str):
+    """Diz ao tutor de IA o que o aluno vê. As 3 abas correm sempre: só regista a do último modelo treinado."""
+    if st.session_state.get("gen_ultimo", chave) != chave:
+        return
+    try:
+        from modules.tutor_ia import registar_ecra
+        registar_ecra(titulo, linhas, estado)
+    except Exception:
+        pass
+
+
+_EIXOS_2D = ("Eixos horizontal e vertical sem nome: são as duas coordenadas (x e y) dos dados de exemplo, que aqui têm 2 colunas "
+             "para se poderem desenhar.")
+
+
 def render_generativo(username: str):
     inject_css()
     page_header("Modelos Generativos",
@@ -244,6 +259,24 @@ def render_generativo(username: str):
                 if res["latent_dim"] >= 2:
                     st.plotly_chart(_scatter_2d(res["Z"][:, :2], "Espaço Latente (2D)"),
                                     width='stretch')
+                try:
+                    from modules.tutor_ia import resumo_curva, intervalo
+                    _c = res.get("setup") or {}
+                    _err = float(np.mean((res["X_orig"] - res["X_rec"]) ** 2))
+                    _registar_gen("ae", "Resultado do Autoencoder", [
+                        "Página: Modelos Generativos, Autoencoder (comprime os dados para poucos números e tenta reconstruí-los). "
+                        f"Dados de exemplo: {st.session_state.get('ae_dados')} ({_c.get('n', '?')} pontos de 2 colunas). Camadas ocultas {_c.get('camadas')}, "
+                        f"dimensão latente {res['latent_dim']} (a versão comprimida de cada ponto tem {res['latent_dim']} número(s)), learning rate {_c.get('lr')}.",
+                        f"Resultado: loss final {res['loss_final']:.6f} (erro de reconstrução; menor é melhor), {res['epochs']} épocas. Há 2 caixas com estes números.",
+                        "GRÁFICO 1 «Loss de Reconstrução»: eixo horizontal = época, vertical = loss: " + resumo_curva(res["losses"], 3) + ".",
+                        "GRÁFICO 2 e 3 «Dados Originais» e «Reconstruídos»: duas nuvens de pontos lado a lado; quanto mais parecida a segunda com a primeira, melhor a "
+                        f"reconstrução. {_EIXOS_2D} Original x {intervalo(res['X_orig'][:, 0])}, y {intervalo(res['X_orig'][:, 1])}; reconstruído x {intervalo(res['X_rec'][:, 0])}, "
+                        f"y {intervalo(res['X_rec'][:, 1])}. Erro médio de reconstrução por ponto: {_err:.4f}.",
+                        ("GRÁFICO 4 «Espaço Latente (2D)»: onde cada ponto fica na versão comprimida (2 números por ponto, sem nome nos eixos)."
+                         if res["latent_dim"] >= 2 else "")],
+                        "Vê 2 caixas (Loss Final, Épocas), a curva de loss, duas nuvens de pontos (originais e reconstruídos) e o espaço latente.")
+                except Exception:
+                    pass
 
                 teoria_box("O espaço latente",
                     "O <strong>espaço latente</strong> é a representação comprimida dos dados. "
@@ -303,6 +336,21 @@ def render_generativo(username: str):
                 if res_v["ld"] >= 2:
                     st.plotly_chart(_scatter_2d(res_v["Z"][:, :2], "Espaço Latente VAE"),
                                     width='stretch')
+                try:
+                    from modules.tutor_ia import resumo_curva, intervalo
+                    _c = res_v.get("setup") or {}
+                    _registar_gen("vae", "Resultado do VAE", [
+                        "Página: Modelos Generativos, VAE (Autoencoder Variacional: aprende um espaço comprimido contínuo de onde se podem sortear pontos novos). "
+                        f"Dados de exemplo: {st.session_state.get('vae_dados')} ({_c.get('n', '?')} pontos de 2 colunas). {_c.get('hidden')} neurónios ocultos, dimensão latente {res_v['ld']}, "
+                        f"learning rate {_c.get('lr')}. Gerou {_c.get('n_gen', '?')} pontos novos.",
+                        f"Resultado: loss final {res_v['loss_final']:.2f} (reconstrução + KL; menor é melhor), {res_v['epochs']} épocas. Há 2 caixas com estes números.",
+                        "GRÁFICO 1 «Loss VAE (Reconstrução + KL)»: eixo horizontal = época: " + resumo_curva(res_v["losses"], 3) + ".",
+                        "GRÁFICO 2 e 3 «Dados Reais» e «Gerados pelo VAE»: duas nuvens de pontos lado a lado; o VAE está bom se a nuvem gerada se parecer com a real. "
+                        f"{_EIXOS_2D} Real x {intervalo(res_v['X_orig'][:, 0])}, y {intervalo(res_v['X_orig'][:, 1])}; gerado x {intervalo(res_v['X_gen'][:, 0])}, y {intervalo(res_v['X_gen'][:, 1])}.",
+                        ("GRÁFICO 4 «Espaço Latente VAE»: a versão comprimida dos pontos (2 números por ponto)." if res_v["ld"] >= 2 else "")],
+                        "Vê 2 caixas (Loss Final, Épocas), a curva de loss, nuvens de pontos reais e gerados, e o espaço latente.")
+                except Exception:
+                    pass
             else:
                 st.markdown(f"""<div style="text-align:center;padding:4rem;color:var(--df-text3,#7A8BA8); border:2px dashed {C_BORDER};border-radius:16px;margin-top:1rem;"><div style="font-size:48px;margin-bottom:1rem;">&#127775;</div><div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">Clica em <strong>Treinar VAE</strong></div></div>""", unsafe_allow_html=True)
 
@@ -360,6 +408,22 @@ def render_generativo(username: str):
                     st.plotly_chart(_scatter_2d(res_g["X_fake"][:, :2], "Gerados pelo GAN"),
                                     width='stretch')
 
+                try:
+                    from modules.tutor_ia import resumo_curva, intervalo
+                    _c = res_g.get("setup") or {}
+                    _registar_gen("gan", "Resultado do GAN", [
+                        "Página: Modelos Generativos, GAN (dois modelos a competir: o Gerador inventa dados falsos e o Discriminador tenta distinguir o falso do real). "
+                        f"Dados reais: {st.session_state.get('gan_dados')} ({_c.get('n', '?')} pontos de 2 colunas). Ruído de entrada com {_c.get('noise')} números, "
+                        f"{_c.get('hidden')} neurónios ocultos, learning rate {_c.get('lr')}. Gerou {_c.get('n_gen', '?')} pontos.",
+                        f"Resultado: loss do Gerador {res_g['g_losses'][-1]:.4f}, loss do Discriminador {res_g['d_losses'][-1]:.4f}, {res_g['epochs']} épocas. Há 3 caixas com estes números.",
+                        "GRÁFICO 1 «Loss: Gerador vs Discriminador»: linha verde = Gerador (" + resumo_curva(res_g["g_losses"], 3) + "), linha vermelha = Discriminador ("
+                        + resumo_curva(res_g["d_losses"], 3) + "). Eixo horizontal = época. Num treino saudável as duas ficam perto uma da outra sem uma disparar.",
+                        "GRÁFICO 2 e 3 «Dados Reais» e «Gerados pelo GAN»: duas nuvens de pontos lado a lado; o GAN está bom se a gerada imitar a real. "
+                        f"{_EIXOS_2D} Real x {intervalo(res_g['X_real'][:, 0])}, y {intervalo(res_g['X_real'][:, 1])}; gerado x {intervalo(res_g['X_fake'][:, 0])}, y {intervalo(res_g['X_fake'][:, 1])}."],
+                        "Vê 3 caixas (Loss G, Loss D, Épocas), as curvas de loss do Gerador e do Discriminador e duas nuvens de pontos (reais e gerados).")
+                except Exception:
+                    pass
+
                 teoria_box("Loss do GAN",
                     "No treino ideal, as losses do <strong>Gerador</strong> e <strong>Discriminador</strong> "
                     "convergem para valores próximos (equilíbrio de Nash). "
@@ -395,10 +459,12 @@ def _train_autoencoder(X, latent_dim, hidden_dims, epochs, lr, username):
         with torch.no_grad():
             X_rec, Z = model(X_t)
 
+        st.session_state["gen_ultimo"] = "ae"
         st.session_state.ae_result = {
             "X_orig": X, "X_rec": X_rec.numpy(), "Z": Z.numpy(),
             "losses": losses, "loss_final": losses[-1],
-            "epochs": epochs, "latent_dim": latent_dim
+            "epochs": epochs, "latent_dim": latent_dim,
+            "setup": {"camadas": list(hidden_dims), "lr": lr, "n": int(len(X))}
         }
         add_pontos(username, 15, "Autoencoder")
         sucesso_box(f"Autoencoder treinado! Loss final: {losses[-1]:.6f}")
@@ -434,10 +500,12 @@ def _train_vae(X, latent_dim, hidden_dim, epochs, lr, n_gen, username):
             z_gen = torch.randn(n_gen, latent_dim)
             X_gen = model.decode(z_gen).numpy()
 
+        st.session_state["gen_ultimo"] = "vae"
         st.session_state.vae_result = {
             "X_orig": X, "X_gen": X_gen, "Z": Z,
             "losses": losses, "loss_final": losses[-1],
-            "epochs": epochs, "ld": latent_dim
+            "epochs": epochs, "ld": latent_dim,
+            "setup": {"hidden": hidden_dim, "lr": lr, "n": int(len(X)), "n_gen": int(n_gen)}
         }
         add_pontos(username, 20, "VAE")
         sucesso_box(f"VAE treinado! {n_gen} amostras geradas.")
@@ -496,10 +564,12 @@ def _train_gan(X, noise_dim, hidden_dim, epochs, lr, n_gen, username):
             z_final = torch.randn(n_gen, noise_dim)
             X_fake  = G(z_final).numpy()
 
+        st.session_state["gen_ultimo"] = "gan"
         st.session_state.gan_result = {
             "X_real": X, "X_fake": X_fake,
             "g_losses": g_losses, "d_losses": d_losses,
-            "epochs": epochs
+            "epochs": epochs,
+            "setup": {"noise": noise_dim, "hidden": hidden_dim, "lr": lr, "n": int(len(X)), "n_gen": int(n_gen)}
         }
         add_pontos(username, 25, "GAN")
         sucesso_box(f"GAN treinado! {n_gen} amostras geradas.")

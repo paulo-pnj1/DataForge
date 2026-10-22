@@ -153,10 +153,13 @@ def _train_dqn_cartpole(episodes, hidden_str, lr, gamma, epsilon_start,
 
         env.close()
         avg_last = np.mean(rewards_hist[-50:]) if len(rewards_hist) >= 50 else np.mean(rewards_hist)
+        st.session_state["rl_ultimo"] = "dqn"
         st.session_state.dqn_result = {
             "rewards": rewards_hist, "eps_hist": eps_hist,
             "loss_hist": loss_hist, "best_reward": best_reward,
-            "avg_last_50": avg_last, "episodes": episodes
+            "avg_last_50": avg_last, "episodes": episodes,
+            "setup": {"hidden": hidden_str, "lr": lr, "gamma": gamma, "eps0": epsilon_start, "decay": epsilon_decay, "eps_min": epsilon_min,
+                      "batch": batch_size, "buffer": buffer_size, "target": target_update}
         }
         add_pontos(username, 30, "DQN CartPole")
         if avg_last >= 195:
@@ -277,6 +280,27 @@ def render_dqn(username: str):
             fig_r, fig_le = _figuras_dqn(res)
             st.plotly_chart(fig_r, width="stretch")
             st.plotly_chart(fig_le, width="stretch")
+
+            if st.session_state.get("rl_ultimo", "dqn") == "dqn":      # as 2 abas correm sempre: só regista a do último treino
+                try:    # o tutor de IA precisa de saber o que está nos gráficos
+                    from modules.tutor_ia import registar_ecra, resumo_curva
+                    _c = res.get("setup") or {}
+                    _w = max(1, len(res["rewards"]) // 20)
+                    registar_ecra("Resultado do DQN (CartPole)", [
+                        "Página: Reforço, DQN (rede neuronal que aprende por tentativa e erro a jogar CartPole: equilibrar um poste numa plataforma que se mexe "
+                        "para a esquerda ou direita; +1 de recompensa por cada passo que o poste fica em pé). "
+                        + (f"Rede com camadas {_c.get('hidden')}, learning rate {_c.get('lr')}, gamma {_c.get('gamma')} (quanto valoriza o futuro), batch {_c.get('batch')}, "
+                           f"replay buffer {_c.get('buffer')}, target atualizada a cada {_c.get('target')} episódios. Epsilon (probabilidade de tentar uma acção ao acaso, para explorar) "
+                           f"começa em {_c.get('eps0')}, desce com factor {_c.get('decay')} até ao mínimo {_c.get('eps_min')}." if _c else ""),
+                        f"Resultado: melhor episódio {res['best_reward']:.0f}, média dos últimos 50 episódios {res['avg_last_50']:.1f}, {res['episodes']} episódios. "
+                        f"O jogo conta-se como resolvido quando essa média chega a 195 ({'resolvido' if res['avg_last_50'] >= 195 else 'ainda não resolvido'}). Há 3 caixas com estes números.",
+                        "GRÁFICO 1 «Reward por Episódio»: eixo horizontal «Episodio», vertical «Reward» (pontos ganhos no episódio, máximo 500). Linha azul clara = reward de cada episódio "
+                        f"({resumo_curva(res['rewards'], 3)}); linha verde grossa = média suavizada (janela de {_w}); linha tracejada laranja «Meta: 195».",
+                        "GRÁFICO 2 «Loss e Epsilon ao longo do treino»: eixo horizontal = episódio. Linha vermelha = Loss (erro da rede, eixo da esquerda): "
+                        + resumo_curva(res["loss_hist"], 3) + ". Linha laranja = Epsilon (eixo da direita): " + resumo_curva(res["eps_hist"], 3) + "."],
+                        "Vê 3 caixas (Melhor Reward, Média últimos 50, Episódios), o gráfico de reward por episódio com a meta 195, e um gráfico de loss e epsilon.")
+                except Exception:
+                    pass
 
             teoria_box("Replay Buffer e Target Network",
                 "O <strong>Replay Buffer</strong> guarda as últimas experiências e amostra mini-batches aleatórios, "

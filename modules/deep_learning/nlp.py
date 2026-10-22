@@ -252,6 +252,24 @@ def render_nlp(username: str):
                 c3.metric("Classes",   res['n_classes'])
 
                 st.plotly_chart(res["fig_words"], width='stretch')
+                try:    # o tutor de IA precisa de saber o que está nos gráficos
+                    from modules.tutor_ia import registar_ecra
+                    _c = res.get("setup") or {}
+                    _cm = res["cm"]
+                    registar_ecra("Resultado do classificador de texto", [
+                        "Página: NLP (processamento de texto), classificador clássico. "
+                        + (f"{_c['n_textos']} textos. Método de vectorização: {_c['vec']} (transforma cada texto em números a partir das palavras), "
+                           f"vocabulário máximo {_c['max_feats']} palavras, n-gramas até {_c['ngram_max']} (grupos de palavras seguidas). "
+                           f"Algoritmo: {_c['clf']}. {_c['test_size']:.0%} dos textos ficaram para teste." if _c else ""),
+                        f"Resultado: Accuracy {res['acc']:.1%}, F1 Macro {res['f1']:.1%} (média do F1 de cada classe), {res['n_classes']} classes: "
+                        f"{', '.join(str(x) for x in res['class_names'][:12])}. Há 3 caixas com estes números.",
+                        "GRÁFICO «Palavras mais discriminativas por classe (TF-IDF)»: uma pequena barra horizontal por classe; cada barra é uma palavra e o "
+                        "comprimento é a importância média dela nos textos dessa classe. "
+                        + ("Top 5 por classe: " + "; ".join(f"{k}: {', '.join(v)}" for k, v in (_c.get("top") or {}).items()) + "." if _c.get("top") else ""),
+                        f"GRÁFICO «Matriz de Confusão»: linhas = «Real», colunas = «Previsto»; diagonal = acertos ({int(np.trace(_cm))} de {int(_cm.sum())}). Matriz: {_cm.tolist()}."],
+                        "Vê 3 caixas (Accuracy, F1 Macro, Classes), barras com as palavras mais importantes de cada classe, e a matriz de confusão.")
+                except Exception:
+                    pass
 
                 # Confusão
                 import plotly.graph_objects as go
@@ -338,6 +356,20 @@ def render_nlp(username: str):
                     c1.metric("Accuracy Final", f"{res_l['acc']:.1%}")
                     c2.metric("Épocas", res_l["epochs"])
                     st.plotly_chart(res_l["fig_loss"], width='stretch')
+                    try:    # o tutor de IA precisa de saber o que está nos gráficos
+                        from modules.tutor_ia import registar_ecra, resumo_curva
+                        _c = res_l.get("setup") or {}
+                        registar_ecra("Resultado do LSTM (texto)", [
+                            "Página: NLP, rede neuronal LSTM (lê o texto palavra a palavra e guarda o contexto). "
+                            + (f"{_c['n_textos']} textos, vocabulário de {_c['vocab']} palavras, classes: {', '.join(_c['classes'][:10])}. "
+                               f"Embedding de {_c['embed']} dimensões (cada palavra vira {_c['embed']} números), {_c['hidden']} neurónios, "
+                               f"{_c['layers']} camada(s), dropout {_c['dropout']}, learning rate {_c['lr']}. " if _c else ""),
+                            f"Resultado: Accuracy final {res_l['acc']:.1%} em {res_l['epochs']} épocas (medida nos próprios textos de treino, não em dados novos). Há 2 caixas com estes números.",
+                            "GRÁFICO «LSTM - Curvas de Treino»: eixo horizontal «Época». Linha vermelha «Loss» (erro, deve descer): "
+                            + resumo_curva(res_l.get("losses", [])) + ". Linha verde «Accuracy» (acertos, de 0 a 1): " + resumo_curva(res_l.get("accs", [])) + "."],
+                            "Vê 2 caixas (Accuracy Final, Épocas) e um gráfico com as curvas de loss e accuracy por época.")
+                    except Exception:
+                        pass
                     teoria_box("LSTM vs TF-IDF",
                         "O <strong>LSTM</strong> captura a ordem das palavras e contexto, "
                         "sendo melhor em textos longos e complexos. "
@@ -381,12 +413,22 @@ def _train_bow(texts, labels_raw, vec_tipo, max_feats, ngram_max, clf_nome, test
             cm  = confusion_matrix(y_test, y_pred)
 
         fig_words = _wordcloud_bar(vec, vec.get_feature_names_out(), X, y, class_names)
+        try:    # palavras mais fortes por classe (para o tutor de IA explicar o gráfico de barras)
+            _fn = vec.get_feature_names_out()
+            _top = {}
+            for _i, _c in enumerate(class_names):
+                _m = X[np.array(y) == _i].mean(axis=0).A1
+                _top[str(_c)] = [str(_fn[j]) for j in _m.argsort()[-5:][::-1]]
+        except Exception:
+            _top = {}
 
         st.session_state.nlp_bow_res = {
             "acc": acc, "f1": f1, "cm": cm,
             "class_names": class_names, "n_classes": len(class_names),
             "vectorizer": vec, "model": clf,
-            "fig_words": fig_words
+            "fig_words": fig_words,
+            "setup": {"vec": vec_tipo, "max_feats": max_feats, "ngram_max": ngram_max, "clf": clf_nome, "test_size": test_size,
+                      "n_textos": len(texts), "top": _top}
         }
         add_pontos(username, 12, f"NLP {clf_nome}")
         sucesso_box(f"Treino concluído! Accuracy: {acc:.1%} · F1: {f1:.1%}")
@@ -460,7 +502,10 @@ def _train_lstm(texts, labels_raw, embed_dim, hidden_dim, n_layers, dropout, epo
         )
 
         st.session_state.nlp_lstm_res = {
-            "acc": accs[-1], "epochs": epochs, "fig_loss": fig_loss
+            "acc": accs[-1], "epochs": epochs, "fig_loss": fig_loss,
+            "losses": losses, "accs": accs,
+            "setup": {"embed": embed_dim, "hidden": hidden_dim, "layers": n_layers, "dropout": dropout, "lr": lr,
+                      "vocab": len(vocab), "n_textos": len(texts_clean), "classes": [str(c) for c in le.classes_]}
         }
         add_pontos(username, 20, "NLP LSTM")
         sucesso_box(f"LSTM treinado! Accuracy final: {accs[-1]:.1%}")

@@ -122,9 +122,60 @@ def resumir_resultado(res, limite: int = 1500) -> str:
     return "\n".join(linhas)[:limite]
 
 
-def registar(titulo: str, texto: str):
-    """Um módulo diz ao tutor o que o aluno está a ver (resultado do treino actual)."""
-    st.session_state["_ia_ctx"] = {"pagina": st.session_state.get("pagina"), "titulo": titulo, "texto": texto}
+def registar(titulo: str, texto: str, estado: str = ""):
+    """Um módulo diz ao tutor o que o aluno está a ver (resultado do treino actual).
+    `estado`: descrição curta dos gráficos/controlos no ecrã (vai para «O QUE O ALUNO ESTÁ A VER AGORA»)."""
+    st.session_state["_ia_ctx"] = {"pagina": st.session_state.get("pagina"), "titulo": titulo, "texto": texto, "estado": estado}
+
+
+def registar_ecra(titulo: str, linhas: list, estado: str = ""):
+    """Atalho para as páginas de treino: `linhas` descrevem o que o aluno vê (gráficos, eixos, números).
+    Nunca parte a página: se algo falhar, o tutor fica só com o resumo básico."""
+    try:
+        registar(titulo, "\n".join(str(x) for x in linhas if x)[:2900], (estado or "")[:580])
+    except Exception:
+        pass
+
+
+def acrescentar_ecra(titulo: str, linhas: list, estado: str = ""):
+    """Junta a descrição dos gráficos aos números que `explicar_classificacao/regressao` já registaram para esta página.
+    Se ainda não houver nada registado, regista de raiz."""
+    try:
+        extra = "\n".join(str(x) for x in linhas if x)
+        ctx = st.session_state.get("_ia_ctx")
+        if ctx and ctx.get("pagina") == st.session_state.get("pagina") and ctx.get("texto"):
+            ctx["texto"] = (ctx["texto"] + "\n" + extra)[:2900]
+            ctx["estado"] = (estado or "")[:580]
+        else:
+            registar(titulo, extra[:2900], (estado or "")[:580])
+    except Exception:
+        pass
+
+
+def intervalo(a) -> str:
+    """«de x a y» para um array de números (eixos dos gráficos)."""
+    try:
+        import numpy as _np
+        a = _np.asarray(a, dtype=float)
+        return f"de {a.min():.2f} a {a.max():.2f}"
+    except Exception:
+        return ""
+
+
+def resumo_curva(vals, casas: int = 4) -> str:
+    """«começa em x, termina em y (mín a, máx b)» para uma curva de treino."""
+    try:
+        v = [float(x) for x in vals]
+        if not v:
+            return ""
+        return f"começa em {v[0]:.{casas}g}, termina em {v[-1]:.{casas}g} (mínimo {min(v):.{casas}g}, máximo {max(v):.{casas}g}, {len(v)} pontos)"
+    except Exception:
+        return ""
+
+
+def _estado_da_pagina(pagina: str) -> str:
+    ctx = st.session_state.get("_ia_ctx")
+    return (ctx.get("estado") or "") if ctx and ctx.get("pagina") == pagina else ""
 
 
 def _contexto_da_pagina(pagina: str):

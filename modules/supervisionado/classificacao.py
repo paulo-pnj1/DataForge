@@ -729,12 +729,42 @@ def _executar_treino(df, features, target, algo, params,
         "feature_names": features, "scaler": scaler, "encoders": encoders,
         "le_target": le_target, "X_train": X_train, "y_train": y_train,
         "X": X, "y": y, "df_features": df[features],
+        "setup": {"target": str(target), "nulos": nulos, "scaler": scaler_o, "test_size": test_size, "cv_k": cv_k, "n_linhas": int(len(df))},
     }
 
 
 # ══════════════════════════════════════════════════════
 # RESULTADOS
 # ══════════════════════════════════════════════════════
+def _descrever_para_tutor(r: dict, algo: str) -> tuple:
+    """O que o aluno vê nos gráficos de classificação (matriz de confusão, ROC, importância, validação cruzada)."""
+    from sklearn.metrics import confusion_matrix as _cmx
+    c = r.get("setup") or {}
+    cv = r["cv_scores"]
+    cm = _cmx(r["y_test"], r["y_pred"])
+    classes = [str(x) for x in r["classes"]]
+    L = ["Página: Classificação. Algoritmo: " + str(algo) + ". "
+         + (f"Alvo a prever: «{c['target']}». Features ({len(r['feature_names'])}): {', '.join(str(f) for f in r['feature_names'][:20])}. "
+            f"{c['n_linhas']} linhas; {c['test_size']:.0%} para teste; nulos: {c['nulos']}; escala: {c['scaler']}; validação cruzada com {c['cv_k']} partes (folds)." if c else ""),
+         f"Classes: {', '.join(classes[:12])}.",
+         f"GRÁFICO «Validação Cruzada por Fold»: barras, uma por fold, com a accuracy em cada parte dos dados ({', '.join(f'{v:.3f}' for v in cv)}); "
+         f"linha tracejada verde = média {cv.mean():.3f}. Barras parecidas = modelo estável.",
+         f"ABA «Matriz de Confusão»: linhas = «Real», colunas = «Previsto»; cada célula conta casos; diagonal = acertos ({int(np.trace(cm))} de {int(cm.sum())}). "
+         + (f"Classes por ordem: {', '.join(classes[:cm.shape[0]])}. Matriz: {cm.tolist()}." if cm.shape[0] <= 10 else ""),
+         "ABA «Curva ROC»: eixo horizontal «Taxa de Falsos Positivos», vertical «Taxa de Verdadeiros Positivos»; a diagonal tracejada é o palpite ao acaso; "
+         "quanto mais a curva sobe para o canto superior esquerdo, melhor (AUC mais perto de 1)." + (f" AUC = {r['auc']:.3f}." if r.get("auc") is not None else "")]
+    m = r["model"]
+    imp = getattr(m, "feature_importances_", None)
+    if imp is None and hasattr(m, "coef_"):
+        imp = np.abs(m.coef_[0]) if m.coef_.ndim > 1 else np.abs(m.coef_)
+    if imp is not None:
+        o = np.argsort(imp)[::-1][:5]
+        L.append("ABA «Importância»: barras horizontais «Importância das Features (Top 15)»; as que mais pesaram: "
+                 + ", ".join(f"{r['feature_names'][i]} ({float(imp[i]):.3f})" for i in o) + ".")
+    L.append("ABA «Relatório»: tabela de texto com precision, recall, f1-score e número de casos (support) por classe.")
+    return L, ("Vê 4-5 caixas de métricas, as barras da validação cruzada por fold e abas com matriz de confusão, curva ROC, importância das features e relatório.")
+
+
 def _render_resultados(r: dict, algo: str, username: str):
     st.markdown("---")
     section_title("RESULTADOS DO TREINO")
@@ -791,6 +821,13 @@ def _render_resultados(r: dict, algo: str, username: str):
         report = classification_report(r["y_test"], r["y_pred"],
                                        target_names=r["classes"], output_dict=False)
         st.code(report, language="text")
+
+    try:    # o tutor de IA precisa de saber o que está nos gráficos
+        from modules.tutor_ia import acrescentar_ecra
+        _l, _e = _descrever_para_tutor(r, algo)
+        acrescentar_ecra("Resultado de classificação", _l, _e)
+    except Exception:
+        pass
 
     # Previsão interactiva
     section_title("PREVISÃO INTERACTIVA")

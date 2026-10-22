@@ -289,11 +289,13 @@ def render_q_learning(username: str):
                     path = _get_best_path(GridWorld(n_grid, obstacles, traps), Q)
                     reached = len(path) > 0 and path[-1] == (n_grid-1, n_grid-1)
 
+                st.session_state["rl_ultimo"] = "ql"
                 st.session_state.ql_result = {
                     "Q": Q, "rewards": rewards, "steps": steps_h,
                     "eps_hist": eps_h, "path": path,
                     "env_params": (n_grid, list(obstacles), list(traps)),
-                    "reached_goal": reached
+                    "reached_goal": reached,
+                    "setup": {"alpha": alpha, "gamma": gamma, "eps0": epsilon_start, "decay": epsilon_decay, "eps_min": epsilon_min}
                 }
                 add_pontos(username, 20, "Q-Learning GridWorld")
                 if reached:
@@ -317,6 +319,26 @@ def render_q_learning(username: str):
                 st.plotly_chart(_plot_q_heatmap(Q, n_r), width="stretch")
                 st.plotly_chart(_plot_training_curves(res["rewards"], res["steps"], res["eps_hist"]),
                                 width="stretch")
+
+                if st.session_state.get("rl_ultimo", "ql") == "ql":      # as 2 abas correm sempre: só regista a do último treino
+                    try:    # o tutor de IA precisa de saber o que está nos gráficos
+                        from modules.tutor_ia import registar_ecra, resumo_curva
+                        _c = res.get("setup") or {}
+                        registar_ecra("Resultado do Q-Learning (GridWorld)", [
+                            f"Página: Reforço, Q-Learning. Um agente anda numa grelha {n_r}x{n_r}, começa no canto (0,0) e quer chegar à meta em ({n_r - 1},{n_r - 1}). "
+                            f"Obstáculos (não dá para passar): {obs_r}. Armadilhas (castigo): {trap_r}. Aprende por tentativa e erro com uma tabela Q (um valor por casa e por acção). "
+                            + (f"alpha {_c.get('alpha')} (velocidade de aprendizagem), gamma {_c.get('gamma')} (quanto valoriza o futuro), epsilon de {_c.get('eps0')} a descer "
+                               f"(factor {_c.get('decay')}) até {_c.get('eps_min')} (chance de tentar ao acaso para explorar)." if _c else ""),
+                            f"Resultado: {len(res['rewards'])} episódios, recompensa média dos últimos 100 = {np.mean(res['rewards'][-100:]):.2f}, "
+                            + (f"caminho encontrado com {len(path)} passos: {' -> '.join(str(tuple(x)) for x in path)}." if res["reached_goal"] else "o agente NÃO chegou à meta (convergiu mal; tentar mais episódios).")
+                            + " Há 3 caixas com estes números.",
+                            "GRÁFICO 1 «GridWorld - Política Aprendida»: a grelha com setas; cada seta é a melhor acção que o agente aprendeu naquela casa; mostra também o caminho, obstáculos e armadilhas.",
+                            "GRÁFICO 2 «Valor Máximo Q por Estado (V*)»: mapa de cores da mesma grelha; cada número é o quanto o agente valoriza estar naquela casa (casas perto da meta valem mais).",
+                            "GRÁFICO 3 «Curvas de Treino Q-Learning» (4 painéis, eixo horizontal = episódio): «Recompensa por Episódio» (" + resumo_curva(res["rewards"], 3)
+                            + "), «Recompensa Suavizada» (deve subir), «Passos» por episódio (deve descer: " + resumo_curva(res["steps"], 3) + ") e «Epsilon» (" + resumo_curva(res["eps_hist"], 3) + ")."],
+                            "Vê 3 caixas (Episódios, Recomp. média, Passos), a grelha com setas, o mapa de valores V* e quatro curvas de treino.")
+                    except Exception:
+                        pass
 
                 teoria_box("Interpretar os resultados",
                     "As <strong>setas</strong> mostram a acção óptima em cada estado. "

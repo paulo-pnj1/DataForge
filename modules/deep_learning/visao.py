@@ -246,6 +246,27 @@ def render_visao(username: str):
                         width='stretch'
                     )
 
+                try:    # o tutor de IA precisa de saber o que está nos gráficos
+                    from modules.tutor_ia import registar_ecra, resumo_curva
+                    _c = res.get("setup") or {}
+                    _cm = res.get("cm")
+                    registar_ecra("Resultado da CNN (imagens)", [
+                        "Página: Visão Computacional (rede neuronal que classifica imagens). "
+                        + (f"Modelo: {_c.get('arch')}" + (f" com {_c['n_conv']} camadas convolucionais, {_c['n_filters']} filtros iniciais e dropout {_c['dropout']}"
+                                                         if _c.get("arch") == "CNN Simples" else " (transfer learning: rede já treinada, só afinada)")
+                           + f". {_c.get('n_imgs', '?')} imagens, {_c.get('val_split', 0):.0%} para validação, learning rate {_c.get('lr')}, batch {_c.get('batch')}. " if _c else ""),
+                        f"Classes ({res['n_classes']}): {', '.join(str(x) for x in res['class_names'][:12])}. Accuracy na validação: {res['acc']:.1%}. Treinou {res['epochs_run']} épocas. Há 3 caixas com estes números.",
+                        "GRÁFICO «Curvas de Aprendizagem»: eixo horizontal «Época». Linha vermelha «Loss treino» (erro: deve descer): "
+                        + resumo_curva(res["train_losses"]) + ". Linha azul «Acc treino» (acertos no treino, de 0 a 1): " + resumo_curva(res["train_accs"])
+                        + ". Linha verde tracejada «Acc validação» (acertos em imagens que a rede não viu): " + resumo_curva(res["val_accs"])
+                        + ". Se a validação fica muito abaixo do treino, há overfitting (a rede decorou).",
+                        (f"GRÁFICO «Matriz de Confusão»: linhas = «Real», colunas = «Previsto». A diagonal são os acertos ({int(np.trace(_cm))} de {int(_cm.sum())}). "
+                         f"Classes por ordem: {', '.join(str(x) for x in res['class_names'][:_cm.shape[0]])}. Matriz: {_cm.tolist()}.")
+                        if _cm is not None and res["n_classes"] <= 10 else ""],
+                        "Vê 3 caixas (Accuracy, Classes, Épocas), as curvas de aprendizagem (loss, acc treino, acc validação) e a matriz de confusão.")
+                except Exception:
+                    pass
+
                 buf = io.BytesIO()
                 torch.save(res["model"].state_dict(), buf)
                 st.download_button("Descarregar Modelo (.pt)", buf.getvalue(),
@@ -405,7 +426,9 @@ def _train_cnn(classes_data, arch, n_conv, n_filters, dropout,
         st.session_state.vis_result = {
             "model": model, "class_names": class_names, "n_classes": n_classes,
             "train_losses": train_losses, "train_accs": train_accs, "val_accs": val_accs,
-            "cm": cm, "acc": acc, "epochs_run": epochs
+            "cm": cm, "acc": acc, "epochs_run": epochs,
+            "setup": {"arch": arch, "n_conv": n_conv, "n_filters": n_filters, "dropout": dropout, "lr": lr, "batch": batch_sz,
+                      "val_split": val_split, "n_imgs": int(len(all_labels))}
         }
         add_pontos(username, 25, f"CNN {arch} treinada")
         sucesso_box(f"Treino concluído! Accuracy validação: {val_accs[-1]:.1%}")

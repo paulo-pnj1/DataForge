@@ -219,6 +219,26 @@ def render_series_temporais(username: str):
                 st.plotly_chart(res["fig_pred"], width='stretch')
                 st.plotly_chart(res["fig_loss"], width='stretch')
 
+                try:    # o tutor de IA precisa de saber o que está nos gráficos
+                    from modules.tutor_ia import registar_ecra, resumo_curva, intervalo
+                    _c = res.get("setup") or {}
+                    registar_ecra(f"Resultado {_c.get('modelo', 'LSTM/GRU')} (séries temporais)", [
+                        "Página: Séries Temporais com rede neuronal. Dataset: "
+                        + (str(st.session_state.get("st_ds")) if st.session_state.get("st_fonte") == "Dataset embutido" else "CSV do aluno") + ". "
+                        + (f"Modelo {_c['modelo']}: olha para os últimos {_c['seq']} valores para prever o seguinte; {_c['hidden']} neurónios, {_c['layers']} camadas, "
+                           f"dropout {_c['dropout']}, learning rate {_c['lr']}. Série com {_c['n_total']} valores (de {_c['min']:.2f} a {_c['max']:.2f}); "
+                           f"o final da série ({_c['n_test']} passos, {_c['test_pct']:.0%}) ficou para teste." if _c else ""),
+                        f"Resultado no teste: RMSE {res['rmse']:.4f} e MAE {res['mae']:.4f} (erros médios, na mesma unidade da série; menor é melhor), {res['epochs']} épocas. Há 3 caixas com estes números.",
+                        "GRÁFICO 1 «Real vs Previsto»: linha azul «Treino» (parte da série que a rede viu), linha verde «Real (teste)» (o que aconteceu depois) e linha vermelha tracejada «Previsto» "
+                        "(o que a rede previu para esse período). Quanto mais colada a vermelha à verde, melhor. Eixo horizontal = posição no tempo.",
+                        "GRÁFICO 2 «Curva de Loss»: eixo horizontal «Época», vertical a loss (erro de treino, deve descer): " + resumo_curva(res.get("losses", []), 3) + ".",
+                        ("GRÁFICO 3 «Previsão para o Futuro»: linha azul «Histórico» (últimos valores reais) e linha verde pontilhada «Previsão futura» "
+                         f"({len(res['y_futuro'])} passos, valores {intervalo(res['y_futuro'])}). É uma extrapolação: quanto mais longe, menos fiável.")
+                        if res.get("y_futuro") is not None else ""],
+                        "Vê 3 caixas (RMSE, MAE, Épocas), o gráfico Real vs Previsto, a curva de loss e a previsão para o futuro.")
+                except Exception:
+                    pass
+
                 # Previsão futura
                 if res.get("y_futuro") is not None:
                     fig_fut = go.Figure()
@@ -293,6 +313,21 @@ def render_series_temporais(username: str):
                 c1.metric("RMSE Teste", f"{res_a['rmse']:.4f}")
                 c2.metric("MAE Teste",  f"{res_a['mae']:.4f}")
                 st.plotly_chart(res_a["fig"], width='stretch')
+                if res_a.pop("_acabou_de_correr", False) or not st.session_state.get("st_result"):
+                    try:    # o tutor de IA precisa de saber o que está nos gráficos
+                        from modules.tutor_ia import registar_ecra, intervalo
+                        _c = res_a.get("setup") or {}
+                        registar_ecra(f"Resultado ARIMA({_c.get('p')},{_c.get('d')},{_c.get('q')})", [
+                            f"Página: Séries Temporais, modelo estatístico ARIMA(p={_c.get('p')}, d={_c.get('d')}, q={_c.get('q')}): "
+                            f"p = quantos valores passados usa, d = quantas vezes diferencia a série para tirar a tendência, q = quantos erros passados usa. "
+                            f"Dataset: {st.session_state.get('ar_ds')}. Treino com {_c.get('n_train')} valores, teste com {_c.get('n_test')}, previsão futura de {_c.get('n_prev')} passos.",
+                            f"Resultado no teste: RMSE {res_a['rmse']:.4f} e MAE {res_a['mae']:.4f} (menor é melhor, mesma unidade da série). Há 2 caixas com estes números.",
+                            f"GRÁFICO «ARIMA({_c.get('p')},{_c.get('d')},{_c.get('q')}) - Previsão»: eixo horizontal = posição no tempo. Linha azul «Treino», linha verde «Real (teste)», "
+                            f"linha vermelha tracejada «ARIMA previsto» (deve ficar colada à verde) e linha laranja pontilhada «Futuro previsto» "
+                            f"({_c.get('n_prev')} passos, valores {intervalo(_c.get('futuro', []))})."],
+                            "Vê 2 caixas (RMSE e MAE do teste) e um gráfico de linhas com treino, real, previsto e futuro.")
+                    except Exception:
+                        pass
                 teoria_box("Quando usar ARIMA?",
                     "ARIMA é excelente para séries estacionárias ou que ficam estacionárias após diferenciação. "
                     "<strong>p</strong>: componente autorregressiva (correlação com valores anteriores). "
@@ -385,7 +420,11 @@ def _train_lstm_gru(valores, modelo_tipo, seq_len, hidden_sz, n_layers,
         st.session_state.st_result = {
             "rmse": rmse, "mae": mae, "epochs": epochs,
             "fig_pred": fig_pred, "fig_loss": fig_loss,
-            "y_real": y_real_all, "y_futuro": y_futuro
+            "y_real": y_real_all, "y_futuro": y_futuro,
+            "losses": losses, "y_pred": y_pred, "y_real_test": y_real_test,
+            "setup": {"modelo": modelo_tipo, "seq": seq_len, "hidden": hidden_sz, "layers": n_layers, "dropout": dropout, "lr": lr,
+                      "test_pct": test_pct, "n_futuro": n_futuro, "n_total": int(len(valores)), "n_test": int(n_test),
+                      "min": float(np.min(valores)), "max": float(np.max(valores))}
         }
         add_pontos(username, 20, f"Séries Temporais {modelo_tipo}")
         sucesso_box(f"{modelo_tipo} treinado! RMSE: {rmse:.4f} · MAE: {mae:.4f}")
@@ -439,7 +478,9 @@ def _train_arima(valores, p, d, q, n_prev, test_pct, username):
             font=dict(color="#FFFFFF"), legend=dict(font=dict(color="#FFFFFF"))
         )
 
-        st.session_state.arima_result = {"rmse": rmse, "mae": mae, "fig": fig}
+        st.session_state.arima_result = {"rmse": rmse, "mae": mae, "fig": fig, "_acabou_de_correr": True,
+                                         "setup": {"p": p, "d": d, "q": q, "n_prev": n_prev, "n_train": int(n_train), "n_test": int(n_test),
+                                                   "futuro": [float(x) for x in np.asarray(y_futuro)[:200]]}}
         add_pontos(username, 15, f"ARIMA({p},{d},{q})")
         sucesso_box(f"ARIMA ajustado! RMSE: {rmse:.4f} · MAE: {mae:.4f}")
     except Exception as e:

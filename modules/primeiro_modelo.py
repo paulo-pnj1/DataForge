@@ -265,6 +265,20 @@ def _mostrar_resultado(r: dict):
     else:
         explicar_regressao(r["y_te"], r["y_pred"], r["r2"], r["rmse"], r["mae"], r["cv_scores"], cfg["pergunta"].rstrip("?").lower())
 
+    try:    # o tutor de IA precisa de saber o que está nos gráficos
+        from modules.tutor_ia import acrescentar_ecra
+        _top = ", ".join(f"{n} ({v:.0%})" for n, v in zip(nomes[:6], vals[:6]))
+        acrescentar_ecra("Resultado do primeiro modelo", [
+            f"Página: O Teu Primeiro Modelo. Problema escolhido: «{r['nome']}» ({cfg['pergunta']}). Modelo: Random Forest (muitas árvores de decisão que votam). "
+            f"{len(r['colunas'])} colunas usadas: {', '.join(r['colunas'][:20])}. Estudou {r['n_treino']} casos e foi testado em {r['n_teste']} casos novos.",
+            ("Cartão grande «Resultado»: " + (f"acertou {r['acc']:.0%} dos casos novos; um palpite sem inteligência (responder sempre a classe mais comum) acertaria {r['acc_base']:.0%}." if clf
+             else f"erra em média {r['mae']:,.1f} {cfg.get('unidade', '')}; prever sempre a média daria erro médio {r['mae_base']:,.1f}; explica {max(r['r2'], 0):.0%} do que faz o valor variar.")),
+            f"GRÁFICO «As colunas que mais pesaram nas decisões»: barras horizontais com a influência de cada coluna (as 6 maiores): {_top}. A maior é a coluna que mais ajudou o modelo a decidir.",
+            "Há ainda uma secção «Testa tu» onde o aluno sorteia um caso do teste e vê se o modelo acerta."],
+            "Vê um cartão com o resultado, barras com as colunas mais importantes, o teste de um caso real e explicações dos números.")
+    except Exception:
+        pass
+
     # Próximos passos
     section_title("E AGORA?")
     c1, c2, c3 = st.columns(3)

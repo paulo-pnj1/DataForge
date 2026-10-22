@@ -110,7 +110,10 @@ def render_anomalias(username: str):
                             st.session_state.an_result = {
                                 "labels": labels, "preds": preds,
                                 "X_pca": X_pca, "n_anom": n_anom, "n_norm": n_norm,
-                                "algo": algo_label, "df_idx": df[features].dropna().index
+                                "algo": algo_label, "df_idx": df[features].dropna().index,
+                                "dataset": nm if fonte == "Embutido" else "CSV do aluno", "features": list(features),
+                                "normalizar": bool(normalizar), "contaminacao": float(contaminacao),
+                                "var_pca": [float(v) * 100 for v in pca_v.explained_variance_ratio_],
                             }
                             add_pontos(username, 8, f"Anomalias {algo_label}")
                             sucesso_box(f"{n_anom} anomalias detectadas ({n_anom/(n_anom+n_norm)*100:.1f}%)")
@@ -164,6 +167,28 @@ def render_anomalias(username: str):
                 title=dict(text="Proporção", font=dict(color="#FFFFFF"))
             )
             st.plotly_chart(fig_pie, width='stretch')
+
+            try:    # o tutor de IA precisa de saber o que está nos gráficos
+                from modules.tutor_ia import registar_ecra, intervalo
+                _d = np.sqrt((X_pca ** 2).sum(axis=1))
+                _m = labels == "Anomalia"
+                _vp = res.get("var_pca") or []
+                registar_ecra(f"{res['algo']} - Anomalias", [
+                    f"Página: Detecção de Anomalias. Algoritmo: {res['algo']}. Dataset: {res.get('dataset', '?')} ({total} linhas). "
+                    f"Features: {', '.join(res.get('features', []))}. Normalizado: {'sim' if res.get('normalizar') else 'não'}. "
+                    f"Contaminação esperada: {res.get('contaminacao', 0):.0%} (a percentagem de anomalias que o aluno disse esperar).",
+                    f"Resultado: {n_norm} normais ({n_norm / total:.1%}) e {n_anom} anomalias ({n_anom / total:.1%}). Há 3 caixas com Normais, Anomalias e Total.",
+                    f"GRÁFICO 1 «{res['algo']} - Anomalias (PCA 2D)»: pontos azuis = normais, pontos vermelhos maiores com contorno branco = anomalias. "
+                    "Eixos «PC1» e «PC2» NÃO são colunas originais: são 2 eixos novos que resumem as features só para dar para desenhar "
+                    + (f"(guardam {sum(_vp):.1f}% da informação). " if _vp else ". ")
+                    + f"PC1 {intervalo(X_pca[:, 0])}, PC2 {intervalo(X_pca[:, 1])}. "
+                    "O modelo foi treinado nas features originais, não nestes 2 eixos.",
+                    (f"As anomalias ficam em média a {_d[_m].mean():.2f} do centro do gráfico e os normais a {_d[~_m].mean():.2f}."
+                     if _m.any() and (~_m).any() else ""),
+                    f"GRÁFICO 2 «Proporção»: pizza (donut) com {n_norm / total:.1%} normais e {n_anom / total:.1%} anomalias."],
+                    f"Vê um gráfico de pontos PC1 x PC2 (azul normal, vermelho anomalia, {total} pontos) e uma pizza com a proporção.")
+            except Exception:
+                pass
 
             teoria_box("Como interpretar",
                 "Pontos <strong style='color:#FF6B6B;'>vermelhos</strong> são anomalias - afastam-se do padrão aprendido. "
