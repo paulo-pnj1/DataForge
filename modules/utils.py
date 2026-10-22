@@ -198,15 +198,20 @@ def _css_global() -> str:
     }}
     [data-testid="stSidebar"] {{
         border-right: 1px solid {C_BORDER} !important;
-        /* Garante que a sidebar nunca desaparece nem fica estreita demais */
-        display: block !important;
-        transform: none !important;
-        width: 290px !important;
-        min-width: 290px !important;
-        max-width: 290px !important;
-        flex: 0 0 290px !important;
-        visibility: visible !important;
-        opacity: 1 !important;
+    }}
+    /* Só no computador a barra fica sempre aberta e com largura fixa. No telemóvel NÃO se força nada:
+       o Streamlit trata-a como gaveta (fechada ao entrar, abre com ☰). Forçar aqui fazia com que ela nunca recolhesse. */
+    @media (min-width: 769px) {{
+        [data-testid="stSidebar"] {{
+            display: block !important;
+            transform: none !important;
+            width: 290px !important;
+            min-width: 290px !important;
+            max-width: 290px !important;
+            flex: 0 0 290px !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }}
     }}
     [data-testid="stSidebarContent"],
     [data-testid="stSidebarUserContent"] {{
@@ -227,6 +232,16 @@ def _css_global() -> str:
 
     /* Botão de colapso nativo (×) - torna-o num ícone de menu hamburger
        e impede que a sidebar fique permanentemente fechada */
+    /* O cabeçalho do Streamlit está escondido (visibility:hidden); o botão ☰ que abre a barra vive lá dentro e tem de ficar visível. */
+    [data-testid="stSidebarCollapsedControl"], [data-testid="stSidebarCollapsedControl"] *,
+    [data-testid="stExpandSidebarButton"], [data-testid="stExpandSidebarButton"] * {{
+        visibility: visible !important;
+        opacity: 1 !important;
+    }}
+    [data-testid="stSidebarCollapsedControl"], [data-testid="stExpandSidebarButton"] {{
+        display: flex !important;
+        z-index: 9999 !important;
+    }}
     [data-testid="collapsedControl"] {{
         display: flex !important;
         visibility: visible !important;
