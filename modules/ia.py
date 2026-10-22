@@ -347,8 +347,13 @@ def _tentar(destino: dict, mensagens: list, max_tokens: int, json_modo: bool, te
     if "generativelanguage.googleapis.com" in destino["base"]:
         # Os modelos Gemini novos «pensam» antes de responder e esse pensamento gasta o mesmo limite de tokens:
         # sem isto a resposta saía cortada a meio. «minimal» reduz o pensamento ao mínimo.
-        corpo["reasoning_effort"] = "minimal"
+        # «minimal» ainda deixa ~1000 tokens de pensamento nos modelos 2.5, o que come quase todo o limite de uma
+        # resposta curta (o tutor saía com uma só frase). Por isso tenta «none» primeiro, depois «minimal», depois sem o parâmetro.
+        corpo["reasoning_effort"] = "none"
     r = enviar(corpo)
+    if r.status_code == 400 and corpo.get("reasoning_effort") == "none":     # o modelo não deixa desligar o pensamento
+        corpo["reasoning_effort"] = "minimal"
+        r = enviar(corpo)
     if r.status_code == 400 and "reasoning_effort" in corpo:   # o modelo não aceita esse parâmetro: repete sem ele
         corpo.pop("reasoning_effort")
         r = enviar(corpo)
@@ -555,7 +560,7 @@ def perguntar_tutor(pergunta: str, titulo: str, contexto: str, historico: list, 
     for p, r in (historico or [])[-3:]:                 # as últimas 3 trocas, para poder fazer perguntas de seguimento
         msgs += [{"role": "user", "content": str(p)[:400]}, {"role": "assistant", "content": str(r)[:1200]}]
     msgs.append({"role": "user", "content": pergunta})
-    texto = chamar(msgs, id_aluno(username), max_tokens=700, temperatura=0.4, limite=limite_aluno(), uso="tutor")
+    texto = chamar(msgs, id_aluno(username), max_tokens=1200, temperatura=0.4, limite=limite_aluno(), uso="tutor")
     texto = re.sub(r"#{1,6}\s*", "", texto).strip()
     if len(texto) < 5:
         raise IAErro("A IA devolveu uma resposta demasiado curta. Tenta outra vez.")

@@ -455,7 +455,23 @@ def test_gemini_pede_pouco_pensamento_e_repete_sem_o_parametro(monkeypatch):
         return _Resp("{}", 400) if "reasoning_effort" in json else _Resp("ok", 200)
     monkeypatch.setattr(ia, "_post", falso)
     assert ia.chamar([{"role": "user", "content": "x"}], "e1") == "ok"
-    assert corpos[0]["reasoning_effort"] == "minimal" and "reasoning_effort" not in corpos[1]
+    # tenta «none», depois «minimal», e por fim sem o parâmetro
+    assert [c.get("reasoning_effort") for c in corpos] == ["none", "minimal", None]
+
+
+def test_gemini_desliga_o_pensamento_quando_o_modelo_deixa(monkeypatch):
+    from modules import ia
+    monkeypatch.delenv("XAI_API_KEY")
+    monkeypatch.setenv("IA_API_KEY", "k")
+    monkeypatch.setenv("IA_PROVEDOR", "gemini")
+    corpos = []
+
+    def falso(url, json=None, headers=None, timeout=None):
+        corpos.append(dict(json))
+        return _Resp("ok", 200)
+    monkeypatch.setattr(ia, "_post", falso)
+    assert ia.chamar([{"role": "user", "content": "x"}], "e1") == "ok"
+    assert len(corpos) == 1 and corpos[0]["reasoning_effort"] == "none"
 
 
 def test_tutor_recebe_o_estado_do_grafico(monkeypatch):
