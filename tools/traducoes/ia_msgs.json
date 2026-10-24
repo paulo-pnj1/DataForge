@@ -1,0 +1,12 @@
+{
+ "A IA teve um problema ({}). Tenta daqui a pouco.": "The AI had a problem ({}). Try again in a moment.",
+ "A IA teve um problema ({}). Tenta daqui a pouco. Motivo: {}": "The AI had a problem ({}). Try again in a moment. Reason: {}",
+ "A IA teve um problema. Tenta daqui a pouco.": "The AI had a problem. Try again in a moment.",
+ "Não consegui ligar à IA. Tenta daqui a pouco.": "I could not connect to the AI. Try again in a moment.",
+ "A IA está com demasiados pedidos agora. Tenta daqui a pouco.": "The AI has too many requests right now. Try again in a moment.",
+ "A IA recusou o pedido ({}): {}": "The AI refused the request ({}): {}",
+ "A IA recusou o pedido. Confirma o nome do modelo em «ia_model» nos segredos.": "The AI refused the request. Check the model name in «ia_model» in the secrets.",
+ "A chave da IA foi recusada. Confirma a «ia_api_key» nos segredos.": "The AI key was rejected. Check «ia_api_key» in the secrets.",
+ "A IA devolveu uma resposta que não consegui ler.": "The AI returned an answer I could not read.",
+ "A IA está desligada: falta a chave «ia_api_key» nos segredos da aplicação.": "The AI is turned off: the «ia_api_key» key is missing from the app secrets."
+}

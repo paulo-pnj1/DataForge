@@ -480,3 +480,27 @@ def test_tutor_recebe_o_estado_do_grafico(monkeypatch):
     _responder(monkeypatch, "resposta curta ok", enviados=enviados)
     ia.perguntar_tutor("explica o gráfico", "t", "c", [], "ana", estado="K=5, 4 dizem Compra")
     assert "K=5, 4 dizem Compra" in enviados[0][1]["messages"][0]["content"]
+
+
+def test_erro_5xx_tenta_sem_o_parametro_de_pensamento_e_mostra_o_codigo(monkeypatch):
+    """Se o modelo falha por causa do reasoning_effort (mesmo com 5xx), repete sem ele; se falha sempre, o aviso traz o código."""
+    from modules import ia
+    monkeypatch.delenv("XAI_API_KEY", raising=False)
+    monkeypatch.setenv("IA_API_KEY", "k")
+    monkeypatch.setenv("IA_PROVEDOR", "gemini")
+    corpos = []
+
+    def falso(url, json=None, headers=None, timeout=None):
+        corpos.append(dict(json))
+        return _Resp("ok", 500 if "reasoning_effort" in json else 200)
+    monkeypatch.setattr(ia, "_post", falso)
+    assert ia.chamar([{"role": "user", "content": "x"}], "e1") == "ok"
+    assert [c.get("reasoning_effort") for c in corpos] == ["none", "minimal", None]
+
+
+def test_aviso_de_erro_mostra_o_codigo(monkeypatch):
+    from modules import ia
+    _responder(monkeypatch, "x", status=503)
+    with pytest.raises(ia.IAErro) as e:
+        ia.chamar([{"role": "user", "content": "x"}], "e1")
+    assert "(503)" in str(e.value)

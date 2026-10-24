@@ -350,14 +350,17 @@ def _tentar(destino: dict, mensagens: list, max_tokens: int, json_modo: bool, te
         # «minimal» ainda deixa ~1000 tokens de pensamento nos modelos 2.5, o que come quase todo o limite de uma
         # resposta curta (o tutor saía com uma só frase). Por isso tenta «none» primeiro, depois «minimal», depois sem o parâmetro.
         corpo["reasoning_effort"] = "none"
+    def falhou(x):      # erro que pode ser culpa de um parâmetro que o modelo não aceita (e não da chave ou do limite)
+        return x.status_code >= 400 and x.status_code not in (401, 403, 429)
+
     r = enviar(corpo)
-    if r.status_code == 400 and corpo.get("reasoning_effort") == "none":     # o modelo não deixa desligar o pensamento
+    if falhou(r) and corpo.get("reasoning_effort") == "none":     # o modelo não deixa desligar o pensamento
         corpo["reasoning_effort"] = "minimal"
         r = enviar(corpo)
-    if r.status_code == 400 and "reasoning_effort" in corpo:   # o modelo não aceita esse parâmetro: repete sem ele
+    if falhou(r) and "reasoning_effort" in corpo:   # o modelo não aceita esse parâmetro: repete sem ele
         corpo.pop("reasoning_effort")
         r = enviar(corpo)
-    if r.status_code == 400 and json_modo:      # nem todos os modelos aceitam «response_format»: o pedido já exige JSON no texto
+    if r.status_code == 400 and json_modo and "response_format" in corpo:   # nem todos os modelos aceitam «response_format»: o pedido já exige JSON no texto
         corpo.pop("response_format")
         r = enviar(corpo)
     if r.status_code in (401, 403):
@@ -370,7 +373,8 @@ def _tentar(destino: dict, mensagens: list, max_tokens: int, json_modo: bool, te
             raise IAErro(f"A IA recusou o pedido ({r.status_code}): {det}")
         raise IAErro("A IA recusou o pedido. Confirma o nome do modelo em «ia_model» nos segredos.")
     if r.status_code >= 400:
-        raise _Indisponivel("A IA teve um problema. Tenta daqui a pouco.")
+        det = _detalhe(r)      # mostra o código e o motivo, para se perceber se é o serviço em baixo ou o modelo mal configurado
+        raise _Indisponivel(f"A IA teve um problema ({r.status_code}). Tenta daqui a pouco." + (f" Motivo: {det}" if det else ""))
     try:
         escolha = r.json()["choices"][0]
         texto = escolha["message"]["content"]
