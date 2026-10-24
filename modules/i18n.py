@@ -126,9 +126,19 @@ def _frases_dentro(core: str, frases: dict) -> str:
     return "".join(out)
 
 
-def _por_modelo(core: str, padroes: list):
-    """Traduz uma frase montada com valores (ex.: «Passo 2 de 5») usando os modelos com {} do ficheiro."""
+def _letras_fixas(partes_en: list) -> int:
+    return sum(len(re.sub(r"[^A-Za-z]", "", t)) for t in partes_en)
+
+
+def _por_modelo(core: str, padroes: list, fortes: bool = True):
+    """Traduz uma frase montada com valores (ex.: «Passo 2 de 5») usando os modelos com {} do ficheiro.
+
+    `fortes=True` só usa modelos com texto fixo a sério; `fortes=False` só os fracos («{} de {}», «{} - {}»...).
+    Os fracos apanham quase qualquer frase com «de», por isso só entram quando mais nada traduziu."""
     for prefixo, rx, en_partes in padroes:
+        forte = len(re.sub(r"[^A-Za-zÀ-ÿ]", "", prefixo)) >= 3 or _letras_fixas(en_partes) >= 8
+        if forte != fortes:
+            continue
         if prefixo and not core.startswith(prefixo):
             continue
         m = rx.match(core)
@@ -158,9 +168,15 @@ def _traduzir_en(texto: str) -> str:
             continue
         en = exact.get(core)
         if en is None:
-            en = _por_modelo(core, d["padroes"])
+            en = _por_modelo(core, d["padroes"], True)
         if en is None:
-            en = _frases_dentro(core, frases)
+            f = _frases_dentro(core, frases)
+            if f != core:
+                en = f
+        if en is None:
+            en = _por_modelo(core, d["padroes"], False)
+        if en is None:
+            en = core
         res.append(pre + en + suf)
     return "".join(res)
 

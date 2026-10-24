@@ -13,6 +13,8 @@ def em_cada_10(valor: float) -> str:
     """0.87 -> '9 em cada 10'"""
     n = int(round(max(0.0, min(1.0, valor)) * 10))
     return f"{n} em cada 10"
+from modules.i18n import tr   # as palavras montadas por código (rótulos, nome do alvo) também têm de ir para o idioma certo
+
 
 
 def frase_acerto(acc: float) -> str:
@@ -72,7 +74,7 @@ def explicar_classificacao(r: dict):
 
     with st.expander("Explica-me estes números (linguagem simples)", expanded=False):
         st.markdown(f"""
-**Resumo:** resultado **{rotulo.lower()}**. {frase_acerto(acc)}
+**Resumo:** resultado **{tr(rotulo).lower()}**. {frase_acerto(acc)}
 
 | Número | O que significa, sem complicar |
 |---|---|
@@ -135,7 +137,7 @@ def explicar_regressao(y_test, y_pred, r2: float, rmse: float, mae: float,
 
     with st.expander("Explica-me estes números (linguagem simples)", expanded=False):
         st.markdown(f"""
-**Resumo:** resultado **{rotulo.lower()}**. Ao prever **{target_nome}**, o modelo falha em média por **{mae:,.3g}**
+**Resumo:** resultado **{tr(rotulo).lower()}**. Ao prever **{target_nome}**, o modelo falha em média por **{mae:,.3g}**
 (cerca de **{erro_rel:.0%}** do valor típico).
 
 | Número | O que significa, sem complicar |

@@ -16,6 +16,7 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import cross_val_score, train_test_split
 
+from modules.i18n import tr
 from modules.explicacoes import (
     em_cada_10, explicar_classificacao, explicar_regressao, frase_acerto, nivel_qualidade, nivel_r2,
 )
@@ -263,7 +264,7 @@ def _mostrar_resultado(r: dict):
     if clf:
         explicar_classificacao(r)
     else:
-        explicar_regressao(r["y_te"], r["y_pred"], r["r2"], r["rmse"], r["mae"], r["cv_scores"], cfg["pergunta"].rstrip("?").lower())
+        explicar_regressao(r["y_te"], r["y_pred"], r["r2"], r["rmse"], r["mae"], r["cv_scores"], tr(cfg["pergunta"]).rstrip("?").lower())
 
     try:    # o tutor de IA precisa de saber o que está nos gráficos
         from modules.tutor_ia import acrescentar_ecra
