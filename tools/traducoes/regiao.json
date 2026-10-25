@@ -1,0 +1,13 @@
+{
+ "Quando um taxista diz \"{}\", está a fazer uma": "When a taxi driver says \"{}\", they are making a",
+ "para o Kilamba são uns 4.500 Kz": "to Kilamba it is about 4,500 Kz",
+ "para a Matola são uns 150 MT": "to Matola it is about 150 MT",
+ "para a Vila Madalena são uns R$ 35": "to Vila Madalena it is about R$ 35",
+ "para o Parque das Nações são uns 12 €": "to Parque das Nações it is about €12",
+ "Salários de uma pequena empresa ({}). Liga e desliga o valor extremo.": "Salaries of a small company ({}). Turn the extreme value on and off.",
+ "Salário ({})": "Salary ({})",
+ "Incluir o valor extremo ({})": "Include the extreme value ({})",
+ "milhares de Kz": "thousand Kz",
+ "O computador só lê números. Se lhe deres a palavra \"{}\", ele não percebe. E se compararmos": "The computer only reads numbers. If you give it the word \"{}\", it does not understand. And if we compare",
+ "Problema: o modelo pode pensar que {} ({}) é \"maior\" do que {} ({}) ou que {} é a média entre {} ({}) e {} ({}). Os bairros não têm ordem! Serve para categorias com ordem natural (pequeno, médio, grande).": "Problem: the model may think that {} ({}) is \"bigger\" than {} ({}) or that {} is the average of {} ({}) and {} ({}). Neighbourhoods have no order! This is for categories with a natural order (small, medium, large)."
+}

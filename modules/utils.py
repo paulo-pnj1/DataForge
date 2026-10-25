@@ -1320,6 +1320,53 @@ def render_seletor_idioma(username=None):
 
 
 # ══════════════════════════════════════════════════════
+# REGIÃO / PAÍS (também fica guardada na conta)
+# ══════════════════════════════════════════════════════
+def definir_regiao(username, codigo: str):
+    from modules.regiao import definir_regiao_sessao, REGIOES
+    definir_regiao_sessao(codigo)
+    if not username:
+        return
+    try:
+        progress = get_user_progress(username)
+        progress["regiao"] = codigo if codigo in REGIOES else "AO"
+        _gravar_progress(username, progress)
+    except Exception:
+        pass          # sem base de dados a escolha vale só para esta sessão
+
+
+def carregar_regiao(username: str) -> bool:
+    """Ao entrar, aplica o país guardado na conta. True se mudou: fazer st.rerun()."""
+    from modules.regiao import regiao_actual, definir_regiao_sessao, REGIOES
+    chave = f"_regiao_lida_{username}"
+    if st.session_state.get(chave):
+        return False
+    st.session_state[chave] = True
+    try:
+        guardado = get_user_progress(username).get("regiao")
+    except Exception:
+        guardado = None
+    if guardado in REGIOES and guardado != regiao_actual():
+        definir_regiao_sessao(guardado)
+        return True
+    return False
+
+
+def _ao_mudar_regiao(username):
+    from modules.regiao import codigo_do_rotulo
+    definir_regiao(username, codigo_do_rotulo(st.session_state.get("_regiao_sel", "")))
+
+
+def render_seletor_regiao(username=None):
+    """Escolha do país (menu lateral e ecrã de entrada): muda moeda, cidades, exemplos e variante do português."""
+    from modules.regiao import NOMES_PARA_SELETOR, regiao_actual
+    st.session_state.setdefault("_regiao_sel", NOMES_PARA_SELETOR[regiao_actual()])
+    st.selectbox("País / Country", list(NOMES_PARA_SELETOR.values()), key="_regiao_sel",
+                 on_change=_ao_mudar_regiao, args=(username,),
+                 help="Muda a moeda, as cidades dos exemplos e a variante do português. / Changes the currency, cities and Portuguese variant.")
+
+
+# ══════════════════════════════════════════════════════
 # PROGRESSO E HISTORIAL (Supabase ou TinyDB local, via modules/db.py)
 # ══════════════════════════════════════════════════════
 _CACHE_TTL = 45  # segundos: evita 1 pedido à base de dados por cada interacção
@@ -1497,14 +1544,13 @@ def erro_box(msg: str):
 # ══════════════════════════════════════════════════════
 # DATASETS EMBUTIDOS
 # ══════════════════════════════════════════════════════
-def _gerar_casas_luanda(n: int = 400, seed: int = 42) -> pd.DataFrame:
-    """Dataset fictício, gerado localmente (sem internet), com preços de casas em Luanda."""
+def _gerar_casas_luanda(n: int = 400, seed: int = 42, regiao: str = "AO") -> pd.DataFrame:
+    """Dataset fictício, gerado localmente (sem internet), com preços de casas.
+    O nome ficou «luanda» por causa dos nomes internos; com `regiao` usa os bairros e a moeda do país escolhido."""
+    from modules import regiao as _rg
+    c = _rg.REGIOES.get(regiao, _rg.REGIOES["AO"])
     rng = np.random.default_rng(seed)
-    bairros = {  # bairro: (prémio de preço em milhões Kz, distância típica ao centro em km)
-        "Ingombota": (25, 2), "Miramar": (30, 4), "Maianga": (10, 5), "Talatona": (20, 15),
-        "Kilamba": (8, 25), "Benfica": (3, 18), "Camama": (0, 14), "Cazenga": (-5, 10),
-        "Viana": (-6, 20), "Cacuaco": (-8, 22),
-    }
+    bairros = c["bairros"]       # bairro: (prémio de preço, distância típica ao centro em km)
     nomes = rng.choice(list(bairros), n)
     area = rng.uniform(45, 250, n).round()
     quartos = np.clip((area / 55 + rng.normal(0, .6, n)).round(), 1, 6).astype(int)
@@ -1513,15 +1559,19 @@ def _gerar_casas_luanda(n: int = 400, seed: int = 42) -> pd.DataFrame:
     gerador = rng.integers(0, 2, n)
     quintal = rng.integers(0, 2, n)
     preco = 0.38 * area + 4 * quartos + premio + 6 * gerador + 4 * quintal + rng.normal(0, 6, n)
+    fator = c["fator_casas"]
+    preco = np.clip(preco, 8, None) * fator       # a unidade (milhões de Kz, mil R$, mil €...) vem da região
     return pd.DataFrame({
         "bairro": nomes, "quartos": quartos, "area_m2": area, "distancia_centro_km": dist,
         "tem_gerador": gerador, "tem_quintal": quintal,
-        "preco_milhoes_kz": np.clip(preco, 8, None).round(1),
+        "preco": np.round(preco, 0 if fator >= 5 else 1),
     })
 
 
-def _gerar_banca(n: int = 365, seed: int = 7) -> pd.DataFrame:
-    """Vendas diárias de uma banca de rua (fictício, sem internet)."""
+def _gerar_banca(n: int = 365, seed: int = 7, regiao: str = "AO") -> pd.DataFrame:
+    """Vendas diárias de uma banca de rua / barraca de feira (fictício, sem internet)."""
+    from modules import regiao as _rg
+    c = _rg.REGIOES.get(regiao, _rg.REGIOES["AO"])
     rng = np.random.default_rng(seed)
     dias = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"]
     idx = np.arange(n)
@@ -1529,16 +1579,24 @@ def _gerar_banca(n: int = 365, seed: int = 7) -> pd.DataFrame:
     dia_mes = (idx % 30) + 1
     fim_mes = (dia_mes >= 25).astype(int)
     chuva = (rng.random(n) < 0.25).astype(int)
-    temp = np.round(rng.normal(29, 3, n), 1)
+    temp = np.round(rng.normal(c["temp_media"], 3, n), 1)
     preco = rng.integers(200, 401, n)
     fds = np.isin(dia, ["Sab", "Dom"]).astype(int)
-    vendas = 30000 + 9000 * fds + 6000 * fim_mes - 12000 * chuva + 900 * (temp - 28) - 55 * (preco - 300) + rng.normal(0, 3500, n)
+    vendas = 30000 + 9000 * fds + 6000 * fim_mes - 12000 * chuva + 900 * (temp - (c["temp_media"] - 1)) - 55 * (preco - 300) + rng.normal(0, 3500, n)
+    vendas = np.clip(vendas, 5000, None)
+    if regiao in (None, "", "AO"):
+        preco_kg, vendas_dia = preco, vendas.round(-2)
+    else:
+        preco_kg = np.round(preco * c["fator_preco_kg"], 2)
+        vendas_dia = np.round(vendas * c["fator_vendas"], 0)
     return pd.DataFrame({"dia_semana": dia, "chuva": chuva, "fim_de_mes": fim_mes, "temperatura_c": temp,
-                         "preco_do_kg_kz": preco, "vendas_kz": np.clip(vendas, 5000, None).round(-2)})
+                         "preco_do_kg": preco_kg, "vendas_dia": vendas_dia})
 
 
-def _gerar_alunos(n: int = 500, seed: int = 11) -> pd.DataFrame:
-    """Alunos fictícios e se passaram de ano (sem internet)."""
+def _gerar_alunos(n: int = 500, seed: int = 11, regiao: str = "AO") -> pd.DataFrame:
+    """Alunos fictícios e se passaram de ano (sem internet). A nota segue a escala do país (0-20 ou 0-10)."""
+    from modules import regiao as _rg
+    c = _rg.REGIOES.get(regiao, _rg.REGIOES["AO"])
     rng = np.random.default_rng(seed)
     horas = rng.uniform(0, 25, n).round(1)
     faltas = rng.integers(0, 21, n)
@@ -1546,13 +1604,21 @@ def _gerar_alunos(n: int = 500, seed: int = 11) -> pd.DataFrame:
     trabalha = (rng.random(n) < 0.35).astype(int)
     internet = (rng.random(n) < 0.5).astype(int)
     score = 0.22 * horas - 0.17 * faltas + 0.35 * nota_ant - 0.9 * trabalha + 0.6 * internet + rng.normal(0, 1.3, n) - 4.6
-    return pd.DataFrame({"horas_estudo_semana": horas, "faltas": faltas, "nota_anterior": nota_ant,
+    nota_mostrada = (nota_ant * c["nota_max"] / 20).round(1)
+    return pd.DataFrame({"horas_estudo_semana": horas, "faltas": faltas, "nota_anterior": nota_mostrada,
                          "trabalha": trabalha, "tem_internet": internet,
                          "passou_de_ano": np.where(score > 0, "sim", "nao")})
 
 
-@st.cache_data(show_spinner=False, max_entries=32, ttl=3600)
 def carregar_dataset_embutido(nome: str) -> tuple:
+    """(df, descricao, tipo_problema) de um dataset de exemplo. Os datasets fictícios (casas, banca, alunos) seguem a
+    região escolhida pelo aluno: bairros, moeda e escala de notas do país."""
+    from modules.regiao import regiao_actual
+    return _carregar_dataset_embutido(nome, regiao_actual())
+
+
+@st.cache_data(show_spinner=False, max_entries=64, ttl=3600)
+def _carregar_dataset_embutido(nome: str, regiao: str = "AO") -> tuple:
     """Retorna (df, descricao, tipo_problema).
     Em cache (1 h): antes cada execução voltava a gerar o dataset e, no Titanic e na Califórnia, a descarregá-lo.
     Cada chamada recebe a sua própria cópia, por isso alterar o DataFrame não afecta os outros alunos."""
@@ -1598,13 +1664,13 @@ def carregar_dataset_embutido(nome: str) -> tuple:
         df["target"] = df["target"].map({0: "maligno", 1: "benigno"})
         desc = "569 tumores com 30 features. Classifica tumores como malignos ou benignos."
     elif chave == "banca":
-        df = _gerar_banca()
+        df = _gerar_banca(regiao=regiao)
         desc = "365 dias de vendas de uma banca de rua fictícia (dia da semana, chuva, fim de mês, temperatura, preço). Prevê as vendas do dia em Kz."
     elif chave == "alunos_ao":
-        df = _gerar_alunos()
+        df = _gerar_alunos(regiao=regiao)
         desc = "500 alunos fictícios (horas de estudo, faltas, nota anterior, trabalha, internet em casa). Prevê se passa de ano."
     elif chave == "luanda":
-        df = _gerar_casas_luanda()
+        df = _gerar_casas_luanda(regiao=regiao)
         desc = ("400 casas fictícias de Luanda (bairro, quartos, área, distância ao centro, gerador, quintal). "
                 "Prevê o preço em milhões de Kz. Funciona sem internet.")
     elif chave == "boston":
@@ -1614,7 +1680,7 @@ def carregar_dataset_embutido(nome: str) -> tuple:
             desc = "Dados de habitação da Califórnia. Prevê o preço médio de casas. 8 features."
         except Exception:
             # Sem internet (o dataset é descarregado na 1ª utilização): usa o dataset local
-            df = _gerar_casas_luanda()
+            df = _gerar_casas_luanda(regiao=regiao)
             desc = ("Sem ligação à internet para descarregar os dados da Califórnia. "
                     "Foi carregado o dataset local de casas em Luanda (fictício), que serve o mesmo propósito.")
     elif chave == "diabetes":

@@ -11,7 +11,7 @@ import inspect
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
-from modules.i18n import (idioma_actual, tr, traduzir_figura_plotly, traduzir_figura_matplotlib,
+from modules.i18n import (idioma_actual, traducao_activa, tr, traduzir_figura_plotly, traduzir_figura_matplotlib,
                           traduzir_tabela)
 
 # métodos cujo 1.º argumento (e alguns nomeados) é texto visível
@@ -52,7 +52,7 @@ def _tr_args(args, kw, nome):
 def _envolver_texto(nome, original):
     @functools.wraps(original)
     def metodo(self, *args, **kw):
-        if idioma_actual() != "en":
+        if not traducao_activa():
             return original(self, *args, **kw)
         args, kw = _tr_args(args, dict(kw), nome)
         return original(self, *args, **kw)
@@ -63,7 +63,7 @@ def _envolver_texto(nome, original):
 def _envolver_tabela(original):
     @functools.wraps(original)
     def metodo(self, data=None, *args, **kw):
-        if idioma_actual() == "en":
+        if traducao_activa():
             data = traduzir_tabela(data)
         return original(self, data, *args, **kw)
     metodo._df_i18n = True
@@ -73,7 +73,7 @@ def _envolver_tabela(original):
 def _envolver_tabs(original):
     @functools.wraps(original)
     def metodo(self, tabs, *args, **kw):
-        if idioma_actual() == "en":
+        if traducao_activa():
             tabs = [tr(t) if isinstance(t, str) else t for t in tabs]
         return original(self, tabs, *args, **kw)
     metodo._df_i18n = True
@@ -83,7 +83,7 @@ def _envolver_tabs(original):
 def _envolver_plotly(original):
     @functools.wraps(original)
     def f(fig, *args, **kw):
-        if idioma_actual() == "en":
+        if traducao_activa():
             traduzir_figura_plotly(fig)
         return original(fig, *args, **kw)
     f._df_i18n = True
@@ -93,7 +93,7 @@ def _envolver_plotly(original):
 def _envolver_pyplot(original):
     @functools.wraps(original)
     def f(fig=None, *args, **kw):
-        if idioma_actual() == "en":
+        if traducao_activa():
             if fig is None:
                 try:
                     import matplotlib.pyplot as plt
@@ -109,7 +109,7 @@ def _envolver_pyplot(original):
 def _envolver_funcao_texto(original):
     @functools.wraps(original)
     def f(*args, **kw):
-        if idioma_actual() != "en":
+        if not traducao_activa():
             return original(*args, **kw)
         args = list(args)
         if args and isinstance(args[0], str):

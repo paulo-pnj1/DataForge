@@ -171,11 +171,12 @@ def _licao_2():
            "Pensa num caderno de uma loja: cada <b>linha</b> é uma venda e cada <b>coluna</b> é um detalhe "
            "(produto, preço, hora). Os modelos de ML lêem exactamente este tipo de tabela.", C_TEAL)
 
+    from modules import regiao as _rg
     df = pd.DataFrame({
-        "Bairro": ["Talatona", "Maianga", "Viana", "Cazenga", "Kilamba", "Benfica", "Ingombota", "Camama"],
+        "Bairro": _rg.bairros_licao(),
         "Quartos": [4, 3, 2, 2, 3, 3, 4, 2],
         "Área (m²)": [180, 110, 70, 65, 95, 120, 150, 75],
-        "Preço (milhões Kz)": [95, 60, 22, 18, 40, 48, 85, 24],
+        "Preço (milhões Kz)": [_rg.preco_casa(v) for v in (95, 60, 22, 18, 40, 48, 85, 24)],   # o nome da coluna adapta-se à moeda no ecrã
     })
     _secao(1, "Uma tabela de casas (dados fictícios)")
     st.dataframe(df, width="stretch", hide_index=True)
@@ -263,12 +264,14 @@ def _dados_casas():
     rng = np.random.default_rng(3)
     area = rng.uniform(40, 200, 35)
     preco = 0.45 * area - 5 + rng.normal(0, 7, 35)
-    return area, preco
+    from modules import regiao as _rg
+    return area, preco * _rg.cfg()["fator_casas"]          # na unidade da região (milhões de Kz, mil R$, mil €...)
 
 
 def _licao_4():
+    from modules import regiao as _rg
     _caixa("Analogia",
-           "Quando um taxista diz \"para o Kilamba são uns 4.500 Kz\", está a fazer uma <b>previsão de um número</b> "
+           f"Quando um taxista diz \"{_rg.taxi_exemplo()}\", está a fazer uma <b>previsão de um número</b> "
            "com base na distância. Prever números (preços, temperaturas, vendas) chama-se <b>regressão</b>.", C_TEAL)
 
     area, preco = _dados_casas()
@@ -676,16 +679,18 @@ def _licao_12():
         st.success("Preencher com um valor típico mantém os exemplos todos. A mediana é mais segura quando há valores extremos.")
 
     _secao(2, "Outliers: o valor que foge a tudo")
-    st.markdown("Salários de uma pequena empresa (milhares de Kz). Liga e desliga o valor extremo.")
-    salarios = [180, 200, 210, 220, 230, 240, 250, 260]
-    incluir = st.checkbox("Incluir o valor extremo (3.500)", value=True, key="l12_out")
-    vals = salarios + ([3500] if incluir else [])
+    from modules import regiao as _rg
+    salarios, _un_sal = _rg.salario([180, 200, 210, 220, 230, 240, 250, 260])
+    st.markdown(f"Salários de uma pequena empresa ({_un_sal}). Liga e desliga o valor extremo.")
+    extremo = _rg.salario([3500])[0][0]
+    incluir = st.checkbox(f"Incluir o valor extremo ({extremo:,})".replace(",", "."), value=True, key="l12_out")
+    vals = salarios + ([extremo] if incluir else [])
     fig, ax = _fig(7, 2.8)
-    ax.scatter(vals, [0] * len(vals), c=[C_RED if v > 1000 else COR_A for v in vals], s=90, edgecolor="white", linewidth=.5)
+    ax.scatter(vals, [0] * len(vals), c=[C_RED if v > 5 * np.median(salarios) else COR_A for v in vals], s=90, edgecolor="white", linewidth=.5)
     ax.axvline(np.mean(vals), color=C_AMBER, lw=2, label=f"Média = {np.mean(vals):.0f}")
     ax.axvline(np.median(vals), color=C_GREEN, lw=2, ls="--", label=f"Mediana = {np.median(vals):.0f}")
     ax.set_yticks([])
-    ax.set_xlabel("Salário (milhares de Kz)")
+    ax.set_xlabel(f"Salário ({_un_sal})")
     _legenda(ax, loc="upper right")
     _mostrar(fig)
     st.markdown("Um só valor extremo **puxa a média** para longe do que é normal, mas quase não mexe na mediana. "
@@ -697,18 +702,22 @@ def _licao_12():
 # ══════════════════════════════════════════════════════
 def _licao_13():
     import pandas as pd
+    from modules import regiao as _rg
     _caixa("Analogia",
-           "O computador só lê números. Se lhe deres a palavra \"Talatona\", ele não percebe. "
+           f"O computador só lê números. Se lhe deres a palavra \"{_rg.bairros_licao()[0]}\", ele não percebe. "
            "E se compararmos <b>metros quadrados</b> com <b>número de quartos</b> sem cuidado, os metros gritam tão alto que ninguém ouve os quartos.", C_TEAL)
 
     _secao(1, "Transformar palavras em números (encoding)")
-    bairros = pd.DataFrame({"Bairro": ["Talatona", "Viana", "Cazenga", "Talatona", "Kilamba"]})
+    _b = _rg.bairros_licao()
+    bairros = pd.DataFrame({"Bairro": [_b[0], _b[2], _b[3], _b[0], _b[4]]})
     met = st.radio("Método", ["Um número por bairro (label encoding)", "Uma coluna por bairro (one-hot)"], key="l13_met")
     if met.startswith("Um número"):
         cod = {b: i for i, b in enumerate(sorted(bairros["Bairro"].unique()))}
         out = bairros.assign(Número=bairros["Bairro"].map(cod))
         st.dataframe(out, width="stretch", hide_index=True)
-        st.warning("Problema: o modelo pode pensar que Viana (3) é \"maior\" do que Kilamba (2) ou que Cazenga é a média de dois bairros. "
+        _ord = sorted(cod, key=cod.get)
+        st.warning(f"Problema: o modelo pode pensar que {_ord[3]} ({cod[_ord[3]]}) é \"maior\" do que {_ord[1]} ({cod[_ord[1]]}) "
+                   f"ou que {_ord[1]} é a média entre {_ord[0]} ({cod[_ord[0]]}) e {_ord[2]} ({cod[_ord[2]]}). "
                    "Os bairros não têm ordem! Serve para categorias com ordem natural (pequeno, médio, grande).")
     else:
         out = pd.get_dummies(bairros, columns=["Bairro"]).astype(int)

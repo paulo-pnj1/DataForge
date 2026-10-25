@@ -47,9 +47,11 @@ from modules.i18n import iniciar_idioma, idioma_actual
 from modules.i18n_patch import instalar as _instalar_i18n
 _instalar_i18n()      # texto, rótulos, tabelas e gráficos passam pela tradução (Português / English)
 iniciar_idioma()
+from modules.regiao import iniciar_regiao
+iniciar_regiao()
 
 from modules.utils import inject_css, C_TEXT_MUTE, C_BORDER, C_SURFACE, C_ACCENT, C_TEXT_SEC, C_TEXT, C_BG, C_SURFACE2, \
-    instalar_tema_graficos, carregar_tema, carregar_idioma
+    instalar_tema_graficos, carregar_tema, carregar_idioma, carregar_regiao
 from modules.auth import render_login_page, render_sidebar_user, get_user_role
 
 inject_css()
@@ -132,7 +134,7 @@ name = st.session_state.get("name", username)
 role = get_user_role(username, config)
 
 # Tema guardado na conta (claro por omissão): se for diferente do actual, volta a desenhar já com ele
-if carregar_tema(username) | carregar_idioma(username):
+if carregar_tema(username) | carregar_idioma(username) | carregar_regiao(username):
     st.rerun()
 
 # Aluno criado pelo professor: tem de trocar a palavra-passe temporária antes de usar a plataforma

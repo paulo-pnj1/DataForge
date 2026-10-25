@@ -181,11 +181,23 @@ def _traduzir_en(texto: str) -> str:
     return "".join(res)
 
 
+def traducao_activa() -> bool:
+    """True se o texto mostrado precisa de passar por `tr`: inglês, ou português adaptado a um país que não é Angola."""
+    if idioma_actual() == "en":
+        return True
+    from modules import regiao
+    return regiao.adapta()
+
+
 def tr(texto):
-    """Traduz `texto` para o idioma actual. Valores que não são texto passam inalterados."""
-    if not isinstance(texto, str) or not texto or idioma_actual() == "pt":
+    """Traduz `texto` para o idioma actual e adapta-o à região (moeda, cidade, variante do português).
+    Valores que não são texto passam inalterados."""
+    if not isinstance(texto, str) or not texto:
         return texto
-    return _traduzir_en(texto)
+    from modules import regiao
+    if idioma_actual() == "pt":
+        return regiao.localizar(texto)
+    return regiao.localizar(_traduzir_en(texto), "en")
 
 
 def tr_en(texto):
@@ -200,7 +212,7 @@ def tr_en(texto):
 # ══════════════════════════════════════════════════════
 def traduzir_figura_plotly(fig):
     """Traduz títulos, eixos, legendas e anotações de uma figura Plotly (altera a figura)."""
-    if idioma_actual() == "pt" or fig is None:
+    if not traducao_activa() or fig is None:
         return fig
     try:
         lay = fig.layout
@@ -245,7 +257,7 @@ def traduzir_figura_plotly(fig):
 
 
 def traduzir_figura_matplotlib(fig):
-    if idioma_actual() == "pt" or fig is None:
+    if not traducao_activa() or fig is None:
         return fig
     try:
         for ax in fig.axes:
@@ -267,7 +279,7 @@ def traduzir_figura_matplotlib(fig):
 
 def traduzir_tabela(df):
     """Devolve uma cópia da tabela com cabeçalhos (e índice de texto) traduzidos."""
-    if idioma_actual() == "pt":
+    if not traducao_activa():
         return df
     try:
         import pandas as pd

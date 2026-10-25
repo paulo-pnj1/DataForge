@@ -213,7 +213,8 @@ def render_nlp(username: str):
             if fonte == "Dataset embutido":
                 ds_nome = st.selectbox("Dataset", list(DATASETS_NLP.keys()), key="nlp_ds")
                 ds = DATASETS_NLP[ds_nome]
-                texts  = ds["texts"]
+                from modules.regiao import localizar as _loc      # as notícias de exemplo falam do país escolhido
+                texts  = [_loc(t) for t in ds["texts"]]
                 labels_raw = ds["labels"]
                 st.markdown(f'<div style="font-size:13px;color:var(--df-text2,#B8C4D8);font-weight:600;">{ds["desc"]}</div>',
                             unsafe_allow_html=True)
@@ -346,7 +347,8 @@ def render_nlp(username: str):
                 lr_l       = st.select_slider("Learning Rate", [0.0001, 0.001, 0.01], value=0.001, key="lstm_lr")
 
                 if st.button("Treinar LSTM", width='stretch', key="lstm_run"):
-                    _train_lstm(ds_l["texts"], ds_l["labels"], embed_dim, hidden_dim,
+                    from modules.regiao import localizar as _loc
+                    _train_lstm([_loc(t) for t in ds_l["texts"]], ds_l["labels"], embed_dim, hidden_dim,
                                 n_layers, dropout, epochs_l, lr_l, username)
 
             with col_l2:

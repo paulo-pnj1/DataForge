@@ -126,3 +126,15 @@ Página **Laboratório de ML** (menu do aluno › Ferramentas). Carrega um CSV/E
 
 O código está em `modules/ml_engine/` (sem Streamlit, testável) e `modules/laboratorio.py` (interface).
 Testes do motor: `pytest -q tests/test_data_loader.py tests/test_preprocessing.py tests/test_regression.py tests/test_classification.py tests/test_model_comparison.py tests/test_auto_ml.py tests/test_model_persistence.py tests/test_prediction_service.py tests/test_forecasting.py`
+
+## Países (mundo lusófono)
+
+O DataForge EDU adapta-se a **Angola, Moçambique, Brasil e Portugal** (escolha em «País / Country», no menu lateral e no ecrã de entrada; fica guardada na conta).
+O que muda: moeda, cidade e bairros dos datasets de exemplo e das lições, escala das notas (0–20, ou 0–10 no Brasil), ortografia
+(Acordo de 1990 fora de Angola), a variante do português (no Brasil: «você», «tela», «arquivo»...) e os exemplos e a variante que o tutor de IA usa.
+
+- Toda a configuração está em `modules/regiao.py` (dicionário `REGIOES`). Para acrescentar um país, copia uma entrada e preenche-a.
+- Os nomes internos dos datasets não mudam; só o texto mostrado (`regiao.localizar`, chamada por `i18n.tr`). Angola é o ponto de partida e não é alterada.
+- A adaptação do português do Brasil é automática (regras e dicionário). **Deve ser revista por um falante brasileiro** antes de se divulgar.
+- O painel Business e o conteúdo do e-mail continuam com exemplos de Angola.
+- Testes: `tests/test_regiao.py`.

@@ -16,7 +16,7 @@ from modules.i18n_seg import split_pieces, split_core   # noqa: E402
 
 _FUNCS_IA = {"_descrever_para_tutor", "_setup_para_tutor", "_loss_para_tutor", "_grupos_automaticos", "_registar_gen"}
 _CHAMADAS_IA = {"registar_ecra", "acrescentar_ecra", "_registar_gen", "registar"}
-_FICHEIROS_IA = {"i18n.py", "i18n_seg.py", "i18n_patch.py", "tutor_ia.py", "email_service.py"}
+_FICHEIROS_IA = {"i18n.py", "i18n_seg.py", "i18n_patch.py", "tutor_ia.py", "email_service.py", "regiao.py"}
 _LETRA = re.compile(r"[A-Za-zÀ-ÿ]")
 _ACENTO = re.compile(r"[À-ÿ]")
 # palavras muito comuns em português que quase não existem em inglês

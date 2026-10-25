@@ -282,7 +282,8 @@ def _normalizar(texto: str) -> str:
 
 
 def _chave_cache(*partes) -> str:
-    h = hashlib.sha256("\x1f".join(str(p) for p in partes).encode("utf-8")).hexdigest()[:40]
+    from modules import regiao      # a cache é partilhada: uma resposta no português do Brasil não pode servir a um aluno de Angola
+    h = hashlib.sha256("\x1f".join([regiao.regiao_actual()] + [str(p) for p in partes]).encode("utf-8")).hexdigest()[:40]
     return PREFIXO_CACHE + h
 
 
@@ -305,7 +306,14 @@ def _cache_gravar(chave: str, texto: str):
 
 
 def _idioma_pedido(lang: str) -> str:
-    return "English" if lang == "en" else "português de Angola (europeu, sem brasileirismos)"
+    """Língua (e variante do português) em que a IA responde: depende do país escolhido pelo aluno."""
+    from modules import regiao
+    return regiao.lingua_da_ia(lang)
+
+
+def _exemplos_pedido() -> str:
+    from modules import regiao
+    return regiao.exemplos_da_ia()
 
 
 # ══════════════════════════════════════════════════════
@@ -548,7 +556,7 @@ def perguntar_tutor(pergunta: str, titulo: str, contexto: str, historico: list, 
             if guardada:
                 return guardada
     sistema = (f"És um tutor simpático de Machine Learning para estudantes iniciantes, em {_idioma_pedido(lang)}. "
-               "Explicas com palavras simples, sem fórmulas pesadas, com um exemplo do dia-a-dia (de preferência de Angola: mercado, táxi, loja, escola). "
+               f"Explicas com palavras simples, sem fórmulas pesadas, com um exemplo do dia-a-dia (de preferência {_exemplos_pedido()}). "
                "Respostas curtas: no máximo 140 palavras, no máximo 2 parágrafos curtos ou uma lista de até 4 pontos. "
                "Usa o contexto dado (lição, resultados) para responder ao que o aluno está a ver, e cita os números dele quando ajudar. "
                "Se houver «O QUE O ALUNO ESTÁ A VER AGORA», é a descrição do gráfico e dos controlos dele: explica o gráfico com base nisso e nunca digas que não consegues ver o gráfico. "
@@ -618,7 +626,7 @@ def sugerir_aula(licao: dict, erros: int, alunos: int, username: str, lang: str 
     """Actividade curta para reforçar uma lição onde a turma erra. `licao` = {'titulo','ideia','resumo':[...]} (texto das lições)."""
     sistema = (f"Ajudas um professor de Machine Learning a preparar um reforço de aula, em {_idioma_pedido(lang)}. "
                "Propõe uma actividade de 10 a 15 minutos para explicar o conceito: 1) objectivo numa frase, 2) um exemplo do dia-a-dia "
-               "(de preferência de Angola: mercado, táxi, loja, escola), 3) uma pergunta para fazer à turma e o que esperar como resposta. "
+               f"(de preferência {_exemplos_pedido()}), 3) uma pergunta para fazer à turma e o que esperar como resposta. "
                "Usa só o conteúdo da lição fornecido. Máximo 190 palavras, sem markdown nem títulos. " + _REGRA_ROTULO)
     utilizador = json.dumps({"licao": {"titulo": str(licao.get("titulo", ""))[:120], "ideia": str(licao.get("ideia", ""))[:300],
                                        "resumo": [str(x)[:200] for x in (licao.get("resumo") or [])[:8]]},

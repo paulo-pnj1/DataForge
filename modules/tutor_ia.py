@@ -125,7 +125,9 @@ def resumir_resultado(res, limite: int = 1500) -> str:
 def registar(titulo: str, texto: str, estado: str = ""):
     """Um módulo diz ao tutor o que o aluno está a ver (resultado do treino actual).
     `estado`: descrição curta dos gráficos/controlos no ecrã (vai para «O QUE O ALUNO ESTÁ A VER AGORA»)."""
-    st.session_state["_ia_ctx"] = {"pagina": st.session_state.get("pagina"), "titulo": titulo, "texto": texto, "estado": estado}
+    from modules.regiao import localizar
+    st.session_state["_ia_ctx"] = {"pagina": st.session_state.get("pagina"), "titulo": localizar(titulo), "texto": localizar(texto),
+                                   "estado": localizar(estado)}
 
 
 def registar_ecra(titulo: str, linhas: list, estado: str = ""):
