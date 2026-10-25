@@ -103,7 +103,10 @@ REGIOES = {
     },
 }
 
-NOMES_PARA_SELETOR = {c: f"{r['bandeira']} {r['nome']}" for c, r in REGIOES.items()}
+# O Windows não desenha bandeiras emoji (aparece «BR»), por isso o seletor mostra só o nome. Um separador invisível no início
+# diz a `localizar` que isto é o nome do país no seletor e não se adapta (senão «Angola» apareceria como «Brasil»).
+MARCA_SELETOR = "\u2063"
+NOMES_PARA_SELETOR = {c: MARCA_SELETOR + r["nome"] for c, r in REGIOES.items()}
 
 
 # ══════════════════════════════════════════════════════
@@ -429,7 +432,7 @@ def localizar(texto, idioma: str = "pt"):
     cod = regiao_actual()
     if cod == REGIAO_PADRAO:
         return texto
-    if "\U0001F1E6" <= texto[0] <= "\U0001F1FF":     # bandeira: é o nome de um país no seletor, não se adapta
+    if texto[0] == MARCA_SELETOR:          # nome do país no seletor: não se adapta
         return texto
     c = REGIOES[cod]
     if idioma == "en":

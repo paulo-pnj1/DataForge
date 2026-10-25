@@ -98,7 +98,9 @@ def test_brasil_nao_parte_palavras_ao_meio():
 
 
 def test_nome_dos_paises_no_seletor_nao_se_adapta():
-    assert _loc("🇦🇴 Angola", "BR") == "🇦🇴 Angola" and _loc("🇧🇷 Brasil", "PT") == "🇧🇷 Brasil"
+    from modules.regiao import NOMES_PARA_SELETOR as N
+    assert _loc(N["AO"], "BR") == N["AO"] and _loc(N["BR"], "PT") == N["BR"] and _loc(N["AO"], "BR", "en") == N["AO"]
+    assert not any(ord(ch) >= 0x1F1E6 and ord(ch) <= 0x1F1FF for n in N.values() for ch in n)      # sem bandeiras emoji
 
 
 def test_etiquetas_html_nao_se_tocam():
