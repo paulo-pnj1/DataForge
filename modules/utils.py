@@ -367,7 +367,21 @@ def _css_global() -> str:
         color: {C_ACCENT} !important;
         border-radius: 6px !important;
     }}
-
+    /* Texto da tag: repetimos o caminho completo (select > tag > span) para ganhar da regra escura */
+    [data-baseweb="select"] [data-baseweb="tag"] {{
+        background-color: {C_ACCENT} !important;
+        border: 1px solid {C_ACCENT} !important;
+        color: var(--df-on-accent, #FFFFFF) !important;
+    }}
+    [data-baseweb="select"] [data-baseweb="tag"] span,
+    [data-baseweb="select"] [data-baseweb="tag"] [role="presentation"] {{
+        background-color: transparent !important;
+        color: var(--df-on-accent, #FFFFFF) !important;
+    }}
+    [data-baseweb="select"] [data-baseweb="tag"] svg {{
+        fill: var(--df-on-accent, #FFFFFF) !important;
+        color: var(--df-on-accent, #FFFFFF) !important;
+    }}
     /* ══════════════════════════════════════════════
        BOTÕES
     ══════════════════════════════════════════════ */
