@@ -282,9 +282,11 @@ def _css_painel(aberto: bool) -> str:
            "@media (max-width: 768px) { .st-key-ia_fab { right: 12px; bottom: 84px; } }")
     if not aberto:
         return css + "</style>"
-    # A coluna principal (stMain) é quem rola. Em vez de só afastar o conteúdo com padding, damos-lhe uma margem do
-    # tamanho do painel: assim a barra de rolagem da página fica À ESQUERDA do painel, visível, e não escondida debaixo dele.
-    css += ("[data-testid='stMain'], section.main { margin-right: %s !important; }"
+    # Reservamos o espaço do painel encolhendo a APLICAÇÃO inteira (menu lateral + página) em vez de só afastar o conteúdo:
+    # assim a página principal acaba onde o painel começa, nada fica escondido por baixo dele e a barra de rolagem da
+    # página fica visível, à esquerda do painel.
+    css += ("[data-testid='stApp'], .stApp { width: calc(100%% - %s) !important; }"
+            "[data-testid='stAppViewContainer'] { width: 100%% !important; }"
             "[data-testid='stMainBlockContainer'], .block-container { max-width: none !important; }"
             # painel: cabeçalho em cima, mensagens ao meio (a rolar), caixa de escrever em baixo
             ".st-key-ia_painel { position: fixed; top: 0; right: 0; width: %s; height: 100vh; height: 100dvh; z-index: 1000; display: flex;"
@@ -328,7 +330,7 @@ def _css_painel(aberto: bool) -> str:
             " font-weight: 500 !important; border-radius: 999px !important; padding: .25rem .9rem !important; background: transparent !important;"
             " border: 1px solid var(--df-accent) !important; box-shadow: none !important; transform: none !important; }"
             ".st-key-ia_chips .stButton > button:not([kind='secondary']) * { color: var(--df-accent) !important; }"
-            "@media (max-width: 900px) { [data-testid='stMain'], section.main { margin-right: 0 !important; }"
+            "@media (max-width: 900px) { [data-testid='stApp'], .stApp { width: 100%% !important; }"
             " .st-key-ia_painel { width: 100vw; } }"
             ".st-key-ia_painel [data-testid='stColumn'] { min-width: 0 !important; }") % (L, L)
     return css + "</style>"
