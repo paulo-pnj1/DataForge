@@ -205,10 +205,11 @@ def _css_global() -> str:
         [data-testid="stSidebar"] {{
             display: block !important;
             transform: none !important;
-            width: 290px !important;
-            min-width: 290px !important;
-            max-width: 290px !important;
-            flex: 0 0 290px !important;
+            /* largura automática: acompanha o tamanho da janela (mín. 240px, máx. 340px) */
+            width: clamp(240px, 20vw, 340px) !important;
+            min-width: clamp(240px, 20vw, 340px) !important;
+            max-width: clamp(240px, 20vw, 340px) !important;
+            flex: 0 0 clamp(240px, 20vw, 340px) !important;
             visibility: visible !important;
             opacity: 1 !important;
         }}
@@ -367,7 +368,8 @@ def _css_global() -> str:
         color: {C_ACCENT} !important;
         border-radius: 6px !important;
     }}
-    /* Texto da tag: repetimos o caminho completo (select > tag > span) para ganhar da regra escura */
+    /* Texto da tag: a regra `[data-baseweb="select"] span` pintava-o de preto por ter mais especificidade.
+       Aqui repetimos o caminho completo (select > tag > span) para ganhar, e usamos a cor de texto sobre fundo accent. */
     [data-baseweb="select"] [data-baseweb="tag"] {{
         background-color: {C_ACCENT} !important;
         border: 1px solid {C_ACCENT} !important;
@@ -382,6 +384,7 @@ def _css_global() -> str:
         fill: var(--df-on-accent, #FFFFFF) !important;
         color: var(--df-on-accent, #FFFFFF) !important;
     }}
+
     /* ══════════════════════════════════════════════
        BOTÕES
     ══════════════════════════════════════════════ */
