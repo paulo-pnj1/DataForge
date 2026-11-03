@@ -1079,6 +1079,14 @@ div[data-baseweb="select"] [data-baseweb="tag"], div[data-baseweb="select"] [dat
 div[data-baseweb="select"] [data-baseweb="tag"] svg, [data-baseweb="tag"] svg, [data-baseweb="tag"] [role="presentation"] { fill: #FFFFFF !important; color: #FFFFFF !important; }
 [data-baseweb="tag"] { background-color: var(--df-accent) !important; border-color: var(--df-accent) !important; }
 
+/* Streamlit recente (1.5x+): as etiquetas já não têm data-baseweb="tag", são <span data-tag> dentro de stMultiSelectTagsContainer.
+   Sem estas regras o texto ficava com a cor escura normal sobre o fundo azul. */
+[data-testid="stMultiSelectTagsContainer"] [data-tag] { background-color: var(--df-accent) !important; border-color: var(--df-accent) !important; }
+[data-testid="stMultiSelectTagsContainer"] [data-tag],
+[data-testid="stMultiSelectTagsContainer"] [data-tag] *,
+[data-tag], [data-tag] * { color: #FFFFFF !important; }
+[data-testid="stMultiSelectTagsContainer"] [data-tag] svg, [data-tag] svg { fill: #FFFFFF !important; color: #FFFFFF !important; }
+
 /* Menu lateral: botões com dica (tooltip) ocupam a largura toda */
 section[data-testid="stSidebar"] [data-testid="stTooltipHoverTarget"], section[data-testid="stSidebar"] .stButton { width: 100% !important; }
 section[data-testid="stSidebar"] [data-testid^="stBaseButton"] { width: 100% !important; border-radius: 8px !important; }
@@ -1127,6 +1135,7 @@ _CSS_ESCURO = """
 /* Azul mais fundo no tema escuro, para o texto branco ler-se bem */
 .stButton > button:not([kind="secondary"]), .stDownloadButton > button:not([kind="secondary"]),
 .stFormSubmitButton > button:not([kind="secondary"]), .stTabs [aria-selected="true"], [data-baseweb="tag"],
+[data-testid="stMultiSelectTagsContainer"] [data-tag],
 section[data-testid="stSidebar"] .stButton > button[kind="primary"],
 section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] { background: #1F6FEB !important; }
 [data-testid="stDataFrame"], [data-testid="stArrowVegaLiteChart"] { filter: invert(.91) hue-rotate(180deg); }   /* .91: fundo cinzento-escuro em vez de preto puro */
