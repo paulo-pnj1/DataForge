@@ -61,6 +61,13 @@ except ImportError:
 # ══════════════════════════════════════════════════════
 # CONFIGURAÇÃO DOS ALGORITMOS
 # ══════════════════════════════════════════════════════
+def _pyplot(fig):
+    """Mostra a figura e liberta a memória (os gráficos são redesenhados em cada execução)."""
+    st.pyplot(fig)
+    plt.close(fig)
+
+
+
 def get_algoritmos():
     algos = {
         "KNN": "K-Nearest Neighbors",
@@ -541,10 +548,15 @@ def _step4_treino(username: str):
                     nulos, scaler_o, ts, cv_k, username
                 )
                 if resultado:
-                    _render_resultados(resultado, algo, username)
+                    st.session_state["clf_res_guiado"] = (resultado, algo)   # sobrevive às re-execuções da página
             except Exception as e:
                 erro_box(f"Erro durante o treino: {str(e)}")
                 st.exception(e)
+
+    # Desenhado SEMPRE a partir da sessão: abrir o Tutor IA, carregar em «Prever» ou mexer num controlo não apaga os resultados
+    _guardado = st.session_state.get("clf_res_guiado")
+    if _guardado:
+        _render_resultados(_guardado[0], _guardado[1], username)
 
 
 # ══════════════════════════════════════════════════════
@@ -621,10 +633,14 @@ def _render_modo_livre(username: str):
                     nulos, scaler_o, test_size, cv_k, username
                 )
                 if resultado:
-                    _render_resultados(resultado, algo, username)
+                    st.session_state["clf_res_livre"] = (resultado, algo)    # sobrevive às re-execuções da página
             except Exception as e:
                 erro_box(f"Erro: {str(e)}")
                 st.exception(e)
+
+    _guardado = st.session_state.get("clf_res_livre")
+    if _guardado:
+        _render_resultados(_guardado[0], _guardado[1], username)
 
 
 # ══════════════════════════════════════════════════════
@@ -795,25 +811,25 @@ def _render_resultados(r: dict, algo: str, username: str):
     c1.metric("Média CV", f"{cv.mean():.3f}", help=AJUDA_METRICAS["Média CV"])
     c2.metric("Desvio Padrão", f"±{cv.std():.3f}", help=AJUDA_METRICAS["Desvio Padrão"])
     c3.metric("Min → Max", f"{cv.min():.3f} → {cv.max():.3f}")
-    st.pyplot(plot_cv_scores(cv))
+    _pyplot(plot_cv_scores(cv))
 
     # Visualizações
     section_title("VISUALIZAÇÕES")
     t1, t2, t3, t4 = st.tabs(["Matriz de Confusão", "Curva ROC", "Importância", "Relatório"])
 
     with t1:
-        st.pyplot(plot_confusion_matrix(r["y_test"], r["y_pred"], r["classes"]))
+        _pyplot(plot_confusion_matrix(r["y_test"], r["y_pred"], r["classes"]))
 
     with t2:
         if hasattr(r["model"], "predict_proba"):
-            st.pyplot(plot_roc_curve(r["model"], r["X_test"], r["y_test"], np.unique(r["y_test"])))
+            _pyplot(plot_roc_curve(r["model"], r["X_test"], r["y_test"], np.unique(r["y_test"])))
         else:
             info_box("Este algoritmo não suporta probabilidades - curva ROC não disponível.")
 
     with t3:
         fig_imp = plot_feature_importance(r["model"], r["feature_names"], algo)
         if fig_imp:
-            st.pyplot(fig_imp)
+            _pyplot(fig_imp)
         else:
             info_box("Este algoritmo não expõe importância de features directamente.")
 

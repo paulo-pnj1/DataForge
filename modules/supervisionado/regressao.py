@@ -343,11 +343,19 @@ def render_regressao(username: str):
     if st.button("Treinar", type="primary", key="btn_reg"):
         with st.spinner("A treinar..."):
             try:
-                _treinar_regressao(df, features, target, algo, params,
-                                   nulos, scaler_o, test_size, cv_k, username)
+                _res = _treinar_regressao(df, features, target, algo, params,
+                                          nulos, scaler_o, test_size, cv_k, username)
+                if _res:
+                    st.session_state["reg_res"] = _res      # fica guardado: sobrevive a qualquer re-execução da página
             except Exception as e:
                 erro_box(f"Erro: {str(e)}")
                 st.exception(e)
+
+    # Os resultados são desenhados SEMPRE a partir da sessão (e não só no clique do botão). Assim, abrir/fechar o
+    # Tutor IA, mexer num controlo ou qualquer outra re-execução da página já não os faz desaparecer.
+    _res = st.session_state.get("reg_res")
+    if _res:
+        _mostrar_resultados_regressao(_res)
 
 
 def _treinar_regressao(df, features, target, algo, params,
@@ -405,6 +413,33 @@ def _treinar_regressao(df, features, target, algo, params,
     add_pontos(username, 10, f"Treinou regressão {algo} - R²={r2:.3f}")
     save_user_progress(username, "supervisionado_regressao", {"ultimo_algo": algo, "ultimo_r2": round(r2, 4)})
 
+    # Exportar: o ficheiro .pkl é gerado uma vez, aqui, e guardado como bytes
+    buf = io.BytesIO()
+    joblib.dump({"model": model, "scaler": scaler, "encoders": encoders, "features": features}, buf)
+
+    return {
+        "algo": algo, "target": target, "features": list(features), "test_size": test_size,
+        "nulos": nulos, "scaler_o": scaler_o, "cv_k": cv_k, "n_linhas": len(df),
+        "y_test": y_test, "y_pred": y_pred, "cv_scores": cv_scores,
+        "r2": r2, "rmse": rmse, "mae": mae, "mse": mse,
+        "modelo_pkl": buf.getvalue(), "novo": True,
+    }
+
+
+def _mostrar_fig(fig):
+    """Mostra a figura e liberta a memória (os gráficos são redesenhados em cada execução)."""
+    st.pyplot(fig)
+    plt.close(fig)
+
+
+def _mostrar_resultados_regressao(res):
+    algo, target, features = res["algo"], res["target"], res["features"]
+    test_size, nulos, scaler_o, cv_k = res["test_size"], res["nulos"], res["scaler_o"], res["cv_k"]
+    y_test, y_pred, cv_scores = res["y_test"], res["y_pred"], res["cv_scores"]
+    r2, rmse, mae, mse = res["r2"], res["rmse"], res["mae"], res["mse"]
+    n_linhas = res["n_linhas"]
+    novo = res.pop("novo", False)          # «+10 pontos» só aparece na execução em que o treino aconteceu
+
     # Resultados
     section_title("RESULTADOS")
     c1, c2, c3, c4 = st.columns(4)
@@ -429,14 +464,14 @@ def _treinar_regressao(df, features, target, algo, params,
     c1, c2 = st.columns(2)
     c1.metric("R² médio (CV)", f"{cv_scores.mean():.4f}")
     c2.metric("Desvio padrão", f"±{cv_scores.std():.4f}")
-    st.pyplot(_plot_cv_scores_reg(cv_scores))
+    _mostrar_fig(_plot_cv_scores_reg(cv_scores))
 
     try:    # o tutor de IA precisa de saber o que está nos gráficos
         from modules.tutor_ia import acrescentar_ecra, intervalo
         _res = y_test - y_pred
         acrescentar_ecra("Resultado de regressão", [
             f"Página: Regressão. Algoritmo: {algo}. Alvo a prever (número): «{target}». Features ({len(features)}): {', '.join(str(f) for f in features[:20])}. "
-            f"{len(df)} linhas; {test_size:.0%} para teste; nulos: {nulos}; escala: {scaler_o}; validação cruzada com {cv_k} partes.",
+            f"{n_linhas} linhas; {test_size:.0%} para teste; nulos: {nulos}; escala: {scaler_o}; validação cruzada com {cv_k} partes.",
             f"Há 4 caixas: R² {r2:.4f} (1 = perfeito, 0 = tão mau como prever sempre a média), RMSE {rmse:.4f}, MAE {mae:.4f} (erros na mesma unidade de «{target}») e MSE {mse:.4f}.",
             f"GRÁFICO «Validação Cruzada»: barras com o R² de cada fold ({', '.join(f'{v:.3f}' for v in cv_scores)}), linha verde = média {cv_scores.mean():.3f}.",
             f"ABA «Real vs Previsto»: cada ponto é um caso do teste; eixo horizontal «Valor Real», vertical «Valor Previsto»; linha tracejada verde «Perfeito» é onde previsto = real. "
@@ -451,16 +486,14 @@ def _treinar_regressao(df, features, target, algo, params,
     section_title("VISUALIZAÇÕES")
     t1, t2 = st.tabs(["Real vs Previsto", "Resíduos"])
     with t1:
-        st.pyplot(_plot_real_vs_pred(y_test, y_pred))
+        _mostrar_fig(_plot_real_vs_pred(y_test, y_pred))
     with t2:
-        st.pyplot(_plot_residuos(y_test, y_pred))
+        _mostrar_fig(_plot_residuos(y_test, y_pred))
 
     # Exportar
     section_title("EXPORTAR")
-    buf = io.BytesIO()
-    joblib.dump({"model": model, "scaler": scaler, "encoders": encoders, "features": features}, buf)
-    buf.seek(0)
-    st.download_button("Descarregar modelo (.pkl)", data=buf,
+    st.download_button("Descarregar modelo (.pkl)", data=res["modelo_pkl"],
                        file_name=f"{algo.replace(' ','_').lower()}_reg.pkl",
-                       mime="application/octet-stream")
-    sucesso_box("Modelo treinado! +10 pontos ")
+                       mime="application/octet-stream", key="reg_download")
+    if novo:        # os pontos só foram dados nesta execução
+        sucesso_box("Modelo treinado! +10 pontos ")

@@ -258,7 +258,8 @@ def render_tutor_pagina(username: str, pagina: str, rotulo_pagina: str):
 # A página regista o que o aluno está a ver (registar_painel); o painel abre à direita, a página encolhe para lhe dar
 # espaço e, ao fechar, tudo volta ao que era. O estado (aberto/fechado) fica na sessão.
 # ══════════════════════════════════════════════════════
-LARGURA_PAINEL = 400
+# Largura automática do painel: acompanha a janela (mín. 320px, máx. 520px)
+LARGURA_PAINEL = "clamp(320px, 28vw, 520px)"
 
 
 def registar_painel(chave: str, titulo: str, contexto: str, sugestoes: list = None, usar_cache: bool = False,
@@ -281,9 +282,12 @@ def _css_painel(aberto: bool) -> str:
            "@media (max-width: 768px) { .st-key-ia_fab { right: 12px; bottom: 84px; } }")
     if not aberto:
         return css + "</style>"
-    css += ("[data-testid='stMainBlockContainer'], .block-container { padding-right: %dpx !important; max-width: none !important; }"
+    # A coluna principal (stMain) é quem rola. Em vez de só afastar o conteúdo com padding, damos-lhe uma margem do
+    # tamanho do painel: assim a barra de rolagem da página fica À ESQUERDA do painel, visível, e não escondida debaixo dele.
+    css += ("[data-testid='stMain'], section.main { margin-right: %s !important; }"
+            "[data-testid='stMainBlockContainer'], .block-container { max-width: none !important; }"
             # painel: cabeçalho em cima, mensagens ao meio (a rolar), caixa de escrever em baixo
-            ".st-key-ia_painel { position: fixed; top: 0; right: 0; width: %dpx; height: 100vh; height: 100dvh; z-index: 1000; display: flex;"
+            ".st-key-ia_painel { position: fixed; top: 0; right: 0; width: %s; height: 100vh; height: 100dvh; z-index: 1000; display: flex;"
             " flex-direction: column; gap: 0 !important; padding: 0 !important; overflow: hidden; background: var(--df-bg);"
             " border-left: 1px solid var(--df-border); box-shadow: -6px 0 24px rgba(0,0,0,.12); }"
             ".st-key-ia_head { flex: 0 0 auto; padding: .7rem 1rem; border-bottom: 1px solid var(--df-border); background: var(--df-surface); }"
@@ -324,9 +328,9 @@ def _css_painel(aberto: bool) -> str:
             " font-weight: 500 !important; border-radius: 999px !important; padding: .25rem .9rem !important; background: transparent !important;"
             " border: 1px solid var(--df-accent) !important; box-shadow: none !important; transform: none !important; }"
             ".st-key-ia_chips .stButton > button:not([kind='secondary']) * { color: var(--df-accent) !important; }"
-            "@media (max-width: 900px) { [data-testid='stMainBlockContainer'], .block-container { padding-right: 1rem !important; }"
+            "@media (max-width: 900px) { [data-testid='stMain'], section.main { margin-right: 0 !important; }"
             " .st-key-ia_painel { width: 100vw; } }"
-            ".st-key-ia_painel [data-testid='stColumn'] { min-width: 0 !important; }") % (L + 24, L)
+            ".st-key-ia_painel [data-testid='stColumn'] { min-width: 0 !important; }") % (L, L)
     return css + "</style>"
 
 
