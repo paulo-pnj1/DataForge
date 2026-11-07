@@ -49,7 +49,8 @@ def _cartao(meta: dict):
     elif tipo == "reforco_dqn":
         c3.metric("Média dos últimos 50", f"{m['media_ultimos_50']:.1f}" if isinstance(m.get("media_ultimos_50"), (int, float)) else "—")
     else:
-        c3.metric("Tipo", "Série temporal")
+        from modules.ml_engine.pacote_generico import TIPOS as _TIPOS_DL
+        c3.metric("Tipo", _TIPOS_DL.get(tipo, "Série temporal"))
     c4.metric("Guardado em", str(meta.get("criado_em", "—")))
 
 
@@ -310,6 +311,11 @@ def painel_previsao(username: str, p: str = "tm"):
     if meta.get("aviso_versoes"):
         st.warning(meta["aviso_versoes"])
     _cartao(meta)
+    from modules.ml_engine.pacote_generico import TIPOS as _TIPOS_DL
+    if meta.get("tipo") in _TIPOS_DL:       # texto, imagens, geradores e séries com rede neuronal
+        from modules.testar_modelos_dl import testar_generico
+        testar_generico(modelo, meta, p, mid)
+        return
     if meta.get("tipo") == "serie":
         _serie(modelo, meta, p)
         return

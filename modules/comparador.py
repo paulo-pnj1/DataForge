@@ -206,8 +206,10 @@ def _fmt(tipo, v):
 # ══════════════════════════════════════════════════════
 def _preparar_dados(df, features, target, tipo):
     X = df[features].copy()
+    encoders = {}
     for col in X.select_dtypes(include=["object", "category"]).columns:
-        X[col] = LabelEncoder().fit_transform(X[col].astype(str))
+        encoders[col] = LabelEncoder()
+        X[col] = encoders[col].fit_transform(X[col].astype(str))
     X = X.apply(pd.to_numeric, errors="coerce")
     X = X.fillna(X.median(numeric_only=True)).astype(float)
     y = df[target].copy()
@@ -219,17 +221,12 @@ def _preparar_dados(df, features, target, tipo):
     else:
         y = pd.to_numeric(y, errors="coerce")
         y = y.fillna(y.median()).to_numpy(dtype=float)
-    return X, np.asarray(y), classes
-
-
-def _ajustar_encoders(df, features) -> dict:
-    """Os mesmos LabelEncoders de `_preparar_dados` (um por coluna de texto), para o modelo poder ser guardado."""
-    return {c: LabelEncoder().fit(df[c].astype(str)) for c in df[features].select_dtypes(include=["object", "category"]).columns}
+    return X, np.asarray(y), classes, encoders
 
 
 def _run_comparison(df, features, target, algos, models_dict, tipo, test_size, cv_folds, username, dataset, palpite):
     try:
-        X, y, classes = _preparar_dados(df, features, target, tipo)
+        X, y, classes, encoders = _preparar_dados(df, features, target, tipo)
         clf = tipo == "Classificação"
         try:
             X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=test_size, random_state=42,
@@ -273,10 +270,10 @@ def _run_comparison(df, features, target, algos, models_dict, tipo, test_size, c
         res = {
             "id": time.time(), "tipo": tipo, "dataset": dataset, "alvo": target, "resultados": resultados, "algos": algos,
             "palpite": palpite, "features": list(X.columns), "classes": classes,
+            "encoders": encoders, "cat_cols": list(encoders),
             "X": X, "y": y, "X_tr": X_tr, "X_te": X_te, "y_tr": y_tr, "y_te": y_te,
             "preds": preds, "modelos": modelos, "cv": cv,
             "n_linhas": len(X), "n_feat": X.shape[1], "corr_media": corr_media,
-            "encoders": _ajustar_encoders(df, features), "_username": username,     # para «Guardar este modelo»
         }
         add_pontos(username, PONTOS_COMPARACAO, f"Comparação de {len(algos)} modelos")
         marcar_marco(username, "comparador")
@@ -757,7 +754,7 @@ def _tab_conhecer(res, an):
             unsafe_allow_html=True)
 
 
-def _show_comparison_result(tipo):
+def _show_comparison_result(tipo, username=None):
     res = st.session_state.get("cmp_result")
     if not res or res.get("tipo") != tipo:
         st.markdown(f"""<div style="text-align:center;padding:3.5rem;color:var(--df-text3,#7A8BA8);border:2px dashed var(--df-border2,#3A4560);border-radius:16px;margin-top:1rem;">
@@ -780,24 +777,12 @@ def _show_comparison_result(tipo):
         with aba:
             fn(res, an)
 
-    # Guardar um dos modelos comparados, para o testar mais tarde com dados novos
-    if res.get("encoders") is not None and res.get("modelos"):
-        clf = tipo == "Classificação"
-        st.markdown("---")
-        escolhido = st.selectbox("Guardar o modelo", list(res["modelos"]), key="cmp_gd_algo",
-                                 index=list(res["modelos"]).index(an["campeao"]) if an["campeao"] in res["modelos"] else 0)
-        linha = next((x for x in res["resultados"] if x["Algoritmo"] == escolhido), {})
-        le = None
-        if clf:
-            le = LabelEncoder()
-            le.classes_ = np.array(res["classes"])
-        from modules.guardar_ui import bloco_guardar
-        bloco_guardar(
-            res.get("_username", ""), res["modelos"][escolhido], chave=f"cmp_gd_{escolhido}", tarefa="classificacao" if clf else "regressao",
-            features=res["features"], alvo=res["alvo"], algoritmo=escolhido, X_ref=res["X"], origem="Comparador de Modelos",
-            encoders=res["encoders"], le_target=le,
-            metricas={k: v for k, v in linha.items() if k in ("Accuracy", "F1 Score", "R²", "RMSE", "CV Accuracy", "CV R²")},
-            n_treino=len(res["X_tr"]), n_teste=len(res["X_te"]))
+    if username:
+        with st.expander("Guardar um destes modelos para testar com dados novos"):
+            nome_alg = st.selectbox("Que modelo?", list(res["modelos"]), key=f"cmp_gd_alg_{res['id']}")
+            from modules.guardar_ui import bloco_guardar
+            from modules.ml_engine.modelo_legado import do_comparador
+            bloco_guardar(username, f"cmp_{res['id']}_{nome_alg}", f"{nome_alg} – {res['alvo']}", lambda nome: do_comparador(res, nome_alg, nome))
 
 
 # ══════════════════════════════════════════════════════
@@ -863,4 +848,4 @@ def render_comparador(username: str):
                     else:
                         _run_comparison(df, features, target, algos, models_dict, tipo, test_size, cv_folds, username, nm, palpite)
 
-    _show_comparison_result(tipo)
+    _show_comparison_result(tipo, username)

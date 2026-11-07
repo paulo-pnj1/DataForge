@@ -849,15 +849,12 @@ def _render_resultados(r: dict, algo: str, username: str):
     section_title("PREVISÃO INTERACTIVA")
     _previsao_interactiva(r)
 
-    # Guardar na conta para testar mais tarde com dados novos
-    section_title("GUARDAR E TESTAR COM DADOS NOVOS")
+    # Guardar na conta e testar com dados novos (qualquer algoritmo)
+    section_title("GUARDAR O MODELO")
     from modules.guardar_ui import bloco_guardar
-    bloco_guardar(
-        username, r["model"], chave="clf_gd", tarefa="classificacao", features=r["feature_names"],
-        alvo=(r.get("setup") or {}).get("target", "alvo"), algoritmo=algo, X_ref=r["df_features"], origem="Classificação",
-        scaler=r["scaler"], encoders=r["encoders"], le_target=r["le_target"],
-        metricas={"accuracy": r["acc"], "precision": r["prec"], "recall": r["rec"], "f1": r["f1"]},
-        n_treino=len(r["X_train"]), n_teste=len(r["X_test"]))
+    from modules.ml_engine.modelo_legado import de_classificacao
+    bloco_guardar(username, f"clf_{id(r)}", f"{algo} – {(r.get('setup') or {}).get('target', '')}",
+                  lambda nome: de_classificacao(r, algo, nome))
 
     # Exportar modelo
     section_title("EXPORTAR MODELO")

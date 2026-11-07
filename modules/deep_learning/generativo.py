@@ -231,10 +231,10 @@ def render_generativo(username: str):
         with col2:
             res = st.session_state.get("ae_result", {})
             if res:
-                from modules.guardar_ui import bloco_guardar_generico
-                if res.get("_obj"):
-                    bloco_guardar_generico(username, "generativo", res["_obj"], subtipo="ae", chave="ae_gd", algoritmo="Autoencoder",
-                                           origem="Modelos Generativos", metricas={"loss": res["loss_final"]})
+                section_title("GUARDAR O MODELO")
+                from modules.guardar_ui import bloco_guardar
+                from modules.ml_engine.modelos_dl import de_generativo
+                bloco_guardar(username, f"ae_{id(res)}", "Autoencoder", lambda nome: de_generativo(res, "ae", nome))
                 c1, c2 = st.columns(2)
                 c1.metric("Loss Final", f"{res['loss_final']:.6f}")
                 c2.metric("Épocas", res["epochs"])
@@ -312,10 +312,10 @@ def render_generativo(username: str):
         with col2v:
             res_v = st.session_state.get("vae_result", {})
             if res_v:
-                from modules.guardar_ui import bloco_guardar_generico
-                if res_v.get("_obj"):
-                    bloco_guardar_generico(username, "generativo", res_v["_obj"], subtipo="vae", chave="vae_gd", algoritmo="VAE",
-                                           origem="Modelos Generativos", metricas={"loss": res_v["loss_final"]})
+                section_title("GUARDAR O MODELO")
+                from modules.guardar_ui import bloco_guardar
+                from modules.ml_engine.modelos_dl import de_generativo
+                bloco_guardar(username, f"vae_{id(res_v)}", "VAE", lambda nome: de_generativo(res_v, "vae", nome))
                 c1, c2 = st.columns(2)
                 c1.metric("Loss Final", f"{res_v['loss_final']:.2f}")
                 c2.metric("Épocas", res_v["epochs"])
@@ -386,11 +386,10 @@ def render_generativo(username: str):
         with col2g:
             res_g = st.session_state.get("gan_result", {})
             if res_g:
-                from modules.guardar_ui import bloco_guardar_generico
-                if res_g.get("_obj"):
-                    bloco_guardar_generico(username, "generativo", res_g["_obj"], subtipo="gan", chave="gan_gd", algoritmo="GAN",
-                                           origem="Modelos Generativos",
-                                           metricas={"loss_g": res_g["g_losses"][-1], "loss_d": res_g["d_losses"][-1]})
+                section_title("GUARDAR O MODELO")
+                from modules.guardar_ui import bloco_guardar
+                from modules.ml_engine.modelos_dl import de_generativo
+                bloco_guardar(username, f"gan_{id(res_g)}", "GAN", lambda nome: de_generativo(res_g, "gan", nome))
                 c1, c2, c3 = st.columns(3)
                 c1.metric("Loss G Final", f"{res_g['g_losses'][-1]:.4f}")
                 c2.metric("Loss D Final", f"{res_g['d_losses'][-1]:.4f}")
