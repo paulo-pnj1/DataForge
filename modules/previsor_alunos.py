@@ -110,16 +110,17 @@ def fora_do_intervalo(pacote: dict, valores: dict) -> list:
 
 
 # ── Interface ─────────────────────────────────────────────────────────────────────────────────────
-def render_previsor_alunos(username: str = ""):
+def render_previsor_alunos(username: str = "", com_cabecalho: bool = True):
     import pandas as pd
     import streamlit as st
 
-    try:
-        from modules.utils import page_header
-        page_header("Previsor de Alunos", "Usa um modelo KNN já treinado para fazer previsões")
-    except Exception:
-        st.title("Previsor de Alunos")
-        st.caption("Usa um modelo KNN já treinado para fazer previsões.")
+    if com_cabecalho:
+        try:
+            from modules.utils import page_header
+            page_header("Previsor de Alunos", "Usa um modelo KNN já treinado para fazer previsões")
+        except Exception:
+            st.title("Previsor de Alunos")
+            st.caption("Usa um modelo KNN já treinado para fazer previsões.")
 
     @st.cache_resource(show_spinner=False)
     def _modelo():
@@ -164,7 +165,8 @@ def render_previsor_alunos(username: str = ""):
     p_sim = res["probabilidades"].get("sim", 0.0)
     st.subheader(TITULO_RESULTADO)
     st.metric("Previsão", TEXTO_SIM if res["classe"] == "sim" else TEXTO_NAO)
-    st.progress(p_sim, text=f"Dos 5 vizinhos mais parecidos, {round(p_sim * 5)} responderam «sim» ({p_sim:.0%})")
+    st.caption(f"Dos 5 vizinhos mais parecidos, {round(p_sim * 5)} responderam «sim» ({p_sim:.0%})")
+    st.progress(float(p_sim))
 
     with st.expander("Como o modelo decidiu (os 5 alunos mais parecidos)", expanded=True):
         st.caption("O KNN não tem fórmulas: olha para os alunos mais próximos nos dados de treino e vota. "

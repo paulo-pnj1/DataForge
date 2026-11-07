@@ -100,14 +100,6 @@ def _preparar(df: pd.DataFrame, alvo: str, rotulos=None):
 # ══════════════════════════════════════════════════════
 # TREINO
 # ══════════════════════════════════════════════════════
-def _guardar_pm(nome_modelo: str):
-    """Guarda o Random Forest deste problema como Pipeline completo (o mesmo algoritmo, os mesmos parâmetros e a mesma divisão)."""
-    from modules.laboratorio_avaliacao import do_primeiro_modelo
-    from modules.ml_engine import ciclo_ml as cl
-    dados, r = do_primeiro_modelo()
-    return r.pipeline, cl.meta_ciclo(dados, r, nome_modelo, "primeiro modelo")
-
-
 def _treinar(nome: str, username: str) -> dict:
     cfg = PROBLEMAS[nome]
     df, _, _ = carregar_dataset_embutido(cfg["dataset"])
@@ -132,6 +124,7 @@ def _treinar(nome: str, username: str) -> dict:
     y_base = base.predict(X_te)
 
     res = {
+        "_df_raw": df.drop(columns=[cfg["alvo"]]), "_username": username,      # para «Guardar este modelo»
         "nome": nome, "cfg": cfg, "modelo": modelo, "X_te": X_te, "y_te": y_te, "y_pred": y_pred,
         "n_treino": len(X_tr), "n_teste": len(X_te), "colunas": list(X.columns),
         "importancias": modelo.feature_importances_,
@@ -288,6 +281,17 @@ def _mostrar_resultado(r: dict):
     except Exception:
         pass
 
+    # Guardar na conta para testar mais tarde com dados novos
+    if r.get("_df_raw") is not None:
+        from modules.guardar_ui import bloco_guardar
+        met = ({"accuracy": r["acc"], "f1": r["f1"], "precision": r["prec"], "recall": r["rec"]} if clf
+               else {"r2": r["r2"], "rmse": r["rmse"], "mae": r["mae"]})
+        bloco_guardar(
+            r.get("_username", ""), r["modelo"], chave="pm_gd", tarefa="classificacao" if clf else "regressao",
+            features=list(r["_df_raw"].columns), alvo=cfg["alvo"], algoritmo="Random Forest", X_ref=r["_df_raw"],
+            origem="O Meu Primeiro Modelo", nome_padrao=r["nome"], colunas_dummy=r["colunas"], metricas=met,
+            n_treino=r["n_treino"], n_teste=r["n_teste"])
+
     # Próximos passos
     section_title("E AGORA?")
     c1, c2, c3 = st.columns(3)
@@ -337,8 +341,5 @@ def render_primeiro_modelo(username: str):
     if res and res["nome"] == nome:
         st.markdown("#### 3. Resultado")
         _mostrar_resultado(res)
-        st.markdown("#### 4. Guarda o modelo e testa-o com dados novos")
-        from modules.guardar_ui import bloco_guardar
-        bloco_guardar(username, f"pm_{id(res)}", f"{nome} (Primeiro Modelo)", _guardar_pm)
     elif res:
         st.info("Mudaste de problema. Carrega em **Treinar o modelo agora** para ver o novo resultado.")

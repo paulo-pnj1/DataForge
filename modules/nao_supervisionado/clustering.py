@@ -331,7 +331,8 @@ def render_clustering(username: str):
                         "labels": labels, "X_pca": X_pca, "X_scaled": X_scaled,
                         "n_clusters": n_clusters, "n_ruido": n_ruido,
                         "sil": sil_score, "ch": ch_score, "db": db_score,
-                        "model": model, "features": features
+                        "model": model, "features": features,
+                        "scaler": scaler if normalizar else None, "X_ref": df[features].dropna(),   # para «Guardar este modelo»
                     }
                     sucesso_box(f"Clustering concluído! {n_clusters} clusters encontrados.")
                     add_pontos(username, 10, f"Clustering com {st.session_state.cl_algo_label}")
@@ -358,6 +359,16 @@ def render_clustering(username: str):
                 c2.metric("Pontos de ruído", n_ruido)
                 c3.metric("Silhouette", f"{res['sil']:.3f}" if res['sil'] is not None else "N/A")
                 c4.metric("Davies-Bouldin", f"{res['db']:.3f}" if res['db'] is not None else "N/A")
+
+                # Guardar na conta para atribuir grupos a casos novos mais tarde
+                if res.get("X_ref") is not None:
+                    from modules.guardar_ui import bloco_guardar
+                    bloco_guardar(
+                        username, res["model"], chave="cl_gd", tarefa="agrupamento", features=res["features"], alvo="grupo",
+                        algoritmo=str(st.session_state.get("cl_algo_label", "Clustering")), X_ref=res["X_ref"],
+                        origem="Clustering", scaler=res.get("scaler"),
+                        metricas={"silhouette": res.get("sil"), "davies_bouldin": res.get("db"), "grupos": res.get("n_clusters")},
+                        n_treino=int(len(res["X_ref"])))
 
                 st.markdown('<div style="height:1rem"></div>', unsafe_allow_html=True)
 

@@ -1,3 +1,14 @@
+# ATUALIZAÇÃO: «Testar Modelo» (substitui o menu «Previsor de Alunos»)
+
+- O menu agora chama-se **Testar Modelo** (`modules/testar_modelo.py`, chave `testar_modelo`) e prevê com **qualquer modelo guardado**:
+  classificação, regressão, clustering, anomalias e séries. Testa um caso, uma tabela editável ou um ficheiro CSV/Excel.
+- O KNN dos alunos continua na lista como «Exemplo do projecto».
+- Em **Classificação, Regressão, MLP, Comparador, O Meu Primeiro Modelo, Clustering e Anomalias** há agora o bloco
+  «Guardar este modelo» (`modules/guardar_ui.py`). Guardam-se também o scaler e os codificadores (`modules/ml_engine/pacote_modelo.py`).
+- NLP, Visão, Generativos e Reforço ainda não se guardam (não usam tabelas).
+
+---
+
 # Previsor de Alunos (KNN) para o DataForge EDU
 
 ## O que vem aqui
