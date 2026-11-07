@@ -231,6 +231,10 @@ def render_generativo(username: str):
         with col2:
             res = st.session_state.get("ae_result", {})
             if res:
+                from modules.guardar_ui import bloco_guardar_generico
+                if res.get("_obj"):
+                    bloco_guardar_generico(username, "generativo", res["_obj"], subtipo="ae", chave="ae_gd", algoritmo="Autoencoder",
+                                           origem="Modelos Generativos", metricas={"loss": res["loss_final"]})
                 c1, c2 = st.columns(2)
                 c1.metric("Loss Final", f"{res['loss_final']:.6f}")
                 c2.metric("Épocas", res["epochs"])
@@ -308,6 +312,10 @@ def render_generativo(username: str):
         with col2v:
             res_v = st.session_state.get("vae_result", {})
             if res_v:
+                from modules.guardar_ui import bloco_guardar_generico
+                if res_v.get("_obj"):
+                    bloco_guardar_generico(username, "generativo", res_v["_obj"], subtipo="vae", chave="vae_gd", algoritmo="VAE",
+                                           origem="Modelos Generativos", metricas={"loss": res_v["loss_final"]})
                 c1, c2 = st.columns(2)
                 c1.metric("Loss Final", f"{res_v['loss_final']:.2f}")
                 c2.metric("Épocas", res_v["epochs"])
@@ -378,6 +386,11 @@ def render_generativo(username: str):
         with col2g:
             res_g = st.session_state.get("gan_result", {})
             if res_g:
+                from modules.guardar_ui import bloco_guardar_generico
+                if res_g.get("_obj"):
+                    bloco_guardar_generico(username, "generativo", res_g["_obj"], subtipo="gan", chave="gan_gd", algoritmo="GAN",
+                                           origem="Modelos Generativos",
+                                           metricas={"loss_g": res_g["g_losses"][-1], "loss_d": res_g["d_losses"][-1]})
                 c1, c2, c3 = st.columns(3)
                 c1.metric("Loss G Final", f"{res_g['g_losses'][-1]:.4f}")
                 c2.metric("Loss D Final", f"{res_g['d_losses'][-1]:.4f}")
@@ -464,6 +477,7 @@ def _train_autoencoder(X, latent_dim, hidden_dims, epochs, lr, username):
             "X_orig": X, "X_rec": X_rec.numpy(), "Z": Z.numpy(),
             "losses": losses, "loss_final": losses[-1],
             "epochs": epochs, "latent_dim": latent_dim,
+            "_obj": {"model": model, "input_dim": int(X.shape[1])},
             "setup": {"camadas": list(hidden_dims), "lr": lr, "n": int(len(X))}
         }
         add_pontos(username, 15, "Autoencoder")
@@ -505,6 +519,7 @@ def _train_vae(X, latent_dim, hidden_dim, epochs, lr, n_gen, username):
             "X_orig": X, "X_gen": X_gen, "Z": Z,
             "losses": losses, "loss_final": losses[-1],
             "epochs": epochs, "ld": latent_dim,
+            "_obj": {"model": model, "latent_dim": int(latent_dim)},
             "setup": {"hidden": hidden_dim, "lr": lr, "n": int(len(X)), "n_gen": int(n_gen)}
         }
         add_pontos(username, 20, "VAE")
@@ -569,6 +584,7 @@ def _train_gan(X, noise_dim, hidden_dim, epochs, lr, n_gen, username):
             "X_real": X, "X_fake": X_fake,
             "g_losses": g_losses, "d_losses": d_losses,
             "epochs": epochs,
+            "_obj": {"model": G, "noise_dim": int(noise_dim)},
             "setup": {"noise": noise_dim, "hidden": hidden_dim, "lr": lr, "n": int(len(X)), "n_gen": int(n_gen)}
         }
         add_pontos(username, 25, "GAN")

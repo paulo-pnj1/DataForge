@@ -211,6 +211,11 @@ def render_series_temporais(username: str):
         with col_res:
             res = st.session_state.get("st_result", {})
             if res:
+                from modules.guardar_ui import bloco_guardar_generico
+                if res.get("_obj"):
+                    bloco_guardar_generico(username, "serie_dl", res["_obj"], chave="serdl_gd",
+                                           algoritmo=str((res.get("setup") or {}).get("modelo", "LSTM")), origem="Séries Temporais",
+                                           metricas={"rmse": res["rmse"], "mae": res["mae"]})
                 c1, c2, c3 = st.columns(3)
                 c1.metric("RMSE",  f"{res['rmse']:.4f}")
                 c2.metric("MAE",   f"{res['mae']:.4f}")
@@ -422,6 +427,7 @@ def _train_lstm_gru(valores, modelo_tipo, seq_len, hidden_sz, n_layers,
             "fig_pred": fig_pred, "fig_loss": fig_loss,
             "y_real": y_real_all, "y_futuro": y_futuro,
             "losses": losses, "y_pred": y_pred, "y_real_test": y_real_test,
+            "_obj": {"model": model, "scaler": scaler, "last_seq": scaled[-seq_len:].copy(), "seq_len": int(seq_len)},
             "setup": {"modelo": modelo_tipo, "seq": seq_len, "hidden": hidden_sz, "layers": n_layers, "dropout": dropout, "lr": lr,
                       "test_pct": test_pct, "n_futuro": n_futuro, "n_total": int(len(valores)), "n_test": int(n_test),
                       "min": float(np.min(valores)), "max": float(np.max(valores))}

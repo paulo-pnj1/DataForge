@@ -1,0 +1,21 @@
+{
+ "Escreve um texto para classificar": "Write a text to classify",
+ "Falta uma biblioteca para usar este modelo neste ambiente (por exemplo o PyTorch).": "A library needed to use this model is missing in this environment (for example PyTorch).",
+ "O modelo não conseguiu processar estes dados. Verifica-os ou treina o modelo outra vez.": "The model could not process this data. Check it or train the model again.",
+ "Ficheiro com os casos (CSV ou Excel, só colunas numéricas)": "File with the cases (CSV or Excel, numeric columns only)",
+ "Erro alto = caso que o autoencoder reconstrói mal, ou seja, diferente do que viu no treino.": "High error = a case the autoencoder rebuilds badly, i.e. different from what it saw in training.",
+ "Melhor acção do agente em cada célula da grelha (★ objectivo, ■ obstáculo, ✖ armadilha).": "Best action of the agent in each grid cell (★ goal, ■ obstacle, ✖ trap).",
+ "Guardado, podes testá-lo com dados novos na página «Testar Modelo». Só tu o vês e fica protegido por uma assinatura.": "Once saved, you can test it with new data on the «Test Model» page. Only you can see it and it is protected by a signature.",
+ "Só abras ficheiros .joblib que tu mesmo descarregaste: abrir um executa código.": "Only open .joblib files you downloaded yourself: opening one runs code.",
+ "Gerador de dados": "Data generator",
+ "Reforço (Q-Learning)": "Reinforcement (Q-Learning)",
+ "Reforço (DQN)": "Reinforcement (DQN)",
+ "Este modelo não gera dados novos: usa «reconstruir».": "This model does not generate new data: use «reconstruct».",
+ "Tipo de modelo desconhecido.": "Unknown model type.",
+ "Escreve um texto com palavras.": "Write a text with words.",
+ "Só o autoencoder reconstrói dados.": "Only the autoencoder rebuilds data.",
+ "O modelo espera {} colunas numéricas e a tabela tem {}.": "The model expects {} numeric columns and the table has {}.",
+ "Este algoritmo (t-SNE) só projecta os dados com que foi treinado.": "This algorithm (t-SNE) only projects the data it was trained on.",
+ "Este agente (DQN) foi treinado no CartPole. Descarrega o ficheiro .joblib para o usar com a biblioteca gymnasium no teu computador: `d = joblib.load(f); rede = d[\"modelo\"].objetos[\"model\"]`.": "This agent (DQN) was trained on CartPole. Download the .joblib file to use it with the gymnasium library on your computer: `d = joblib.load(f); net = d[\"modelo\"].objetos[\"model\"]`.",
+ "Este algoritmo (t-SNE) só projecta os dados com que foi treinado, por isso não se pode usar em dados novos. Podes descarregá-lo na mesma. PCA, PCA com kernel, ICA, Análise Factorial e UMAP sabem projectar dados novos.": "This algorithm (t-SNE) only projects the data it was trained on, so it cannot be used on new data. You can still download it. PCA, Kernel PCA, ICA, Factor Analysis and UMAP can project new data."
+}

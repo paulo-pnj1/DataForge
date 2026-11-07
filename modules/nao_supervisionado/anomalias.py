@@ -79,8 +79,8 @@ def render_anomalias(username: str):
                     aviso_box("Selecciona pelo menos 1 feature.")
                 else:
                     X = df[features].dropna().to_numpy(dtype=float, na_value=0)
-                    sc_an = StandardScaler() if normalizar else None
-                    X_sc = sc_an.fit_transform(X) if normalizar else X
+                    _sc = StandardScaler() if normalizar else None
+                    X_sc = _sc.fit_transform(X) if normalizar else X
                     with st.spinner("A detectar..."):
                         try:
                             if algo == "iforest":
@@ -114,8 +114,8 @@ def render_anomalias(username: str):
                                 "algo": algo_label, "df_idx": df[features].dropna().index,
                                 "dataset": nm if fonte == "Embutido" else "CSV do aluno", "features": list(features),
                                 "normalizar": bool(normalizar), "contaminacao": float(contaminacao),
+                                "modelo": m, "scaler": _sc, "X_ref": df[features].dropna(),     # para «Guardar este modelo»
                                 "var_pca": [float(v) * 100 for v in pca_v.explained_variance_ratio_],
-                                "modelo": m, "scaler": sc_an, "X_raw": X, "X_sc": X_sc,
                             }
                             add_pontos(username, 8, f"Anomalias {algo_label}")
                             sucesso_box(f"{n_anom} anomalias detectadas ({n_anom/(n_anom+n_norm)*100:.1f}%)")
@@ -135,6 +135,14 @@ def render_anomalias(username: str):
             c1.metric("Normais",   n_norm, f"{n_norm/total*100:.1f}%")
             c2.metric("Anomalias", n_anom, f"{n_anom/total*100:.1f}%", delta_color="inverse")
             c3.metric("Total",     total)
+
+            # Guardar na conta para avaliar casos novos mais tarde
+            if res.get("modelo") is not None:
+                from modules.guardar_ui import bloco_guardar
+                bloco_guardar(
+                    username, res["modelo"], chave="an_gd", tarefa="anomalias", features=res["features"], alvo="anomalia",
+                    algoritmo=str(res["algo"]), X_ref=res["X_ref"], origem="Detecção de Anomalias", scaler=res.get("scaler"),
+                    metricas={"contaminacao": res.get("contaminacao"), "anomalias": n_anom}, n_treino=int(total))
 
             # Scatter
             fig = go.Figure()
@@ -191,11 +199,6 @@ def render_anomalias(username: str):
                     f"Vê um gráfico de pontos PC1 x PC2 (azul normal, vermelho anomalia, {total} pontos) e uma pizza com a proporção.")
             except Exception:
                 pass
-
-            section_title("GUARDAR O MODELO")
-            from modules.guardar_ui import bloco_guardar
-            from modules.ml_engine.modelos_extra import de_anomalias
-            bloco_guardar(username, f"an_{id(res)}", f"{res['algo']} – anomalias", lambda nome: de_anomalias(res, nome))
 
             teoria_box("Como interpretar",
                 "Pontos <strong style='color:#FF6B6B;'>vermelhos</strong> são anomalias - afastam-se do padrão aprendido. "

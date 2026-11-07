@@ -228,7 +228,8 @@
   "modules/deep_learning/nlp.py:114"
  ],
  "[^a-záéíóúàâêôãõü\\s]": [
-  "modules/deep_learning/nlp.py:145"
+  "modules/deep_learning/nlp.py:145",
+  "modules/ml_engine/pacote_generico.py:32"
  ],
  "modelo guardado id=%s": [
   "modules/ml_engine/model_persistence.py:171"

@@ -79,7 +79,7 @@ def _modelos_do_laboratorio() -> list:
     return out
 
 
-def do_primeiro_modelo():
+def _do_primeiro_modelo():
     """Volta a treinar o Random Forest do «Primeiro Modelo» pelo motor do Laboratório (com Pipeline e sem fuga de dados)."""
     from modules.primeiro_modelo import PROBLEMAS
     from modules.utils import carregar_dataset_embutido
@@ -122,7 +122,7 @@ def _passo_modelo():
             elif st.button("Avaliar o modelo do Primeiro Modelo", type="primary", key="av_usar_pm"):
                 with st.spinner("A preparar o modelo…"):
                     try:
-                        feito = do_primeiro_modelo()
+                        feito = _do_primeiro_modelo()
                     except Exception as e:
                         feito = None
                         st.error(f"Não consegui preparar este modelo. (Detalhe: {e})")
@@ -423,9 +423,6 @@ def _etapa_guardar(av, username):
             st.error(str(e))
         except Exception:
             st.error("Não consegui guardar o modelo.")
-    if av.get("salvo") and st.button("Testar este modelo com dados novos", key="av_g_testar"):
-        st.session_state["tm_mod"] = av["salvo"]["id"]
-        ir_para("testar_modelos")
     st.markdown("#### Descarregar")
     meta = av.get("salvo") or _meta(av)
     try:

@@ -247,6 +247,11 @@ def render_nlp(username: str):
         with col_res:
             res = st.session_state.get("nlp_bow_res", {})
             if res:
+                from modules.guardar_ui import bloco_guardar_generico
+                bloco_guardar_generico(
+                    username, "texto", {"vectorizer": res["vectorizer"], "model": res["model"], "class_names": res["class_names"]},
+                    chave="nlpb_gd", algoritmo=f"{res['setup']['vec']} + {res['setup']['clf']}", origem="NLP",
+                    metricas={"accuracy": res["acc"], "f1": res["f1"]})
                 c1, c2, c3 = st.columns(3)
                 c1.metric("Accuracy",  f"{res['acc']:.1%}")
                 c2.metric("F1 Macro",  f"{res['f1']:.1%}")
@@ -354,6 +359,10 @@ def render_nlp(username: str):
             with col_l2:
                 res_l = st.session_state.get("nlp_lstm_res", {})
                 if res_l:
+                    from modules.guardar_ui import bloco_guardar_generico
+                    if res_l.get("_obj"):
+                        bloco_guardar_generico(username, "texto_lstm", res_l["_obj"], chave="nlpl_gd", algoritmo="LSTM",
+                                               origem="NLP", metricas={"accuracy": res_l["acc"]})
                     c1, c2 = st.columns(2)
                     c1.metric("Accuracy Final", f"{res_l['acc']:.1%}")
                     c2.metric("Épocas", res_l["epochs"])
@@ -506,6 +515,7 @@ def _train_lstm(texts, labels_raw, embed_dim, hidden_dim, n_layers, dropout, epo
         st.session_state.nlp_lstm_res = {
             "acc": accs[-1], "epochs": epochs, "fig_loss": fig_loss,
             "losses": losses, "accs": accs,
+            "_obj": {"model": model, "vocab": vocab, "max_len": max_len, "class_names": [str(c) for c in le.classes_]},
             "setup": {"embed": embed_dim, "hidden": hidden_dim, "layers": n_layers, "dropout": dropout, "lr": lr,
                       "vocab": len(vocab), "n_textos": len(texts_clean), "classes": [str(c) for c in le.classes_]}
         }

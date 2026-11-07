@@ -5,7 +5,7 @@
 - O KNN dos alunos continua na lista como «Exemplo do projecto».
 - Em **Classificação, Regressão, MLP, Comparador, O Meu Primeiro Modelo, Clustering e Anomalias** há agora o bloco
   «Guardar este modelo» (`modules/guardar_ui.py`). Guardam-se também o scaler e os codificadores (`modules/ml_engine/pacote_modelo.py`).
-- NLP, Visão, Generativos e Reforço ainda não se guardam (não usam tabelas).
+- NLP (BoW e LSTM), Visão, Autoencoder/VAE/GAN, Séries (LSTM/GRU), Redução, Q-Learning e DQN também têm «Guardar» e «Descarregar» (`modules/ml_engine/pacote_generico.py`). Exceção: o ARIMA.
 
 ---
 
