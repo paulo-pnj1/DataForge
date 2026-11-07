@@ -14,65 +14,11 @@ import pandas as pd
 
 from modules.ml_engine import model_persistence as mp
 from modules.ml_engine.ciclo_ml import _arestas, _proporcoes
+from modules.ml_engine.dataforge_runtime import ModeloDummies, ModeloLegado  # noqa: F401  (as classes vivem no runtime autónomo)
 
 
 class ErroLegado(Exception):
     """Mensagem pronta a mostrar ao estudante."""
-
-
-class ModeloLegado:
-    """Pré-processamento (codificadores + scaler) + algoritmo já treinado, num só objecto."""
-
-    def __init__(self, features, cat_cols, encoders, scaler, modelo, tipo, valores_alvo=None, preenchimento=None, modas=None, com_nomes=False):
-        self.com_nomes = com_nomes          # o Comparador ajusta os modelos com DataFrames (com nomes de colunas)
-        self.features = list(features)
-        self.cat_cols = list(cat_cols)
-        self.encoders = dict(encoders or {})
-        self.scaler = scaler
-        self.modelo = modelo
-        self.tipo = tipo
-        self.valores_alvo = None if valores_alvo is None else np.asarray(valores_alvo)
-        self.preenchimento = dict(preenchimento or {})
-        self.modas = dict(modas or {})
-
-    # ── dados novos → matriz que o algoritmo espera ──
-    def _matriz(self, X) -> np.ndarray:
-        X = pd.DataFrame(X)
-        colunas = []
-        for c in self.features:
-            if c not in X.columns:
-                raise ValueError(f"Falta a coluna «{c}».")
-            s = X[c]
-            if c in self.encoders:
-                le = self.encoders[c]
-                conhecidas = set(map(str, le.classes_))
-                v = s.astype(str).str.strip()
-                moda = self.modas.get(c, str(le.classes_[0]))
-                v = v.where(v.isin(conhecidas), moda)
-                colunas.append(le.transform(v).astype(float))
-            else:
-                n = pd.to_numeric(s, errors="coerce").astype(float).replace([np.inf, -np.inf], np.nan)
-                colunas.append(n.fillna(self.preenchimento.get(c, 0.0)).to_numpy())
-        M = np.column_stack(colunas)
-        M = self.scaler.transform(M) if self.scaler is not None else M
-        return pd.DataFrame(M, columns=self.features) if getattr(self, "com_nomes", False) else M
-
-    def predict(self, X):
-        p = np.asarray(self.modelo.predict(self._matriz(X)))
-        if self.tipo == "classificacao":
-            return np.searchsorted(self.valores_alvo, p).astype(int)      # índice da classe, como nos Pipelines do Laboratório
-        return p.astype(float)
-
-    def predict_proba(self, X):
-        if self.tipo != "classificacao" or not hasattr(self.modelo, "predict_proba"):
-            raise AttributeError("Este modelo não calcula probabilidades.")
-        bruto = self.modelo.predict_proba(self._matriz(X))
-        classes = getattr(self.modelo, "classes_", None)
-        if classes is None or len(classes) == len(self.valores_alvo):
-            return bruto
-        completo = np.zeros((bruto.shape[0], len(self.valores_alvo)))           # classe que faltou no treino: probabilidade 0
-        completo[:, np.searchsorted(self.valores_alvo, classes)] = bruto
-        return completo
 
 
 # ── construção a partir do que cada página guarda ──────────────────────────────
@@ -89,8 +35,9 @@ def _modas(df_features: pd.DataFrame, encoders: dict) -> dict:
     return out
 
 
-def _meta(*, tipo, nome, algoritmo, alvo, features, encoders, df_features, classes, metricas, cv, n_treino, n_teste, parametros, origem) -> dict:
-    cat = list(encoders)
+def _meta(*, tipo, nome, algoritmo, alvo, features, cat_info, df_features, classes, metricas, cv, n_treino, n_teste, parametros, origem) -> dict:
+    """`cat_info`: {coluna de texto: série com a categoria de cada linha de treino}."""
+    cat = list(cat_info)
     num = [c for c in features if c not in cat]
     intervalos = {}
     for c in num:
@@ -106,17 +53,22 @@ def _meta(*, tipo, nome, algoritmo, alvo, features, encoders, df_features, class
         if e is not None:
             item.update(arestas=[float(x) for x in e], proporcoes=_proporcoes(s, e))
         perfil["numericas"][c] = item
-    for c, le in encoders.items():
-        nomes = pd.Series(le.inverse_transform(df_features[c].astype(int))).value_counts(normalize=True)
+    for c, serie in cat_info.items():
+        nomes = pd.Series(serie).astype(str).value_counts(normalize=True)
         perfil["categoricas"][c] = {"em_falta": 0.0, "proporcoes": {str(k): float(v) for k, v in nomes.head(20).items()}}
     return mp._simples({
         "tipo": tipo, "nome": nome, "algoritmo_id": "legado", "algoritmo": algoritmo, "alvo": alvo, "features": list(features),
         "colunas_data": [], "colunas_modelo": list(features), "num_cols": num, "cat_cols": cat, "classes": classes,
-        "categorias_conhecidas": {c: [str(x) for x in le.classes_][:50] for c, le in encoders.items()},
+        "categorias_conhecidas": {c: sorted(pd.Series(serie).astype(str).unique().tolist())[:50] for c, serie in cat_info.items()},
         "intervalos_numericos": intervalos, "parametros": parametros or {}, "metricas_teste": metricas, "cv": cv,
         "n_treino": int(n_treino), "n_teste": int(n_teste), "random_state": 42, "origem": origem, "avisos": [],
         "pipeline_completo": True, "referencia_monitorizacao": perfil,
     })
+
+
+def _cat_info(df_features: pd.DataFrame, encoders: dict) -> dict:
+    """Categorias de cada linha de treino a partir dos códigos dos LabelEncoders."""
+    return {c: pd.Series(le.inverse_transform(df_features[c].astype(int))) for c, le in encoders.items() if c in df_features.columns}
 
 
 def _f(v):
@@ -132,11 +84,11 @@ def de_classificacao(r: dict, algoritmo: str, nome: str) -> tuple:
         raise ErroLegado("Este resultado é antigo e não tem tudo o que é preciso. Treina o modelo outra vez.")
     classes = [str(c) for c in r["classes"]]
     obj = ModeloLegado(feats, list(enc), enc, r.get("scaler"), modelo, "classificacao", np.unique(r["y"]),
-                       _preenchimento(df_f, enc), _modas(df_f, enc))
+                       _preenchimento(df_f, enc), _modas(df_f, enc), nomes_classes=classes)
     cv = {"accuracy": [float(np.mean(r["cv_scores"])), float(np.std(r["cv_scores"]))]}
     metricas = {"accuracy": _f(r["acc"]), "precision": _f(r["prec"]), "recall": _f(r["rec"]), "f1": _f(r["f1"]), "roc_auc": _f(r.get("auc"))}
     meta = _meta(tipo="classificacao", nome=nome, algoritmo=algoritmo, alvo=(r.get("setup") or {}).get("target", "alvo"), features=feats,
-                 encoders=enc, df_features=df_f, classes=classes, metricas=metricas, cv=cv, n_treino=len(r["X_train"]), n_teste=len(r["X_test"]),
+                 cat_info=_cat_info(df_f, enc), df_features=df_f, classes=classes, metricas=metricas, cv=cv, n_treino=len(r["X_train"]), n_teste=len(r["X_test"]),
                  parametros={}, origem="página Classificação")
     return obj, meta
 
@@ -152,7 +104,7 @@ def de_regressao(res: dict, nome: str) -> tuple:
     enc, feats = pacote.get("encoders") or {}, list(pacote["features"])
     obj = ModeloLegado(feats, list(enc), enc, pacote.get("scaler"), pacote["model"], "regressao", None, _preenchimento(df_f, enc), _modas(df_f, enc))
     n_teste = len(res["y_test"])
-    meta = _meta(tipo="regressao", nome=nome, algoritmo=res["algo"], alvo=res["target"], features=feats, encoders=enc, df_features=df_f, classes=None,
+    meta = _meta(tipo="regressao", nome=nome, algoritmo=res["algo"], alvo=res["target"], features=feats, cat_info=_cat_info(df_f, enc), df_features=df_f, classes=None,
                  metricas={"r2": _f(res["r2"]), "mae": _f(res["mae"]), "rmse": _f(res["rmse"]), "mse": _f(res["mse"])},
                  cv={"r2": [float(np.mean(res["cv_scores"])), float(np.std(res["cv_scores"]))]},
                  n_treino=int(res["n_linhas"]) - n_teste, n_teste=n_teste, parametros={}, origem="página Regressão")
@@ -161,21 +113,63 @@ def de_regressao(res: dict, nome: str) -> tuple:
 
 def do_comparador(res: dict, algoritmo: str, nome: str) -> tuple:
     """Da página Comparador: só quando todas as colunas são numéricas (o comparador não guarda os codificadores de texto)."""
-    if res.get("cat_cols"):
-        raise ErroLegado("Este modelo foi treinado com colunas de texto, que o Comparador codifica sem guardar a codificação. "
-                         "Para o guardar, treina-o na página Classificação, Regressão ou no Laboratório de ML.")
+    enc = res.get("encoders")
+    if enc is None and res.get("cat_cols"):          # resultado de uma versão antiga: os codificadores de texto não ficaram guardados
+        raise ErroLegado("Este resultado é antigo e não guardou a codificação das colunas de texto. Compara os modelos outra vez e guarda.")
+    enc = enc or {}
     if algoritmo not in res.get("modelos", {}):
         raise ErroLegado("Escolhe um dos modelos treinados.")
     clf = res["tipo"] == "Classificação"
     X, feats = res["X"], list(res["X"].columns)
-    obj = ModeloLegado(feats, [], {}, None, res["modelos"][algoritmo], "classificacao" if clf else "regressao",
-                       np.arange(len(res["classes"])) if clf else None, _preenchimento(X, []), {}, com_nomes=True)
+    obj = ModeloLegado(feats, list(enc), enc, None, res["modelos"][algoritmo], "classificacao" if clf else "regressao",
+                       np.arange(len(res["classes"])) if clf else None, _preenchimento(X, enc), _modas(X, enc), com_nomes=True,
+                       nomes_classes=res["classes"] if clf else None)
     linha = next(x for x in res["resultados"] if x["Algoritmo"] == algoritmo)
     if clf:
         metricas, cv = {"accuracy": _f(linha["Accuracy"]), "f1": _f(linha["F1 Score"])}, {"accuracy": [_f(linha["CV Accuracy"]), 0.0]}
     else:
         metricas, cv = {"r2": _f(linha["R²"]), "rmse": _f(linha["RMSE"])}, {"r2": [_f(linha["CV R²"]), 0.0]}
-    meta = _meta(tipo="classificacao" if clf else "regressao", nome=nome, algoritmo=algoritmo, alvo=res["alvo"], features=feats, encoders={}, df_features=X,
+    meta = _meta(tipo="classificacao" if clf else "regressao", nome=nome, algoritmo=algoritmo, alvo=res["alvo"], features=feats, cat_info=_cat_info(X, enc), df_features=X,
                  classes=[str(c) for c in res["classes"]] if clf else None, metricas=metricas, cv=cv, n_treino=len(res["X_tr"]), n_teste=len(res["X_te"]),
                  parametros={}, origem="página Comparador")
+    return obj, meta
+
+
+def de_mlp(res: dict, tipo: str, nome: str) -> tuple:
+    """Da página Redes Neurais (MLP): `tipo` é 'classificacao' ou 'regressao'."""
+    try:
+        setup, modelo, enc, df_f = res["setup"], res["model"], res.get("encoders") or {}, res["df_features"]
+        feats = list(setup["features"])
+    except KeyError:
+        raise ErroLegado("Este resultado é antigo e não tem tudo o que é preciso. Treina a rede outra vez.")
+    clf = tipo == "classificacao"
+    classes = [str(c) for c in res["classes"]] if clf else None
+    obj = ModeloLegado(feats, list(enc), enc, res.get("scaler"), modelo, tipo, np.asarray(res["valores_alvo"]) if clf else None,
+                       _preenchimento(df_f, enc), _modas(df_f, enc), nomes_classes=classes)
+    n_teste = int(setup.get("n_test", 0))
+    metricas = ({"accuracy": _f(res["acc"]), "f1": _f(res["f1"])} if clf else {"r2": _f(res["r2"]), "rmse": _f(res["rmse"]), "mae": _f(res["mae"])})
+    meta = _meta(tipo=tipo, nome=nome, algoritmo="MLP (rede neuronal)", alvo=setup["target"], features=feats, cat_info=_cat_info(df_f, enc), df_features=df_f,
+                 classes=classes, metricas=metricas, cv={}, n_treino=len(df_f) - n_teste, n_teste=n_teste,
+                 parametros={k: setup.get(k) for k in ("hidden", "activation", "solver", "lr", "max_iter")}, origem="página Redes Neurais")
+    return obj, meta
+
+
+def de_primeiro_modelo(res: dict, nome: str) -> tuple:
+    """De «O Meu Primeiro Modelo»: o Random Forest original, com a mesma transformação (get_dummies) das colunas de texto."""
+    try:
+        bruto, modelo, cfg = res["X_bruto"], res["modelo"], res["cfg"]
+    except KeyError:
+        raise ErroLegado("Este resultado é antigo e não tem tudo o que é preciso. Treina o modelo outra vez.")
+    clf = cfg["tipo"] == "clf"
+    cat = [c for c in bruto.columns if not pd.api.types.is_numeric_dtype(bruto[c]) and not pd.api.types.is_bool_dtype(bruto[c])]   # texto: get_dummies
+    num = [c for c in bruto.columns if c not in cat]
+    classes = [str(c) for c in modelo.classes_] if clf else None
+    obj = ModeloDummies(list(bruto.columns), cat, res["colunas"], modelo, "classificacao" if clf else "regressao",
+                        np.asarray(modelo.classes_) if clf else None, _preenchimento(bruto[num], []) if num else {}, nomes_classes=classes)
+    metricas = ({"accuracy": _f(res["acc"]), "precision": _f(res["prec"]), "recall": _f(res["rec"]), "f1": _f(res["f1"])} if clf
+                else {"r2": _f(res["r2"]), "rmse": _f(res["rmse"]), "mae": _f(res["mae"])})
+    cv = {("accuracy" if clf else "r2"): [float(np.mean(res["cv_scores"])), float(np.std(res["cv_scores"]))]}
+    meta = _meta(tipo="classificacao" if clf else "regressao", nome=nome, algoritmo="Random Forest (Primeiro Modelo)", alvo=cfg["alvo"], features=list(bruto.columns),
+                 cat_info={c: bruto[c] for c in cat}, df_features=bruto, classes=classes, metricas=metricas, cv=cv, n_treino=int(res["n_treino"]),
+                 n_teste=int(res["n_teste"]), parametros={"n_estimators": 120}, origem="O Meu Primeiro Modelo")
     return obj, meta

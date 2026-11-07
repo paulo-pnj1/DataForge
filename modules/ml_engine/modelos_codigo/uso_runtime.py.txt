@@ -1,0 +1,10 @@
+# Exemplo de uso do modelo «@@NOME@@» (@@ALGORITMO@@) exportado do DataForge EDU.
+# Coloca este ficheiro, o dataforge_runtime.py e o modelo.joblib na mesma pasta.   pip install pandas scikit-learn joblib
+import pandas as pd
+from dataforge_runtime import carregar
+
+modelo = carregar("modelo.joblib")      # só abras ficheiros joblib em que confias: abrir um executa código
+
+if __name__ == "__main__":
+    novos = pd.DataFrame([@@EXEMPLO@@])
+    print(modelo.aplicar(novos))        # a tabela, com as colunas de resultado acrescentadas

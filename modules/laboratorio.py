@@ -280,22 +280,10 @@ def _mostrar_comparacao(comp, rec, chave: str, username: str, origem: str):
 
 
 def _bloco_guardar(comp, r, chave, username, origem):
-    with st.expander("Guardar este modelo"):
-        nome = st.text_input("Nome", value=f"{r.nome} – {comp.dados.alvo}", key=f"{chave}_nome", max_chars=80)
-        if st.button("Guardar modelo", key=f"{chave}_guardar"):
-            try:
-                info = mp.guardar_modelo(username, r.pipeline, mp.meta_tabular(comp.dados, r, nome, origem))
-                st.session_state[f"{chave}_gd_ok"] = info
-            except mp.ErroPersistencia as e:
-                st.error(str(e))
-            except Exception:
-                st.error("Não consegui guardar o modelo.")
-        info = st.session_state.get(f"{chave}_gd_ok")
-        if info:
-            st.success(f"Guardado como «{info['nome']}» (versão {info['versao']}). Vê-o no separador «Modelos guardados».")
-            if st.button("Testar este modelo com dados novos", key=f"{chave}_testar"):
-                st.session_state["tm_mod"] = info["id"]
-                ir_para("testar_modelos")
+    from modules.guardar_ui import bloco_guardar
+    with st.expander("Guardar ou descarregar este modelo"):
+        bloco_guardar(username, f"{chave}_{id(r)}", f"{r.nome} – {comp.dados.alvo}",
+                      lambda nome: (r.pipeline, mp.meta_tabular(comp.dados, r, nome, origem)))
 
 
 # ── Separadores ────────────────────────────────────────────────────────────────
@@ -508,17 +496,11 @@ def _tab_series(df, ident, username):
         fig.update_layout(height=380, margin=dict(l=10, r=10, t=30, b=10))
         st.plotly_chart(fig, width="stretch")
         st.download_button("Descarregar previsões (CSV)", pv.to_csv(index=False).encode("utf-8"), "previsoes.csv", "text/csv", key="lab_se_dl")
-        with st.expander("Guardar este modelo"):
-            nome = st.text_input("Nome", value=f"{nomes[sel]} – {comp.serie.col_valor}", key="lab_se_nome", max_chars=80)
-            if st.button("Guardar modelo", key="lab_se_guardar"):
-                try:
-                    r = comp.por_id(sel)
-                    info = mp.guardar_modelo(username, r.modelo_final, mp.meta_serie(comp.serie, r, nome, comp.horizonte, "séries"))
-                    st.success(f"Guardado como «{info['nome']}» (versão {info['versao']}).")
-                except mp.ErroPersistencia as ex:
-                    st.error(str(ex))
-                except Exception:
-                    st.error("Não consegui guardar o modelo.")
+        with st.expander("Guardar ou descarregar este modelo"):
+            from modules.guardar_ui import bloco_guardar
+            _rs = comp.por_id(sel)
+            bloco_guardar(username, f"lab_se_{sel}_{id(_rs)}", f"{nomes[sel]} – {comp.serie.col_valor}",
+                          lambda nome: (_rs.modelo_final, mp.meta_serie(comp.serie, _rs, nome, comp.horizonte, "séries")))
 
 
 def _tab_previsoes(username):

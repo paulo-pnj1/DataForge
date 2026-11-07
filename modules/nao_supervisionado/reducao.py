@@ -234,7 +234,8 @@ def render_reducao(username: str):
                             le = LabelEncoder()
                             labels_raw = le.fit_transform(labels_raw)
 
-                    X_sc = StandardScaler().fit_transform(X) if normalizar else X
+                    sc_rd = StandardScaler() if normalizar else None
+                    X_sc = sc_rd.fit_transform(X) if normalizar else X
 
                     with st.spinner("A calcular..."):
                         try:
@@ -271,6 +272,7 @@ def render_reducao(username: str):
                                 "X_red": X_red, "labels": labels_raw,
                                 "algo": algo_label, "n_comp": n_comp,
                                 "model": model if algo == "pca" else None,
+                                "modelo_t": model if hasattr(model, "transform") else None, "scaler": sc_rd, "X_raw": X,
                                 # contexto para o tutor de IA (só nomes de colunas e números agregados)
                                 "dataset": nm if fonte == "Embutido" else "CSV do aluno",
                                 "features": list(features), "normalizar": bool(normalizar),
@@ -318,6 +320,11 @@ def render_reducao(username: str):
                 registar(f"{algo_lbl} - Projecção {n_comp}D", _txt, _est)
             except Exception:
                 pass
+
+            section_title("GUARDAR O MODELO")
+            from modules.guardar_ui import bloco_guardar
+            from modules.ml_engine.modelos_extra import de_reducao
+            bloco_guardar(username, f"rd_{id(res)}", f"{algo_lbl} – {n_comp} componentes", lambda nome: de_reducao(res, nome))
 
             teoria_box("Interpretar a visualização",
                 "Pontos próximos no gráfico são similares no espaço original. "

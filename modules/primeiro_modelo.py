@@ -100,14 +100,6 @@ def _preparar(df: pd.DataFrame, alvo: str, rotulos=None):
 # ══════════════════════════════════════════════════════
 # TREINO
 # ══════════════════════════════════════════════════════
-def _guardar_pm(nome_modelo: str):
-    """Guarda o Random Forest deste problema como Pipeline completo (o mesmo algoritmo, os mesmos parâmetros e a mesma divisão)."""
-    from modules.laboratorio_avaliacao import do_primeiro_modelo
-    from modules.ml_engine import ciclo_ml as cl
-    dados, r = do_primeiro_modelo()
-    return r.pipeline, cl.meta_ciclo(dados, r, nome_modelo, "primeiro modelo")
-
-
 def _treinar(nome: str, username: str) -> dict:
     cfg = PROBLEMAS[nome]
     df, _, _ = carregar_dataset_embutido(cfg["dataset"])
@@ -134,7 +126,7 @@ def _treinar(nome: str, username: str) -> dict:
     res = {
         "nome": nome, "cfg": cfg, "modelo": modelo, "X_te": X_te, "y_te": y_te, "y_pred": y_pred,
         "n_treino": len(X_tr), "n_teste": len(X_te), "colunas": list(X.columns),
-        "importancias": modelo.feature_importances_,
+        "importancias": modelo.feature_importances_, "X_bruto": df.drop(columns=[cfg["alvo"]]),
     }
 
     if clf:
@@ -339,6 +331,7 @@ def render_primeiro_modelo(username: str):
         _mostrar_resultado(res)
         st.markdown("#### 4. Guarda o modelo e testa-o com dados novos")
         from modules.guardar_ui import bloco_guardar
-        bloco_guardar(username, f"pm_{id(res)}", f"{nome} (Primeiro Modelo)", _guardar_pm)
+        from modules.ml_engine.modelo_legado import de_primeiro_modelo
+        bloco_guardar(username, f"pm_{id(res)}", f"{nome} (Primeiro Modelo)", lambda nome_m: de_primeiro_modelo(res, nome_m))
     elif res:
         st.info("Mudaste de problema. Carrega em **Treinar o modelo agora** para ver o novo resultado.")

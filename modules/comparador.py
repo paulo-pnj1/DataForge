@@ -206,8 +206,10 @@ def _fmt(tipo, v):
 # ══════════════════════════════════════════════════════
 def _preparar_dados(df, features, target, tipo):
     X = df[features].copy()
+    encoders = {}
     for col in X.select_dtypes(include=["object", "category"]).columns:
-        X[col] = LabelEncoder().fit_transform(X[col].astype(str))
+        encoders[col] = LabelEncoder()
+        X[col] = encoders[col].fit_transform(X[col].astype(str))
     X = X.apply(pd.to_numeric, errors="coerce")
     X = X.fillna(X.median(numeric_only=True)).astype(float)
     y = df[target].copy()
@@ -219,12 +221,12 @@ def _preparar_dados(df, features, target, tipo):
     else:
         y = pd.to_numeric(y, errors="coerce")
         y = y.fillna(y.median()).to_numpy(dtype=float)
-    return X, np.asarray(y), classes
+    return X, np.asarray(y), classes, encoders
 
 
 def _run_comparison(df, features, target, algos, models_dict, tipo, test_size, cv_folds, username, dataset, palpite):
     try:
-        X, y, classes = _preparar_dados(df, features, target, tipo)
+        X, y, classes, encoders = _preparar_dados(df, features, target, tipo)
         clf = tipo == "Classificação"
         try:
             X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=test_size, random_state=42,
@@ -268,7 +270,7 @@ def _run_comparison(df, features, target, algos, models_dict, tipo, test_size, c
         res = {
             "id": time.time(), "tipo": tipo, "dataset": dataset, "alvo": target, "resultados": resultados, "algos": algos,
             "palpite": palpite, "features": list(X.columns), "classes": classes,
-            "cat_cols": [c for c in features if str(df[c].dtype) in ("object", "category")],
+            "encoders": encoders, "cat_cols": list(encoders),
             "X": X, "y": y, "X_tr": X_tr, "X_te": X_te, "y_tr": y_tr, "y_te": y_te,
             "preds": preds, "modelos": modelos, "cv": cv,
             "n_linhas": len(X), "n_feat": X.shape[1], "corr_media": corr_media,

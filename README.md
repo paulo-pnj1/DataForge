@@ -144,10 +144,19 @@ Lógica em `modules/ml_engine/ciclo_ml.py` (sem Streamlit; reutiliza `preparar_d
 interface em `modules/laboratorio_avaliacao.py`, texto pedagógico em `modules/laboratorio_avaliacao_conteudo.py`, modelos de código em `modules/ml_engine/modelos_codigo/`.
 Testes: `tests/test_ciclo_ml.py`.
 
-## Guardar e testar modelos (qualquer algoritmo)
+## Guardar, testar e descarregar modelos (todas as páginas)
 
-Todas as páginas que treinam modelos de classificação ou regressão têm um bloco **Guardar modelo**: Classificação, Regressão, Comparador
-(só com colunas numéricas), Laboratório de ML, Avaliar e Optimizar e «O Meu Primeiro Modelo». Os modelos ficam na conta do aluno
-(assinados e versionados) e aparecem na página **Testar Modelos**, onde se escolhe qualquer um e se testa com dados novos (um caso, ou um CSV/Excel).
-As páginas Classificação, Regressão e Comparador guardam o modelo exactamente como foi treinado, com o seu scaler e codificadores, através de
-`modules/ml_engine/modelo_legado.py`. Testes: `tests/test_modelo_legado.py`.
+Cada página que treina um modelo tem o bloco **Guardar modelo / Preparar ficheiro para descarregar**: Classificação, Regressão, Comparador (também com
+colunas de texto), Laboratório de ML (tabular e séries), Avaliar e Optimizar, O Meu Primeiro Modelo (o Random Forest original), Redes Neurais (MLP),
+Clustering, Anomalias, Redução (métodos que projectam casos novos: PCA, Kernel PCA, ICA, Factor Analysis, UMAP; o t-SNE não consegue) e Reforço
+(Q-Learning e DQN).
+
+- **Guardar** põe o modelo na conta do aluno (assinado e versionado). A página **Testar Modelos** testa qualquer um com dados novos (um caso ou um
+  ficheiro CSV/Excel) e, conforme o tipo, devolve a previsão, o grupo, «anomalia/normal», as componentes ou a melhor acção.
+- **Descarregar** dá um ZIP com `modelo.joblib`, `metadados.json`, `usar_modelo.py` e (para os modelos das páginas) `dataforge_runtime.py`, que abre o
+  modelo noutro computador só com numpy, pandas e scikit-learn. Os modelos de séries temporais só se usam dentro da plataforma.
+- **Importar** (em Testar Modelos): `.pkl` descarregados antes das páginas terem «Guardar». A leitura é restrita a classes do scikit-learn/numpy/scipy
+  (`modules/ml_engine/importar_legado.py`); ficheiros com outro conteúdo são recusados sem os abrir.
+
+Código: `modules/ml_engine/dataforge_runtime.py` (classes autónomas), `modelo_legado.py` e `modelos_extra.py` (de cada página para o modelo guardado),
+`modules/guardar_ui.py` (bloco comum) e `modules/testar_modelos.py` (página). Testes: `test_modelo_legado.py`, `test_modelos_extra.py`, `test_importar_legado.py`.

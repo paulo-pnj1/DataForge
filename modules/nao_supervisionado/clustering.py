@@ -298,7 +298,7 @@ def render_clustering(username: str):
                 scaler = StandardScaler()
                 X_scaled = scaler.fit_transform(X)
             else:
-                X_scaled = X
+                scaler, X_scaled = None, X
 
             with st.spinner("A calcular clusters..."):
                 try:
@@ -331,7 +331,7 @@ def render_clustering(username: str):
                         "labels": labels, "X_pca": X_pca, "X_scaled": X_scaled,
                         "n_clusters": n_clusters, "n_ruido": n_ruido,
                         "sil": sil_score, "ch": ch_score, "db": db_score,
-                        "model": model, "features": features
+                        "model": model, "features": features, "scaler": scaler, "X_raw": X
                     }
                     sucesso_box(f"Clustering concluído! {n_clusters} clusters encontrados.")
                     add_pontos(username, 10, f"Clustering com {st.session_state.cl_algo_label}")
@@ -404,6 +404,11 @@ def render_clustering(username: str):
                     "<strong>Davies-Bouldin</strong>: quanto menor, melhor. Mede a compacidade e separação dos clusters.<br>"
                     "<strong>Pontos de ruído</strong> (DBSCAN/HDBSCAN): pontos que não pertencem a nenhum cluster - possivelmente outliers.")
 
+                section_title("GUARDAR O MODELO")
+                from modules.guardar_ui import bloco_guardar
+                from modules.ml_engine.modelos_extra import de_clustering
+                bloco_guardar(username, f"cl_{id(res)}", f"{st.session_state.get('cl_algo_label', 'Clustering')} – grupos", lambda nome: de_clustering(res, st.session_state.get("cl_algo_label", "Clustering"), nome))
+
                 col1, col2 = st.columns(2)
                 with col1:
                     st.button("← Recomeçar", width='stretch', key="cl_s5_reiniciar", on_click=_ir_passo, args=(1,))
@@ -450,7 +455,8 @@ def render_clustering(username: str):
                         aviso_box("Selecciona features.")
                     else:
                         X_l = df_l[feats_l].dropna().to_numpy(dtype=float, na_value=0)
-                        X_l_sc = StandardScaler().fit_transform(X_l) if norm_l else X_l
+                        sc_l = StandardScaler() if norm_l else None
+                        X_l_sc = sc_l.fit_transform(X_l) if norm_l else X_l
                         try:
                             m_l = _build_model(algo_l, params_l)
                             m_l.fit(X_l_sc)
@@ -464,7 +470,8 @@ def render_clustering(username: str):
                                 sil_l = None
                             st.session_state.cl_livre_res = {"lbl": lbl_l, "Xp": Xp_l, "nc": nc_l, "sil": sil_l, "algo": algo_l_label,
                                                              "features": list(feats_l), "dataset": nm if fonte_l == "Embutido" else "CSV do aluno",
-                                                             "norm": bool(norm_l), "params": dict(params_l), "_acabou_de_correr": True}
+                                                             "norm": bool(norm_l), "params": dict(params_l), "_acabou_de_correr": True,
+                                                             "model": m_l, "scaler": sc_l, "X_raw": X_l, "X_scaled": X_l_sc}
                             add_pontos(username, 5, f"Clustering livre {algo_l_label}")
                         except Exception as e:
                             erro_box(str(e))
@@ -479,6 +486,14 @@ def render_clustering(username: str):
                     _scatter_clusters(res_l["Xp"], res_l["lbl"], f"{res_l['algo']} - PCA 2D"),
                     width='stretch'
                 )
+                if res_l.get("model") is not None:
+                    section_title("GUARDAR O MODELO")
+                    from modules.guardar_ui import bloco_guardar
+                    from modules.ml_engine.modelos_extra import de_clustering
+                    _rl = {"model": res_l["model"], "features": res_l["features"], "scaler": res_l.get("scaler"), "X_raw": res_l["X_raw"],
+                           "X_scaled": res_l["X_scaled"], "labels": res_l["lbl"], "n_clusters": res_l["nc"],
+                           "n_ruido": int(np.sum(np.asarray(res_l["lbl"]) == -1)), "sil": res_l["sil"]}
+                    bloco_guardar(username, f"cll_{id(res_l)}", f"{res_l['algo']} – grupos", lambda nome: de_clustering(_rl, res_l["algo"], nome))
                 if res_l.pop("_acabou_de_correr", False) or not st.session_state.get("cl_result"):
                     try:    # o tutor de IA precisa de saber o que está nos gráficos
                         from modules.tutor_ia import registar_ecra

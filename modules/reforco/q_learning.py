@@ -320,6 +320,11 @@ def render_q_learning(username: str):
                 st.plotly_chart(_plot_training_curves(res["rewards"], res["steps"], res["eps_hist"]),
                                 width="stretch")
 
+                section_title("GUARDAR O MODELO")
+                from modules.guardar_ui import bloco_guardar
+                from modules.ml_engine.modelos_extra import de_q_learning
+                bloco_guardar(username, f"ql_{id(res)}", f"Q-Learning – grelha {n_r}×{n_r}", lambda nome: de_q_learning(res, nome))
+
                 if st.session_state.get("rl_ultimo", "ql") == "ql":      # as 2 abas correm sempre: só regista a do último treino
                     try:    # o tutor de IA precisa de saber o que está nos gráficos
                         from modules.tutor_ia import registar_ecra, resumo_curva

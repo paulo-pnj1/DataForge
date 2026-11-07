@@ -9,6 +9,9 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from modules.ml_engine import ciclo_ml as cl, model_evaluation as ev, model_persistence as mp, prediction_service as ps
+from modules.ml_engine import importar_legado as il
+from modules.ml_engine import modelos_extra as mx
+from modules.ml_engine.modelo_legado import ErroLegado
 from modules.ml_engine.data_loader import ErroDados, carregar_ficheiro
 from modules.utils import ir_para, page_header, section_title
 
@@ -29,11 +32,22 @@ def _cartao(meta: dict):
     m = meta.get("metricas_teste") or {}
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Algoritmo", meta.get("algoritmo", "—"))
-    c2.metric("O que prevê", str(meta.get("alvo", "—")))
+    c2.metric("O que prevê", str(meta.get("alvo") or {"cluster": "o grupo", "anomalia": "se é anomalia", "reducao": "as componentes", "reforco_q": "a melhor acção",
+                                                     "reforco_dqn": "a melhor acção"}.get(tipo, "—")))
     if tipo == "classificacao":
         c3.metric("F1 / Accuracy (teste)", " / ".join(f"{m[k]:.1%}" for k in ("f1", "accuracy") if isinstance(m.get(k), (int, float))) or "—")
     elif tipo == "regressao":
         c3.metric("R² (teste)", f"{m['r2']:.3f}" if isinstance(m.get("r2"), (int, float)) else "—")
+    elif tipo == "cluster":
+        c3.metric("Grupos", str(m.get("grupos", "—")))
+    elif tipo == "anomalia":
+        c3.metric("Anomalias no treino", str(m.get("anomalias", "—")))
+    elif tipo == "reducao":
+        c3.metric("Componentes", str(m.get("componentes", "—")))
+    elif tipo == "reforco_q":
+        c3.metric("Chega ao objectivo", "sim" if m.get("chegou_ao_objectivo") else "não")
+    elif tipo == "reforco_dqn":
+        c3.metric("Média dos últimos 50", f"{m['media_ultimos_50']:.1f}" if isinstance(m.get("media_ultimos_50"), (int, float)) else "—")
     else:
         c3.metric("Tipo", "Série temporal")
     c4.metric("Guardado em", str(meta.get("criado_em", "—")))
@@ -142,6 +156,137 @@ def _ficheiro(modelo, meta: dict, p: str):
             st.caption(str(e))
 
 
+def _grafico_resultado(meta: dict, saida: pd.DataFrame):
+    tipo = meta["tipo"]
+    if tipo == "cluster":
+        vc = saida["grupo"].astype(str).value_counts()
+        fig = go.Figure(go.Bar(x=vc.index.tolist(), y=vc.values.tolist()))
+        fig.update_layout(title="Casos em cada grupo")
+    elif tipo == "anomalia":
+        vc = saida["resultado"].value_counts()
+        fig = go.Figure(go.Bar(x=vc.index.tolist(), y=vc.values.tolist()))
+        fig.update_layout(title="Normais e anomalias")
+    elif tipo == "reducao" and "componente_2" in saida.columns:
+        fig = go.Figure(go.Scatter(x=saida["componente_1"], y=saida["componente_2"], mode="markers"))
+        fig.update_layout(title="Casos novos nas duas primeiras componentes", xaxis_title="componente 1", yaxis_title="componente 2")
+    elif tipo in mx.TIPOS_REFORCO:
+        vc = saida["melhor_accao"].value_counts()
+        fig = go.Figure(go.Bar(x=vc.index.tolist(), y=vc.values.tolist()))
+        fig.update_layout(title="Melhor acção em cada caso")
+    else:
+        return
+    fig.update_layout(height=300, margin=dict(l=10, r=10, t=50, b=10))
+    st.plotly_chart(fig, width="stretch")
+
+
+def _resultado_tabela(modelo, meta: dict, df: pd.DataFrame, p: str, so_resultado: bool):
+    try:
+        saida, rel = mx.aplicar_tabela(modelo, meta, df)
+    except cl.ErroCiclo as e:
+        st.error(str(e))
+        return None
+    for a in rel["avisos"]:
+        st.warning(a)
+    for a in meta.get("avisos") or []:
+        st.caption(a)
+    if so_resultado:
+        st.dataframe(saida[[c for c in saida.columns if c not in df.columns]], width="stretch", hide_index=True)
+    else:
+        st.dataframe(saida.head(200), width="stretch")
+    return saida
+
+
+def _nao_supervisionado(modelo, meta: dict, p: str, mid: str):
+    modo = st.radio("Como queres testar?", ["Um caso", "Um ficheiro"], horizontal=True, key=f"{p}_modo")
+    if modo == "Um caso":
+        valores = _formulario(meta, f"{p}_{mid}")
+        if st.button("Aplicar o modelo", type="primary", key=f"{p}_go"):
+            _resultado_tabela(modelo, meta, pd.DataFrame([valores]), p, True)
+        return
+    st.download_button("Descarregar um CSV de exemplo com as colunas obrigatórias", cl.csv_modelo(meta), file_name="exemplo_entrada.csv", mime="text/csv", key=f"{p}_modelo")
+    f = st.file_uploader("Ficheiro com os casos novos (CSV ou Excel)", type=["csv", "xlsx", "xlsm"], key=f"{p}_file")
+    if f is None:
+        return
+    try:
+        novo = carregar_ficheiro(f.name, f.getvalue())
+    except ErroDados as e:
+        st.error(str(e))
+        return
+    saida = _resultado_tabela(modelo, meta, novo, p, False)
+    if saida is not None:
+        _grafico_resultado(meta, saida)
+        st.download_button("Descarregar o resultado (CSV)", saida.to_csv(index=False).encode("utf-8"), file_name="resultado.csv", mime="text/csv", key=f"{p}_dl")
+
+
+def _grelha_q(modelo, caminho: list):
+    n = modelo.n
+    V = modelo.Q.max(axis=1).reshape(n, n)
+    fig = go.Figure(go.Heatmap(z=V, colorscale="Viridis", colorbar=dict(title="V*")))
+    fig.add_trace(go.Scatter(x=[c for _, c in caminho], y=[r for r, _ in caminho], mode="lines+markers", name="Caminho", line=dict(width=3)))
+    fig.update_yaxes(autorange="reversed")
+    fig.update_layout(title="Valor de cada casa e caminho do agente", height=380, margin=dict(l=10, r=10, t=50, b=10))
+    st.plotly_chart(fig, width="stretch")
+
+
+def _reforco_q(modelo, meta: dict, p: str):
+    modo = st.radio("Como queres testar?", ["Uma casa da grelha", "Um ficheiro"], horizontal=True, key=f"{p}_modo")
+    if modo == "Uma casa da grelha":
+        n = modelo.n
+        c1, c2 = st.columns(2)
+        linha = int(c1.number_input("Linha", 0, n - 1, 0, key=f"{p}_lin"))
+        coluna = int(c2.number_input("Coluna", 0, n - 1, 0, key=f"{p}_col"))
+        if (linha, coluna) in modelo.obstaculos:
+            st.warning("Essa casa é um obstáculo: o agente não pode estar lá.")
+            return
+        r = modelo.melhor_accao(linha, coluna)
+        caminho = modelo.caminho((linha, coluna))
+        st.metric("Melhor acção nesta casa", r["accao"])
+        st.dataframe(pd.DataFrame({"Acção": list(r["valores_q"]), "Valor Q": list(r["valores_q"].values())}), width="stretch", hide_index=True)
+        chega = caminho[-1] == modelo.objectivo
+        st.write(f"Seguindo sempre a melhor acção, o agente faz {len(caminho) - 1} passos e " + ("chega ao objectivo." if chega else "não chega ao objectivo."))
+        _grelha_q(modelo, caminho)
+        return
+    st.download_button("Descarregar um CSV de exemplo (colunas linha e coluna)", pd.DataFrame([{"linha": 0, "coluna": 0}]).to_csv(index=False).encode("utf-8"),
+                       file_name="exemplo_entrada.csv", mime="text/csv", key=f"{p}_modelo")
+    f = st.file_uploader("Ficheiro com as casas (CSV ou Excel)", type=["csv", "xlsx", "xlsm"], key=f"{p}_file")
+    if f is None:
+        return
+    try:
+        novo = carregar_ficheiro(f.name, f.getvalue())
+    except ErroDados as e:
+        st.error(str(e))
+        return
+    saida = _resultado_tabela(modelo, meta, novo, p, False)
+    if saida is not None:
+        _grafico_resultado(meta, saida)
+        st.download_button("Descarregar o resultado (CSV)", saida.to_csv(index=False).encode("utf-8"), file_name="resultado.csv", mime="text/csv", key=f"{p}_dl")
+
+
+def _reforco_dqn(modelo, meta: dict, p: str):
+    modo = st.radio("Como queres testar?", ["Um estado", "Um ficheiro"], horizontal=True, key=f"{p}_modo")
+    if modo == "Um estado":
+        st.caption("O estado do CartPole tem 4 números: posição do carrinho, a sua velocidade, o ângulo do poste e a velocidade angular.")
+        cols = st.columns(2)
+        estado = {c: float(cols[i % 2].number_input(c, value=0.0, step=0.05, format="%.3f", key=f"{p}_{c}")) for i, c in enumerate(modelo.nomes_estado)}
+        if st.button("Que acção escolhe a rede?", type="primary", key=f"{p}_go"):
+            _resultado_tabela(modelo, meta, pd.DataFrame([estado]), p, True)
+        return
+    st.download_button("Descarregar um CSV de exemplo com as colunas do estado", pd.DataFrame([{c: 0.0 for c in modelo.nomes_estado}]).to_csv(index=False).encode("utf-8"),
+                       file_name="exemplo_entrada.csv", mime="text/csv", key=f"{p}_modelo")
+    f = st.file_uploader("Ficheiro com os estados (CSV ou Excel)", type=["csv", "xlsx", "xlsm"], key=f"{p}_file")
+    if f is None:
+        return
+    try:
+        novo = carregar_ficheiro(f.name, f.getvalue())
+    except ErroDados as e:
+        st.error(str(e))
+        return
+    saida = _resultado_tabela(modelo, meta, novo, p, False)
+    if saida is not None:
+        _grafico_resultado(meta, saida)
+        st.download_button("Descarregar o resultado (CSV)", saida.to_csv(index=False).encode("utf-8"), file_name="resultado.csv", mime="text/csv", key=f"{p}_dl")
+
+
 def painel_previsao(username: str, p: str = "tm"):
     """Escolher um modelo guardado e testá-lo. Usado nesta página e no separador «Previsões» do Laboratório de ML."""
     try:
@@ -168,6 +313,17 @@ def painel_previsao(username: str, p: str = "tm"):
     if meta.get("tipo") == "serie":
         _serie(modelo, meta, p)
         return
+    if meta.get("tipo") in mx.TIPOS_NAO_SUPERVISIONADOS:
+        with st.expander("O que este modelo precisa"):
+            _o_que_precisa(meta)
+        _nao_supervisionado(modelo, meta, p, mid)
+        return
+    if meta.get("tipo") == "reforco_q":
+        _reforco_q(modelo, meta, p)
+        return
+    if meta.get("tipo") == "reforco_dqn":
+        _reforco_dqn(modelo, meta, p)
+        return
     with st.expander("O que este modelo precisa para prever"):
         _o_que_precisa(meta)
     modo = st.radio("Como queres testar?", ["Um caso", "Um ficheiro"], horizontal=True, key=f"{p}_modo")
@@ -177,8 +333,39 @@ def painel_previsao(username: str, p: str = "tm"):
         _ficheiro(modelo, meta, p)
 
 
+def _importar(username: str):
+    with st.expander("Tens um modelo descarregado de antes (.pkl)? Importa-o aqui"):
+        st.caption("Serve para os ficheiros .pkl descarregados das páginas Classificação, Regressão e Redes Neurais antes de existir o botão «Guardar modelo». "
+                   "Por segurança só se reconstroem objectos do scikit-learn: se o ficheiro tiver outra coisa, não é aberto. Importa só ficheiros que descarregaste desta plataforma.")
+        f = st.file_uploader("Ficheiro .pkl", type=["pkl", "joblib"], key="tm_imp_file")
+        if f is None:
+            return
+        try:
+            info = il.inspeccionar(f.getvalue())
+        except ErroLegado as e:
+            st.error(str(e))
+            return
+        st.success(f"Modelo reconhecido: {info['algoritmo']} ({'classificação' if info['tipo'] == 'classificacao' else 'regressão'}).")
+        nome = st.text_input("Nome para guardar", value=f"{info['algoritmo']} importado", max_chars=80, key="tm_imp_nome")
+        alvo = st.text_input("O que prevê este modelo? (nome da coluna)", key="tm_imp_alvo")
+        feats = None
+        if not info["features"]:
+            txt = st.text_input(f"Colunas do treino, pela ordem e separadas por vírgulas ({info['n_features']} no total)", key="tm_imp_feats")
+            feats = [x.strip() for x in txt.split(",") if x.strip()]
+            st.caption("Este ficheiro não trazia os nomes das colunas. Só funciona se todas eram números (as redes neurais antigas não guardavam a codificação do texto).")
+        if st.button("Importar e guardar", type="primary", key="tm_imp_go"):
+            try:
+                objecto, meta = il.construir(info, nome, alvo, feats)
+                guardado = mp.guardar_modelo(username, objecto, meta)
+                st.session_state["tm_mod"] = guardado["id"]
+                st.success(f"Importado como «{guardado['nome']}» (versão {guardado['versao']}). Já aparece na lista de modelos acima.")
+            except (ErroLegado, mp.ErroPersistencia) as e:
+                st.error(str(e))
+
+
 def render_testar_modelos(username: str):
     page_header("Testar Modelos", "Experimenta qualquer modelo guardado com dados novos: um caso à mão ou um ficheiro inteiro.")
     st.caption("Os dados que usas aqui não entram no treino: servem só para ver o que o modelo responde.")
     section_title("O TEU MODELO")
     painel_previsao(username, "tm")
+    _importar(username)
