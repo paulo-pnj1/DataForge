@@ -256,11 +256,8 @@ def _train_mlp_clf(df, features, target, hidden, activation, solver, lr, max_ite
         y = df[target].copy()
 
         # Encoding
-        encoders = {}
         for col in X.select_dtypes(include=["object","category"]).columns:
-            encoders[col] = LabelEncoder().fit(X[col].astype(str))
-            X[col] = encoders[col].transform(X[col].astype(str))
-        le_y = None
+            X[col] = LabelEncoder().fit_transform(X[col].astype(str))
         if y.dtype == object or str(y.dtype) == "category":
             le_y = LabelEncoder()
             y = le_y.fit_transform(y.astype(str))
@@ -300,7 +297,6 @@ def _train_mlp_clf(df, features, target, hidden, activation, solver, lr, max_ite
                 "loss_curve": model.loss_curve_,
                 "n_iter": model.n_iter_,
                 "report": rep, "model": model, "scaler": scaler,
-                "encoders": encoders, "le_target": le_y, "X_ref": X.copy(), "n_treino": int(len(y_train)), "_username": username,
                 "setup": {"features": list(features), "target": str(target), "hidden": list(hidden), "activation": str(activation),
                           "solver": str(solver), "lr": lr, "max_iter": max_iter, "test_size": test_size, "n_test": int(len(y_test))}
             }
@@ -343,15 +339,6 @@ def _show_mlp_clf_result():
     if cm.shape[0] <= 10:
         st.plotly_chart(_confusion_heatmap(cm, classes[:cm.shape[0]]), width='stretch')
 
-    # Guardar na conta para testar mais tarde com dados novos
-    if res.get("X_ref") is not None:
-        from modules.guardar_ui import bloco_guardar
-        bloco_guardar(
-            res.get("_username", ""), res["model"], chave="mlpc_gd", tarefa="classificacao", features=res["setup"]["features"],
-            alvo=res["setup"]["target"], algoritmo="MLP (rede neural)", X_ref=res["X_ref"], origem="MLP / Redes Neurais",
-            scaler=res["scaler"], encoders=res.get("encoders"), le_target=res.get("le_target"),
-            metricas={"accuracy": res["acc"], "f1": res["f1"]}, n_treino=res.get("n_treino"), n_teste=res["setup"]["n_test"])
-
     # Download modelo
     buf = io.BytesIO()
     pickle.dump({"model": res["model"], "scaler": res["scaler"]}, buf)
@@ -368,10 +355,8 @@ def _train_mlp_reg(df, features, target, hidden, activation, solver, lr, max_ite
     try:
         X = df[features].copy()
         y = df[target].copy()
-        encoders = {}
         for col in X.select_dtypes(include=["object","category"]).columns:
-            encoders[col] = LabelEncoder().fit(X[col].astype(str))
-            X[col] = encoders[col].transform(X[col].astype(str))
+            X[col] = LabelEncoder().fit_transform(X[col].astype(str))
         X = X.fillna(X.median(numeric_only=True))
         y = pd.to_numeric(y, errors="coerce").fillna(y.median())
 
@@ -403,7 +388,6 @@ def _train_mlp_reg(df, features, target, hidden, activation, solver, lr, max_ite
                 "loss_curve": model.loss_curve_,
                 "n_iter": model.n_iter_,
                 "model": model, "scaler": scaler,
-                "encoders": encoders, "X_ref": X.copy(), "n_treino": int(len(y_train)), "_username": username,
                 "setup": {"features": list(features), "target": str(target), "hidden": list(hidden), "activation": str(activation),
                           "solver": str(solver), "lr": lr, "max_iter": max_iter, "test_size": test_size, "n_test": int(len(y_test))}
             }
@@ -464,16 +448,6 @@ def _show_mlp_reg_result():
         font=dict(color="#FFFFFF"), legend=dict(font=dict(color="#FFFFFF"))
     )
     st.plotly_chart(fig_rv, width='stretch')
-
-    # Guardar na conta para testar mais tarde com dados novos
-    if res.get("X_ref") is not None:
-        from modules.guardar_ui import bloco_guardar
-        bloco_guardar(
-            res.get("_username", ""), res["model"], chave="mlpr_gd", tarefa="regressao", features=res["setup"]["features"],
-            alvo=res["setup"]["target"], algoritmo="MLP (rede neural)", X_ref=res["X_ref"], origem="MLP / Redes Neurais",
-            scaler=res["scaler"], encoders=res.get("encoders"),
-            metricas={"r2": res["r2"], "rmse": res["rmse"], "mae": res["mae"]}, n_treino=res.get("n_treino"),
-            n_teste=res["setup"]["n_test"])
 
     buf = io.BytesIO()
     pickle.dump({"model": res["model"], "scaler": res["scaler"]}, buf)

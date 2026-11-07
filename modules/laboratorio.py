@@ -20,7 +20,7 @@ from modules.ml_engine.data_validation import sugerir_tipo_problema, validar_dad
 from modules.ml_engine.model_comparison import comparar_modelos, recomendar
 from modules.ml_engine.model_training import IGNORADO
 from modules.ml_engine.preprocessing import ErroDados, preparar_dados, sugerir_features
-from modules.utils import page_header, section_title
+from modules.utils import ir_para, page_header, section_title
 
 MAX_MODELOS_COMPARACAO = 12
 NOMES_TIPO = {"regressao": "Regressão (prever um número)", "classificacao": "Classificação (prever uma categoria)"}
@@ -285,11 +285,17 @@ def _bloco_guardar(comp, r, chave, username, origem):
         if st.button("Guardar modelo", key=f"{chave}_guardar"):
             try:
                 info = mp.guardar_modelo(username, r.pipeline, mp.meta_tabular(comp.dados, r, nome, origem))
-                st.success(f"Guardado como «{info['nome']}» (versão {info['versao']}). Vê-o no separador «Modelos guardados».")
+                st.session_state[f"{chave}_gd_ok"] = info
             except mp.ErroPersistencia as e:
                 st.error(str(e))
             except Exception:
                 st.error("Não consegui guardar o modelo.")
+        info = st.session_state.get(f"{chave}_gd_ok")
+        if info:
+            st.success(f"Guardado como «{info['nome']}» (versão {info['versao']}). Vê-o no separador «Modelos guardados».")
+            if st.button("Testar este modelo com dados novos", key=f"{chave}_testar"):
+                st.session_state["tm_mod"] = info["id"]
+                ir_para("testar_modelos")
 
 
 # ── Separadores ────────────────────────────────────────────────────────────────
@@ -516,9 +522,8 @@ def _tab_series(df, ident, username):
 
 
 def _tab_previsoes(username):
-    """O mesmo ecrã da página «Testar Modelo» (um só código para testar qualquer modelo guardado)."""
-    from modules.testar_modelo import render_testar_modelo
-    render_testar_modelo(username, "lab_pr", com_cabecalho=False)
+    from modules.testar_modelos import painel_previsao      # a mesma página «Testar Modelos», dentro do Laboratório
+    painel_previsao(username, "lab_pr")
 
 
 def _tab_guardados(username):
