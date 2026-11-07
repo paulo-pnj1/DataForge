@@ -20,7 +20,7 @@ from modules.ml_engine.data_validation import sugerir_tipo_problema, validar_dad
 from modules.ml_engine.model_comparison import comparar_modelos, recomendar
 from modules.ml_engine.model_training import IGNORADO
 from modules.ml_engine.preprocessing import ErroDados, preparar_dados, sugerir_features
-from modules.utils import ir_para, page_header, section_title
+from modules.utils import page_header, section_title
 
 MAX_MODELOS_COMPARACAO = 12
 NOMES_TIPO = {"regressao": "Regressão (prever um número)", "classificacao": "Classificação (prever uma categoria)"}
@@ -280,10 +280,16 @@ def _mostrar_comparacao(comp, rec, chave: str, username: str, origem: str):
 
 
 def _bloco_guardar(comp, r, chave, username, origem):
-    from modules.guardar_ui import bloco_guardar
-    with st.expander("Guardar ou descarregar este modelo"):
-        bloco_guardar(username, f"{chave}_{id(r)}", f"{r.nome} – {comp.dados.alvo}",
-                      lambda nome: (r.pipeline, mp.meta_tabular(comp.dados, r, nome, origem)))
+    with st.expander("Guardar este modelo"):
+        nome = st.text_input("Nome", value=f"{r.nome} – {comp.dados.alvo}", key=f"{chave}_nome", max_chars=80)
+        if st.button("Guardar modelo", key=f"{chave}_guardar"):
+            try:
+                info = mp.guardar_modelo(username, r.pipeline, mp.meta_tabular(comp.dados, r, nome, origem))
+                st.success(f"Guardado como «{info['nome']}» (versão {info['versao']}). Vê-o no separador «Modelos guardados».")
+            except mp.ErroPersistencia as e:
+                st.error(str(e))
+            except Exception:
+                st.error("Não consegui guardar o modelo.")
 
 
 # ── Separadores ────────────────────────────────────────────────────────────────
@@ -496,16 +502,23 @@ def _tab_series(df, ident, username):
         fig.update_layout(height=380, margin=dict(l=10, r=10, t=30, b=10))
         st.plotly_chart(fig, width="stretch")
         st.download_button("Descarregar previsões (CSV)", pv.to_csv(index=False).encode("utf-8"), "previsoes.csv", "text/csv", key="lab_se_dl")
-        with st.expander("Guardar ou descarregar este modelo"):
-            from modules.guardar_ui import bloco_guardar
-            _rs = comp.por_id(sel)
-            bloco_guardar(username, f"lab_se_{sel}_{id(_rs)}", f"{nomes[sel]} – {comp.serie.col_valor}",
-                          lambda nome: (_rs.modelo_final, mp.meta_serie(comp.serie, _rs, nome, comp.horizonte, "séries")))
+        with st.expander("Guardar este modelo"):
+            nome = st.text_input("Nome", value=f"{nomes[sel]} – {comp.serie.col_valor}", key="lab_se_nome", max_chars=80)
+            if st.button("Guardar modelo", key="lab_se_guardar"):
+                try:
+                    r = comp.por_id(sel)
+                    info = mp.guardar_modelo(username, r.modelo_final, mp.meta_serie(comp.serie, r, nome, comp.horizonte, "séries"))
+                    st.success(f"Guardado como «{info['nome']}» (versão {info['versao']}).")
+                except mp.ErroPersistencia as ex:
+                    st.error(str(ex))
+                except Exception:
+                    st.error("Não consegui guardar o modelo.")
 
 
 def _tab_previsoes(username):
-    from modules.testar_modelos import painel_previsao      # a mesma página «Testar Modelos», dentro do Laboratório
-    painel_previsao(username, "lab_pr")
+    """O mesmo ecrã da página «Testar Modelo» (um só código para testar qualquer modelo guardado)."""
+    from modules.testar_modelo import render_testar_modelo
+    render_testar_modelo(username, "lab_pr", com_cabecalho=False)
 
 
 def _tab_guardados(username):

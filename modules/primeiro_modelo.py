@@ -124,9 +124,10 @@ def _treinar(nome: str, username: str) -> dict:
     y_base = base.predict(X_te)
 
     res = {
+        "_df_raw": df.drop(columns=[cfg["alvo"]]), "_username": username,      # para «Guardar este modelo»
         "nome": nome, "cfg": cfg, "modelo": modelo, "X_te": X_te, "y_te": y_te, "y_pred": y_pred,
         "n_treino": len(X_tr), "n_teste": len(X_te), "colunas": list(X.columns),
-        "importancias": modelo.feature_importances_, "X_bruto": df.drop(columns=[cfg["alvo"]]),
+        "importancias": modelo.feature_importances_,
     }
 
     if clf:
@@ -280,6 +281,17 @@ def _mostrar_resultado(r: dict):
     except Exception:
         pass
 
+    # Guardar na conta para testar mais tarde com dados novos
+    if r.get("_df_raw") is not None:
+        from modules.guardar_ui import bloco_guardar
+        met = ({"accuracy": r["acc"], "f1": r["f1"], "precision": r["prec"], "recall": r["rec"]} if clf
+               else {"r2": r["r2"], "rmse": r["rmse"], "mae": r["mae"]})
+        bloco_guardar(
+            r.get("_username", ""), r["modelo"], chave="pm_gd", tarefa="classificacao" if clf else "regressao",
+            features=list(r["_df_raw"].columns), alvo=cfg["alvo"], algoritmo="Random Forest", X_ref=r["_df_raw"],
+            origem="O Meu Primeiro Modelo", nome_padrao=r["nome"], colunas_dummy=r["colunas"], metricas=met,
+            n_treino=r["n_treino"], n_teste=r["n_teste"])
+
     # Próximos passos
     section_title("E AGORA?")
     c1, c2, c3 = st.columns(3)
@@ -329,9 +341,5 @@ def render_primeiro_modelo(username: str):
     if res and res["nome"] == nome:
         st.markdown("#### 3. Resultado")
         _mostrar_resultado(res)
-        st.markdown("#### 4. Guarda o modelo e testa-o com dados novos")
-        from modules.guardar_ui import bloco_guardar
-        from modules.ml_engine.modelo_legado import de_primeiro_modelo
-        bloco_guardar(username, f"pm_{id(res)}", f"{nome} (Primeiro Modelo)", lambda nome_m: de_primeiro_modelo(res, nome_m))
     elif res:
         st.info("Mudaste de problema. Carrega em **Treinar o modelo agora** para ver o novo resultado.")

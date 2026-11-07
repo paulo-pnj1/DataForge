@@ -69,11 +69,6 @@ class ReplayBuffer:
         return len(self.buffer)
 
 
-def _extrair_rede(rede) -> list:
-    """Pesos da rede como arrays numpy (Linear + ReLU): assim o modelo guardado não precisa de PyTorch para prever."""
-    return [(m.weight.detach().cpu().numpy().copy(), m.bias.detach().cpu().numpy().copy()) for m in rede.net if hasattr(m, "weight")]
-
-
 def _train_dqn_cartpole(episodes, hidden_str, lr, gamma, epsilon_start,
                          epsilon_decay, epsilon_min, batch_size, buffer_size,
                          target_update, username):
@@ -162,7 +157,8 @@ def _train_dqn_cartpole(episodes, hidden_str, lr, gamma, epsilon_start,
         st.session_state.dqn_result = {
             "rewards": rewards_hist, "eps_hist": eps_hist,
             "loss_hist": loss_hist, "best_reward": best_reward,
-            "avg_last_50": avg_last, "episodes": episodes, "rede": _extrair_rede(policy_net),
+            "avg_last_50": avg_last, "episodes": episodes,
+            "_obj": {"model": policy_net, "state_dim": int(state_dim), "action_dim": int(action_dim)},
             "setup": {"hidden": hidden_str, "lr": lr, "gamma": gamma, "eps0": epsilon_start, "decay": epsilon_decay, "eps_min": epsilon_min,
                       "batch": batch_size, "buffer": buffer_size, "target": target_update}
         }
@@ -274,6 +270,11 @@ def render_dqn(username: str):
     with col_res:
         res = st.session_state.get("dqn_result", {})
         if res:
+            from modules.guardar_ui import bloco_guardar_generico
+            if res.get("_obj"):
+                bloco_guardar_generico(username, "reforco_dqn", res["_obj"], chave="dqn_gd", algoritmo="DQN (CartPole)",
+                                       origem="Aprendizagem por Reforço",
+                                       metricas={"melhor_reward": res["best_reward"], "media_50": res["avg_last_50"]})
             c1, c2, c3 = st.columns(3)
             c1.metric("Melhor Reward",   f"{res['best_reward']:.0f}")
             c2.metric("Media (ult 50)",  f"{res['avg_last_50']:.1f}")
@@ -306,11 +307,6 @@ def render_dqn(username: str):
                         "Vê 3 caixas (Melhor Reward, Média últimos 50, Episódios), o gráfico de reward por episódio com a meta 195, e um gráfico de loss e epsilon.")
                 except Exception:
                     pass
-
-            section_title("GUARDAR O MODELO")
-            from modules.guardar_ui import bloco_guardar
-            from modules.ml_engine.modelos_extra import de_dqn
-            bloco_guardar(username, f"dqn_{id(res)}", "DQN – CartPole", lambda nome: de_dqn(res, nome))
 
             teoria_box("Replay Buffer e Target Network",
                 "O <strong>Replay Buffer</strong> guarda as últimas experiências e amostra mini-batches aleatórios, "

@@ -231,10 +231,10 @@ def render_visao(username: str):
         with col_res:
             res = st.session_state.get("vis_result", {})
             if res:
-                section_title("GUARDAR O MODELO")
-                from modules.guardar_ui import bloco_guardar
-                from modules.ml_engine.modelos_dl import de_visao
-                bloco_guardar(username, f"vis_{id(res)}", "Visão – CNN", lambda nome: de_visao(res, nome))
+                from modules.guardar_ui import bloco_guardar_generico
+                bloco_guardar_generico(username, "imagem", {"model": res["model"], "class_names": res["class_names"]},
+                                       chave="vis_gd", algoritmo=str((res.get("setup") or {}).get("arch", "CNN")),
+                                       origem="Visão Computacional", metricas={"accuracy": res["acc"]})
                 c1, c2, c3 = st.columns(3)
                 c1.metric("Accuracy Teste", f"{res['acc']:.1%}")
                 c2.metric("Classes",        res['n_classes'])

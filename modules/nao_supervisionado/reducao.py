@@ -234,8 +234,8 @@ def render_reducao(username: str):
                             le = LabelEncoder()
                             labels_raw = le.fit_transform(labels_raw)
 
-                    sc_rd = StandardScaler() if normalizar else None
-                    X_sc = sc_rd.fit_transform(X) if normalizar else X
+                    _sc = StandardScaler() if normalizar else None
+                    X_sc = _sc.fit_transform(X) if normalizar else X
 
                     with st.spinner("A calcular..."):
                         try:
@@ -272,7 +272,7 @@ def render_reducao(username: str):
                                 "X_red": X_red, "labels": labels_raw,
                                 "algo": algo_label, "n_comp": n_comp,
                                 "model": model if algo == "pca" else None,
-                                "modelo_t": model if hasattr(model, "transform") else None, "scaler": sc_rd, "X_raw": X,
+                                "_obj": {"model": model, "scaler": _sc, "features": list(features)},
                                 # contexto para o tutor de IA (só nomes de colunas e números agregados)
                                 "dataset": nm if fonte == "Embutido" else "CSV do aluno",
                                 "features": list(features), "normalizar": bool(normalizar),
@@ -288,6 +288,10 @@ def render_reducao(username: str):
     with col_res:
         res = st.session_state.get("rd_result", {})
         if res:
+            from modules.guardar_ui import bloco_guardar_generico
+            if res.get("_obj"):
+                bloco_guardar_generico(username, "reducao", res["_obj"], chave="rd_gd", algoritmo=str(res["algo"]),
+                                       origem="Redução de Dimensionalidade", extra={"n_componentes": int(res["n_comp"])})
             X_red    = res["X_red"]
             labels   = res["labels"]
             algo_lbl = res["algo"]
@@ -320,11 +324,6 @@ def render_reducao(username: str):
                 registar(f"{algo_lbl} - Projecção {n_comp}D", _txt, _est)
             except Exception:
                 pass
-
-            section_title("GUARDAR O MODELO")
-            from modules.guardar_ui import bloco_guardar
-            from modules.ml_engine.modelos_extra import de_reducao
-            bloco_guardar(username, f"rd_{id(res)}", f"{algo_lbl} – {n_comp} componentes", lambda nome: de_reducao(res, nome))
 
             teoria_box("Interpretar a visualização",
                 "Pontos próximos no gráfico são similares no espaço original. "

@@ -614,34 +614,23 @@ def _css_global() -> str:
         border: 1px solid rgba(248,81,73,0.3) !important;
         color: {C_TEXT} !important;
     }}
-    /* No Streamlit novo o fundo do alerta está no contentor interno (sem o atributo kind): sem isto ficava uma barra clara
-       com letra clara, ilegível no tema escuro. Fundo e letra vêm sempre do tema, e uma risca à esquerda marca o tipo. */
-    [data-testid="stAlert"] > div,
-    [data-testid="stAlertContainer"] {{
-        background: {C_SURFACE2} !important;
-        color: {C_TEXT} !important;
-        border: 1px solid {C_BORDER} !important;
-        border-radius: 8px !important;
-    }}
-    [data-testid="stAlert"] p, [data-testid="stAlert"] li, [data-testid="stAlert"] span,
-    [data-testid="stAlert"] strong, [data-testid="stAlert"] em, [data-testid="stAlert"] a {{
-        color: {C_TEXT} !important;
-    }}
-    [data-testid="stAlertContainer"]:has([data-testid="stAlertContentInfo"]) {{ border-left: 4px solid #58A6FF !important; }}
-    [data-testid="stAlertContainer"]:has([data-testid="stAlertContentSuccess"]) {{ border-left: 4px solid #3FB950 !important; }}
-    [data-testid="stAlertContainer"]:has([data-testid="stAlertContentWarning"]) {{ border-left: 4px solid #D29922 !important; }}
-    [data-testid="stAlertContainer"]:has([data-testid="stAlertContentError"]) {{ border-left: 4px solid #F85149 !important; }}
 
     /* ══════════════════════════════════════════════
        PROGRESS BAR NATIVA
     ══════════════════════════════════════════════ */
-    .stProgress > div > div > div {{
+    /* Só a barra ([role=progressbar]) é pintada; o texto da barra (st.progress(text=...)) NUNCA leva fundo.
+       Antes os seletores por posição (.stProgress > div > div > div) apanhavam também o contentor do texto
+       e punham uma barra branca por cima das letras. */
+    .stProgress [role="progressbar"] {{
         background: {C_SURFACE2} !important;
         border-radius: 6px !important;
     }}
-    .stProgress > div > div > div > div {{
+    .stProgress [role="progressbar"] > div {{
         background: linear-gradient(90deg, {C_ACCENT}, {C_TEAL}) !important;
         border-radius: 6px !important;
+    }}
+    .stProgress [data-testid="stMarkdownContainer"], .stProgress [data-testid="stMarkdownContainer"] * {{
+        background: transparent !important;
     }}
 
     /* ══════════════════════════════════════════════
@@ -1016,6 +1005,11 @@ def inject_css():
 _CSS_NATIVOS = """
 <style>
 [data-testid="stHeader"] button, [data-testid="stToolbar"] * { color: var(--df-text) !important; }
+/* Alertas (st.success/info/warning/error): o Streamlit novo já não usa o atributo kind=..., por isso ficavam com o fundo claro
+   do tema base e texto claro (ilegível no escuro). Fundo e texto seguem sempre o tema escolhido. */
+[data-testid="stAlert"], [data-testid="stAlertContainer"], [data-testid="stAlert"] [data-baseweb="notification"] {
+    background: var(--df-surface2) !important; color: var(--df-text) !important; border: 1px solid var(--df-border) !important; }
+[data-testid="stAlert"] *, [data-testid="stAlertContainer"] * { color: var(--df-text) !important; background: transparent !important; }
 [data-testid="stCode"] pre, .stCode pre { background: var(--df-surface2) !important; }
 [data-testid="stCode"] code, [data-testid="stCode"] code span, .stCode code span { color: var(--df-text) !important; }
 
@@ -1054,7 +1048,10 @@ html, body, .stApp, [data-testid="stApp"] { height: 100vh !important; overflow: 
 [data-testid="stAppViewContainer"] { height: 100vh !important; overflow: hidden !important; }
 [data-testid="stMain"], section.main { height: 100vh !important; overflow-x: hidden !important; overflow-y: scroll !important; }
 [data-testid="stMainBlockContainer"], .block-container { max-width: 100% !important; box-sizing: border-box !important; }
-[data-testid="stHeader"], header[data-testid="stHeader"] { background: var(--df-bg) !important; border: none !important; box-shadow: none !important; }
+/* O cabeçalho do Streamlit é fixo e fica por cima da página: transparente e «atravessável» para nunca tapar o texto
+   (só os botões dentro dele continuam clicáveis). */
+[data-testid="stHeader"], header[data-testid="stHeader"] { background: transparent !important; border: none !important; box-shadow: none !important; pointer-events: none !important; }
+[data-testid="stHeader"] button, [data-testid="stHeader"] a, [data-testid="stToolbar"] { pointer-events: auto !important; }
 [data-testid="stDecoration"] { display: none !important; }
 
 /* Barra de rolagem sempre visível na página principal, no menu lateral e nas listas (segue o tema) */

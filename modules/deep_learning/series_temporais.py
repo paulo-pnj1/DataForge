@@ -211,10 +211,11 @@ def render_series_temporais(username: str):
         with col_res:
             res = st.session_state.get("st_result", {})
             if res:
-                section_title("GUARDAR O MODELO")
-                from modules.guardar_ui import bloco_guardar
-                from modules.ml_engine.modelos_dl import de_serie_dl
-                bloco_guardar(username, f"serdl_{id(res)}", "Série temporal – rede neuronal", lambda nome: de_serie_dl(res, nome))
+                from modules.guardar_ui import bloco_guardar_generico
+                if res.get("_obj"):
+                    bloco_guardar_generico(username, "serie_dl", res["_obj"], chave="serdl_gd",
+                                           algoritmo=str((res.get("setup") or {}).get("modelo", "LSTM")), origem="Séries Temporais",
+                                           metricas={"rmse": res["rmse"], "mae": res["mae"]})
                 c1, c2, c3 = st.columns(3)
                 c1.metric("RMSE",  f"{res['rmse']:.4f}")
                 c2.metric("MAE",   f"{res['mae']:.4f}")
