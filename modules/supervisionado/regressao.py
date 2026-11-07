@@ -355,7 +355,7 @@ def render_regressao(username: str):
     # Tutor IA, mexer num controlo ou qualquer outra re-execução da página já não os faz desaparecer.
     _res = st.session_state.get("reg_res")
     if _res:
-        _mostrar_resultados_regressao(_res)
+        _mostrar_resultados_regressao(_res, username)
 
 
 def _treinar_regressao(df, features, target, algo, params,
@@ -422,7 +422,7 @@ def _treinar_regressao(df, features, target, algo, params,
         "nulos": nulos, "scaler_o": scaler_o, "cv_k": cv_k, "n_linhas": len(df),
         "y_test": y_test, "y_pred": y_pred, "cv_scores": cv_scores,
         "r2": r2, "rmse": rmse, "mae": mae, "mse": mse,
-        "modelo_pkl": buf.getvalue(), "novo": True,
+        "modelo_pkl": buf.getvalue(), "novo": True, "df_features": df[features].copy(),
     }
 
 
@@ -432,7 +432,7 @@ def _mostrar_fig(fig):
     plt.close(fig)
 
 
-def _mostrar_resultados_regressao(res):
+def _mostrar_resultados_regressao(res, username=None):
     algo, target, features = res["algo"], res["target"], res["features"]
     test_size, nulos, scaler_o, cv_k = res["test_size"], res["nulos"], res["scaler_o"], res["cv_k"]
     y_test, y_pred, cv_scores = res["y_test"], res["y_pred"], res["cv_scores"]
@@ -489,6 +489,13 @@ def _mostrar_resultados_regressao(res):
         _mostrar_fig(_plot_real_vs_pred(y_test, y_pred))
     with t2:
         _mostrar_fig(_plot_residuos(y_test, y_pred))
+
+    # Guardar na conta e testar com dados novos (qualquer algoritmo)
+    if username:
+        section_title("GUARDAR O MODELO")
+        from modules.guardar_ui import bloco_guardar
+        from modules.ml_engine.modelo_legado import de_regressao
+        bloco_guardar(username, f"reg_{id(res)}", f"{algo} – {target}", lambda nome: de_regressao(res, nome))
 
     # Exportar
     section_title("EXPORTAR")

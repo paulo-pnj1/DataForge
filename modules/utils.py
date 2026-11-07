@@ -614,6 +614,23 @@ def _css_global() -> str:
         border: 1px solid rgba(248,81,73,0.3) !important;
         color: {C_TEXT} !important;
     }}
+    /* No Streamlit novo o fundo do alerta está no contentor interno (sem o atributo kind): sem isto ficava uma barra clara
+       com letra clara, ilegível no tema escuro. Fundo e letra vêm sempre do tema, e uma risca à esquerda marca o tipo. */
+    [data-testid="stAlert"] > div,
+    [data-testid="stAlertContainer"] {{
+        background: {C_SURFACE2} !important;
+        color: {C_TEXT} !important;
+        border: 1px solid {C_BORDER} !important;
+        border-radius: 8px !important;
+    }}
+    [data-testid="stAlert"] p, [data-testid="stAlert"] li, [data-testid="stAlert"] span,
+    [data-testid="stAlert"] strong, [data-testid="stAlert"] em, [data-testid="stAlert"] a {{
+        color: {C_TEXT} !important;
+    }}
+    [data-testid="stAlertContainer"]:has([data-testid="stAlertContentInfo"]) {{ border-left: 4px solid #58A6FF !important; }}
+    [data-testid="stAlertContainer"]:has([data-testid="stAlertContentSuccess"]) {{ border-left: 4px solid #3FB950 !important; }}
+    [data-testid="stAlertContainer"]:has([data-testid="stAlertContentWarning"]) {{ border-left: 4px solid #D29922 !important; }}
+    [data-testid="stAlertContainer"]:has([data-testid="stAlertContentError"]) {{ border-left: 4px solid #F85149 !important; }}
 
     /* ══════════════════════════════════════════════
        PROGRESS BAR NATIVA

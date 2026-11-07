@@ -20,7 +20,7 @@ from modules.ml_engine.data_validation import sugerir_tipo_problema, validar_dad
 from modules.ml_engine.model_comparison import comparar_modelos, recomendar
 from modules.ml_engine.model_training import IGNORADO
 from modules.ml_engine.preprocessing import ErroDados, preparar_dados, sugerir_features
-from modules.utils import page_header, section_title
+from modules.utils import ir_para, page_header, section_title
 
 MAX_MODELOS_COMPARACAO = 12
 NOMES_TIPO = {"regressao": "Regressão (prever um número)", "classificacao": "Classificação (prever uma categoria)"}
@@ -285,11 +285,17 @@ def _bloco_guardar(comp, r, chave, username, origem):
         if st.button("Guardar modelo", key=f"{chave}_guardar"):
             try:
                 info = mp.guardar_modelo(username, r.pipeline, mp.meta_tabular(comp.dados, r, nome, origem))
-                st.success(f"Guardado como «{info['nome']}» (versão {info['versao']}). Vê-o no separador «Modelos guardados».")
+                st.session_state[f"{chave}_gd_ok"] = info
             except mp.ErroPersistencia as e:
                 st.error(str(e))
             except Exception:
                 st.error("Não consegui guardar o modelo.")
+        info = st.session_state.get(f"{chave}_gd_ok")
+        if info:
+            st.success(f"Guardado como «{info['nome']}» (versão {info['versao']}). Vê-o no separador «Modelos guardados».")
+            if st.button("Testar este modelo com dados novos", key=f"{chave}_testar"):
+                st.session_state["tm_mod"] = info["id"]
+                ir_para("testar_modelos")
 
 
 # ── Separadores ────────────────────────────────────────────────────────────────
@@ -516,78 +522,8 @@ def _tab_series(df, ident, username):
 
 
 def _tab_previsoes(username):
-    try:
-        modelos = mp.listar_modelos(username)
-    except mp.ErroPersistencia as e:
-        st.error(str(e))
-        return
-    if not modelos:
-        st.info("Ainda não guardaste nenhum modelo. Treina um e carrega em «Guardar modelo».")
-        return
-    nomes = {m["id"]: f"{m['nome']} (v{m['versao']}, {m['criado_em']})" for m in modelos}
-    mid = st.selectbox("Modelo", list(nomes), format_func=nomes.get, key="lab_pr_mod")
-    try:
-        modelo, meta = mp.carregar_modelo(username, mid)
-    except mp.ErroPersistencia as e:
-        st.error(str(e))
-        return
-    except Exception:
-        st.error("Não consegui abrir este modelo.")
-        return
-    if meta.get("aviso_versoes"):
-        st.warning(meta["aviso_versoes"])
-    if meta["tipo"] == "serie":
-        h = int(st.number_input("Períodos a prever", 1, 365, int(meta.get("horizonte", 12)), key="lab_pr_h"))
-        try:
-            out = ps.prever_futuro(modelo, meta, h)
-        except ps.ErroPrevisao as e:
-            st.error(str(e))
-            return
-        except Exception:
-            st.error("O modelo não conseguiu prever. Treina-o outra vez.")
-            return
-        st.caption(f"Previsões a partir de {meta['ultima_data']}, o fim dos dados com que o modelo foi treinado.")
-        st.dataframe(out, width="stretch", hide_index=True)
-        st.download_button("Descarregar (CSV)", out.to_csv(index=False).encode("utf-8"), "previsoes.csv", "text/csv", key="lab_pr_dl_s")
-        return
-    modo = st.radio("Como queres prever?", ["Um caso", "Um ficheiro"], horizontal=True, key="lab_pr_modo")
-    if modo == "Um caso":
-        valores = {}
-        cols = st.columns(2)
-        for k, f in enumerate(meta["features"]):
-            if f in meta.get("cat_cols", []):
-                op = sorted(meta.get("categorias_conhecidas", {}).get(f, []))
-                valores[f] = cols[k % 2].selectbox(f, op, key=f"lab_pr_{mid}_{f}") if op else cols[k % 2].text_input(f, key=f"lab_pr_{mid}_{f}")
-            elif f in meta.get("colunas_data", []):
-                valores[f] = str(cols[k % 2].date_input(f, key=f"lab_pr_{mid}_{f}"))
-            else:
-                iv = (meta.get("intervalos_numericos") or {}).get(f)
-                valores[f] = cols[k % 2].number_input(f, value=float(iv[0]) if iv and iv[0] is not None else 0.0, key=f"lab_pr_{mid}_{f}",
-                                                      help=f"Visto no treino: {iv[0]:.4g} a {iv[1]:.4g}" if iv and None not in iv else None)
-        if st.button("Prever", type="primary", key="lab_pr_go"):
-            try:
-                p, det, rel = ps.prever_um(modelo, meta, valores)
-                st.metric(f"Previsão de {meta['alvo']}", f"{p:.4g}" if isinstance(p, (int, float, np.floating)) else str(p))
-                if det:
-                    st.dataframe(pd.DataFrame({"Classe": [k[5:] for k in det], "Probabilidade": list(det.values())}), hide_index=True)
-                for a in rel["avisos"]:
-                    st.warning(a)
-            except ps.ErroPrevisao as e:
-                st.error(str(e))
-    else:
-        f = st.file_uploader("Ficheiro com os casos novos (CSV ou Excel)", type=["csv", "xlsx", "xlsm"], key="lab_pr_file")
-        if f is not None:
-            try:
-                novo = data_loader.carregar_ficheiro(f.name, f.getvalue())
-                rel = ps.verificar_entrada(novo, meta)
-                for a in rel["avisos"]:
-                    st.warning(a)
-                saida, _ = ps.prever_tabela(modelo, meta, novo)
-            except (data_loader.ErroDados, ps.ErroPrevisao) as e:
-                st.error(str(e))
-                return
-            st.dataframe(saida.head(200), width="stretch")
-            st.download_button("Descarregar previsões (CSV)", saida.to_csv(index=False).encode("utf-8"), "previsoes.csv", "text/csv", key="lab_pr_dl")
+    from modules.testar_modelos import painel_previsao      # a mesma página «Testar Modelos», dentro do Laboratório
+    painel_previsao(username, "lab_pr")
 
 
 def _tab_guardados(username):

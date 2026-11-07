@@ -849,6 +849,13 @@ def _render_resultados(r: dict, algo: str, username: str):
     section_title("PREVISÃO INTERACTIVA")
     _previsao_interactiva(r)
 
+    # Guardar na conta e testar com dados novos (qualquer algoritmo)
+    section_title("GUARDAR O MODELO")
+    from modules.guardar_ui import bloco_guardar
+    from modules.ml_engine.modelo_legado import de_classificacao
+    bloco_guardar(username, f"clf_{id(r)}", f"{algo} – {(r.get('setup') or {}).get('target', '')}",
+                  lambda nome: de_classificacao(r, algo, nome))
+
     # Exportar modelo
     section_title("EXPORTAR MODELO")
     buf = io.BytesIO()

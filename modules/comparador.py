@@ -268,6 +268,7 @@ def _run_comparison(df, features, target, algos, models_dict, tipo, test_size, c
         res = {
             "id": time.time(), "tipo": tipo, "dataset": dataset, "alvo": target, "resultados": resultados, "algos": algos,
             "palpite": palpite, "features": list(X.columns), "classes": classes,
+            "cat_cols": [c for c in features if str(df[c].dtype) in ("object", "category")],
             "X": X, "y": y, "X_tr": X_tr, "X_te": X_te, "y_tr": y_tr, "y_te": y_te,
             "preds": preds, "modelos": modelos, "cv": cv,
             "n_linhas": len(X), "n_feat": X.shape[1], "corr_media": corr_media,
@@ -751,7 +752,7 @@ def _tab_conhecer(res, an):
             unsafe_allow_html=True)
 
 
-def _show_comparison_result(tipo):
+def _show_comparison_result(tipo, username=None):
     res = st.session_state.get("cmp_result")
     if not res or res.get("tipo") != tipo:
         st.markdown(f"""<div style="text-align:center;padding:3.5rem;color:var(--df-text3,#7A8BA8);border:2px dashed var(--df-border2,#3A4560);border-radius:16px;margin-top:1rem;">
@@ -773,6 +774,13 @@ def _show_comparison_result(tipo):
     for aba, fn in zip(abas, [_tab_resultado, _tab_porque, _tab_erros, _tab_visual, _tab_mexer, _tab_dados, _tab_custo, _tab_conhecer]):
         with aba:
             fn(res, an)
+
+    if username:
+        with st.expander("Guardar um destes modelos para testar com dados novos"):
+            nome_alg = st.selectbox("Que modelo?", list(res["modelos"]), key=f"cmp_gd_alg_{res['id']}")
+            from modules.guardar_ui import bloco_guardar
+            from modules.ml_engine.modelo_legado import do_comparador
+            bloco_guardar(username, f"cmp_{res['id']}_{nome_alg}", f"{nome_alg} – {res['alvo']}", lambda nome: do_comparador(res, nome_alg, nome))
 
 
 # ══════════════════════════════════════════════════════
@@ -838,4 +846,4 @@ def render_comparador(username: str):
                     else:
                         _run_comparison(df, features, target, algos, models_dict, tipo, test_size, cv_folds, username, nm, palpite)
 
-    _show_comparison_result(tipo)
+    _show_comparison_result(tipo, username)

@@ -100,6 +100,14 @@ def _preparar(df: pd.DataFrame, alvo: str, rotulos=None):
 # ══════════════════════════════════════════════════════
 # TREINO
 # ══════════════════════════════════════════════════════
+def _guardar_pm(nome_modelo: str):
+    """Guarda o Random Forest deste problema como Pipeline completo (o mesmo algoritmo, os mesmos parâmetros e a mesma divisão)."""
+    from modules.laboratorio_avaliacao import do_primeiro_modelo
+    from modules.ml_engine import ciclo_ml as cl
+    dados, r = do_primeiro_modelo()
+    return r.pipeline, cl.meta_ciclo(dados, r, nome_modelo, "primeiro modelo")
+
+
 def _treinar(nome: str, username: str) -> dict:
     cfg = PROBLEMAS[nome]
     df, _, _ = carregar_dataset_embutido(cfg["dataset"])
@@ -329,5 +337,8 @@ def render_primeiro_modelo(username: str):
     if res and res["nome"] == nome:
         st.markdown("#### 3. Resultado")
         _mostrar_resultado(res)
+        st.markdown("#### 4. Guarda o modelo e testa-o com dados novos")
+        from modules.guardar_ui import bloco_guardar
+        bloco_guardar(username, f"pm_{id(res)}", f"{nome} (Primeiro Modelo)", _guardar_pm)
     elif res:
         st.info("Mudaste de problema. Carrega em **Treinar o modelo agora** para ver o novo resultado.")
