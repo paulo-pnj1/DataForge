@@ -144,19 +144,17 @@ Lógica em `modules/ml_engine/ciclo_ml.py` (sem Streamlit; reutiliza `preparar_d
 interface em `modules/laboratorio_avaliacao.py`, texto pedagógico em `modules/laboratorio_avaliacao_conteudo.py`, modelos de código em `modules/ml_engine/modelos_codigo/`.
 Testes: `tests/test_ciclo_ml.py`.
 
-## Previsor de Alunos (KNN)
+## Guardar, testar e descarregar modelos (todas as páginas)
 
-Página **Previsor de Alunos**: usa um modelo KNN já treinado (`artifacts/knn_model.pkl`, aberto só se o SHA-256 conferir). Ver `INSTRUCOES_PREVISOR.md`.
-Testes do motor: `pytest -q tests/test_data_loader.py tests/test_preprocessing.py tests/test_regression.py tests/test_classification.py tests/test_model_comparison.py tests/test_auto_ml.py tests/test_model_persistence.py tests/test_prediction_service.py tests/test_forecasting.py`
+Cada página que treina um modelo tem o bloco **Guardar modelo / Preparar ficheiro para descarregar**: Classificação, Regressão, Comparador (também com
+colunas de texto), Laboratório de ML (tabular e séries), Avaliar e Optimizar, O Meu Primeiro Modelo (o Random Forest original), Redes Neurais (MLP),
+Clustering, Anomalias, Redução (métodos que projectam casos novos: PCA, Kernel PCA, ICA, Factor Analysis, UMAP; o t-SNE não consegue) e Reforço
+(Q-Learning e DQN).
 
-## Países (mundo lusófono)
+- **Guardar** põe o modelo na conta do aluno (assinado e versionado). A página **Testar Modelos** testa qualquer um com dados novos (um caso ou um
+  ficheiro CSV/Excel) e, conforme o tipo, devolve a previsão, o grupo, «anomalia/normal», as componentes ou a melhor acção.
+- **Descarregar** dá um ZIP com `modelo.joblib`, `metadados.json`, `usar_modelo.py` e (para os modelos das páginas) `dataforge_runtime.py`, que abre o
+  modelo noutro computador só com numpy, pandas e scikit-learn. Os modelos de séries temporais só se usam dentro da plataforma.
 
-O DataForge EDU adapta-se a **Angola, Moçambique, Brasil e Portugal** (escolha em «País / Country», no menu lateral e no ecrã de entrada; fica guardada na conta).
-O que muda: moeda, cidade e bairros dos datasets de exemplo e das lições, escala das notas (0–20, ou 0–10 no Brasil), ortografia
-(Acordo de 1990 fora de Angola), a variante do português (no Brasil: «você», «tela», «arquivo»...) e os exemplos e a variante que o tutor de IA usa.
-
-- Toda a configuração está em `modules/regiao.py` (dicionário `REGIOES`). Para acrescentar um país, copia uma entrada e preenche-a.
-- Os nomes internos dos datasets não mudam; só o texto mostrado (`regiao.localizar`, chamada por `i18n.tr`). Angola é o ponto de partida e não é alterada.
-- A adaptação do português do Brasil é automática (regras e dicionário). **Deve ser revista por um falante brasileiro** antes de se divulgar.
-- O painel Business e o conteúdo do e-mail continuam com exemplos de Angola.
-- Testes: `tests/test_regiao.py`.
+Código: `modules/ml_engine/dataforge_runtime.py` (classes autónomas), `modelo_legado.py` e `modelos_extra.py` (de cada página para o modelo guardado),
+`modules/guardar_ui.py` (bloco comum) e `modules/testar_modelos.py` (página). Testes: `test_modelo_legado.py`, `test_modelos_extra.py`.

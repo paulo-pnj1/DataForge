@@ -415,9 +415,9 @@ try:
         from modules.laboratorio_avaliacao import render_avaliacao
         render_avaliacao(username)
 
-    elif pagina == "testar_modelo":
-        from modules.testar_modelo import render_testar_modelo
-        render_testar_modelo(username)
+    elif pagina == "testar_modelos":
+        from modules.testar_modelos import render_testar_modelos
+        render_testar_modelos(username)
 
     elif pagina == "historico":
         _render_historico(username)

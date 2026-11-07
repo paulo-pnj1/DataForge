@@ -181,7 +181,7 @@ def render_mlp(username: str):
                                        solver, lr, max_iter, test_size, username)
 
         with col_res:
-            _show_mlp_clf_result()
+            _show_mlp_clf_result(username)
 
     # ════════════════════════════════════════════════
     # REGRESSÃO
@@ -229,7 +229,7 @@ def render_mlp(username: str):
                         _train_mlp_reg(df2, feats2, target2, hid2, act2, sol2, lr2, ep2, ts2, username)
 
         with col_res2:
-            _show_mlp_reg_result()
+            _show_mlp_reg_result(username)
 
 
 # ── HELPERS ──────────────────────────────────────────
@@ -258,9 +258,8 @@ def _train_mlp_clf(df, features, target, hidden, activation, solver, lr, max_ite
         # Encoding
         encoders = {}
         for col in X.select_dtypes(include=["object","category"]).columns:
-            encoders[col] = LabelEncoder().fit(X[col].astype(str))
-            X[col] = encoders[col].transform(X[col].astype(str))
-        le_y = None
+            encoders[col] = LabelEncoder()
+            X[col] = encoders[col].fit_transform(X[col].astype(str))
         if y.dtype == object or str(y.dtype) == "category":
             le_y = LabelEncoder()
             y = le_y.fit_transform(y.astype(str))
@@ -300,7 +299,7 @@ def _train_mlp_clf(df, features, target, hidden, activation, solver, lr, max_ite
                 "loss_curve": model.loss_curve_,
                 "n_iter": model.n_iter_,
                 "report": rep, "model": model, "scaler": scaler,
-                "encoders": encoders, "le_target": le_y, "X_ref": X.copy(), "n_treino": int(len(y_train)), "_username": username,
+                "encoders": encoders, "df_features": X, "valores_alvo": np.unique(y),
                 "setup": {"features": list(features), "target": str(target), "hidden": list(hidden), "activation": str(activation),
                           "solver": str(solver), "lr": lr, "max_iter": max_iter, "test_size": test_size, "n_test": int(len(y_test))}
             }
@@ -312,7 +311,7 @@ def _train_mlp_clf(df, features, target, hidden, activation, solver, lr, max_ite
         erro_box(f"Erro: {e}")
 
 
-def _show_mlp_clf_result():
+def _show_mlp_clf_result(username=None):
     res = st.session_state.get("mlp_clf_res", {})
     if not res:
         st.markdown(f"""<div style="text-align:center;padding:5rem;color:var(--df-text3,#7A8BA8); border:2px dashed var(--df-border2,#3A4560);border-radius:16px;margin-top:1rem;"><div style="font-size:40px;margin-bottom:1rem;"></div><div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">Configura a rede e clica em <strong>Treinar</strong></div></div>""", unsafe_allow_html=True)
@@ -343,20 +342,16 @@ def _show_mlp_clf_result():
     if cm.shape[0] <= 10:
         st.plotly_chart(_confusion_heatmap(cm, classes[:cm.shape[0]]), width='stretch')
 
-    # Guardar na conta para testar mais tarde com dados novos
-    if res.get("X_ref") is not None:
-        from modules.guardar_ui import bloco_guardar
-        bloco_guardar(
-            res.get("_username", ""), res["model"], chave="mlpc_gd", tarefa="classificacao", features=res["setup"]["features"],
-            alvo=res["setup"]["target"], algoritmo="MLP (rede neural)", X_ref=res["X_ref"], origem="MLP / Redes Neurais",
-            scaler=res["scaler"], encoders=res.get("encoders"), le_target=res.get("le_target"),
-            metricas={"accuracy": res["acc"], "f1": res["f1"]}, n_treino=res.get("n_treino"), n_teste=res["setup"]["n_test"])
-
     # Download modelo
     buf = io.BytesIO()
     pickle.dump({"model": res["model"], "scaler": res["scaler"]}, buf)
     st.download_button("Descarregar Modelo (.pkl)", buf.getvalue(),
                        "mlp_classificacao.pkl", width='stretch')
+    if username:
+        section_title("GUARDAR O MODELO")
+        from modules.guardar_ui import bloco_guardar
+        from modules.ml_engine.modelo_legado import de_mlp
+        bloco_guardar(username, f"mlpc_{id(res)}", f"MLP – {res['setup']['target']}", lambda nome: de_mlp(res, "classificacao", nome))
 
     teoria_box("A curva de perda (loss)",
         "A loss desce ao longo das épocas enquanto a rede aprende. "
@@ -370,8 +365,8 @@ def _train_mlp_reg(df, features, target, hidden, activation, solver, lr, max_ite
         y = df[target].copy()
         encoders = {}
         for col in X.select_dtypes(include=["object","category"]).columns:
-            encoders[col] = LabelEncoder().fit(X[col].astype(str))
-            X[col] = encoders[col].transform(X[col].astype(str))
+            encoders[col] = LabelEncoder()
+            X[col] = encoders[col].fit_transform(X[col].astype(str))
         X = X.fillna(X.median(numeric_only=True))
         y = pd.to_numeric(y, errors="coerce").fillna(y.median())
 
@@ -402,8 +397,7 @@ def _train_mlp_reg(df, features, target, hidden, activation, solver, lr, max_ite
                 "y_test": y_test.to_numpy() if hasattr(y_test, "to_numpy") else y_test, "y_pred": y_pred,
                 "loss_curve": model.loss_curve_,
                 "n_iter": model.n_iter_,
-                "model": model, "scaler": scaler,
-                "encoders": encoders, "X_ref": X.copy(), "n_treino": int(len(y_train)), "_username": username,
+                "model": model, "scaler": scaler, "encoders": encoders, "df_features": X,
                 "setup": {"features": list(features), "target": str(target), "hidden": list(hidden), "activation": str(activation),
                           "solver": str(solver), "lr": lr, "max_iter": max_iter, "test_size": test_size, "n_test": int(len(y_test))}
             }
@@ -415,7 +409,7 @@ def _train_mlp_reg(df, features, target, hidden, activation, solver, lr, max_ite
         erro_box(f"Erro: {e}")
 
 
-def _show_mlp_reg_result():
+def _show_mlp_reg_result(username=None):
     res = st.session_state.get("mlp_reg_res", {})
     if not res:
         st.markdown(f"""<div style="text-align:center;padding:5rem;color:var(--df-text3,#7A8BA8); border:2px dashed var(--df-border2,#3A4560);border-radius:16px;margin-top:1rem;"><div style="font-size:40px;margin-bottom:1rem;"></div><div style="font-size:16px;font-weight:700;color:var(--df-text,#FFFFFF);">Configura e clica em <strong>Treinar</strong></div></div>""", unsafe_allow_html=True)
@@ -465,17 +459,12 @@ def _show_mlp_reg_result():
     )
     st.plotly_chart(fig_rv, width='stretch')
 
-    # Guardar na conta para testar mais tarde com dados novos
-    if res.get("X_ref") is not None:
-        from modules.guardar_ui import bloco_guardar
-        bloco_guardar(
-            res.get("_username", ""), res["model"], chave="mlpr_gd", tarefa="regressao", features=res["setup"]["features"],
-            alvo=res["setup"]["target"], algoritmo="MLP (rede neural)", X_ref=res["X_ref"], origem="MLP / Redes Neurais",
-            scaler=res["scaler"], encoders=res.get("encoders"),
-            metricas={"r2": res["r2"], "rmse": res["rmse"], "mae": res["mae"]}, n_treino=res.get("n_treino"),
-            n_teste=res["setup"]["n_test"])
-
     buf = io.BytesIO()
     pickle.dump({"model": res["model"], "scaler": res["scaler"]}, buf)
     st.download_button("Descarregar Modelo (.pkl)", buf.getvalue(),
                        "mlp_regressao.pkl", width='stretch')
+    if username:
+        section_title("GUARDAR O MODELO")
+        from modules.guardar_ui import bloco_guardar
+        from modules.ml_engine.modelo_legado import de_mlp
+        bloco_guardar(username, f"mlpr_{id(res)}", f"MLP – {res['setup']['target']}", lambda nome: de_mlp(res, "regressao", nome))

@@ -1,5 +1,5 @@
-"""Guardar, descarregar e testar os modelos que NÃO são tabelas: texto, imagens, geradores, séries (rede neuronal),
-redução de dimensionalidade e aprendizagem por reforço.
+"""Guardar, descarregar e testar os modelos de texto, imagens, geradores e séries com rede neuronal (PyTorch).
+Clustering, anomalias, redução e reforço já vivem em `dataforge_runtime.py`.
 
 `PacoteGenerico` junta o modelo com tudo o que é preciso para o usar depois (vocabulário, vectorizador, scaler, dimensões...)
 e sabe fazer o teste mais natural de cada tipo. As bibliotecas pesadas (PyTorch) só são importadas quando se usa o modelo.
@@ -16,11 +16,7 @@ TIPOS = {
     "imagem": "Imagens (CNN)",
     "generativo": "Gerador de dados",
     "serie_dl": "Série temporal (rede neuronal)",
-    "reducao": "Redução de dimensionalidade",
-    "reforco_q": "Reforço (Q-Learning)",
-    "reforco_dqn": "Reforço (DQN)",
 }
-SETAS = ["↑", "↓", "←", "→"]            # GridWorld.ACTIONS = [(-1,0),(1,0),(0,-1),(0,1)]
 
 
 class ErroPacote(Exception):
@@ -137,44 +133,6 @@ class PacoteGenerico:
                 seq = np.append(seq[1:], p)
         return o["scaler"].inverse_transform(np.array(out).reshape(-1, 1)).flatten()
 
-    # ── redução de dimensionalidade ───────────────────────────────────────
-    def transformar(self, df: pd.DataFrame) -> pd.DataFrame:
-        o = self.objetos
-        feats = list(o["features"])
-        em_falta = [c for c in feats if c not in df.columns]
-        if em_falta:
-            raise ErroPacote("Faltam colunas: " + ", ".join(map(str, em_falta)) + ".")
-        X = df[feats].apply(pd.to_numeric, errors="coerce")
-        X = X.fillna(pd.Series(o.get("medianas") or {})).fillna(0.0).to_numpy(dtype=float)
-        if o.get("scaler") is not None:
-            X = o["scaler"].transform(X)
-        m = o["model"]
-        if not hasattr(m, "transform"):
-            raise ErroPacote("Este algoritmo (t-SNE) só projecta os dados com que foi treinado.")
-        Z = m.transform(X)
-        return pd.DataFrame(Z, columns=[f"componente_{i + 1}" for i in range(Z.shape[1])])
-
-    # ── reforço ───────────────────────────────────────────────────────────
-    def politica(self) -> pd.DataFrame:
-        """Q-Learning: melhor acção em cada célula da grelha (setas); ■ = obstáculo, ✖ = armadilha, ★ = objectivo."""
-        Q = np.asarray(self.objetos["Q"])
-        n, obst, trap = self.objetos["env_params"]
-        obst, trap = {tuple(x) for x in obst}, {tuple(x) for x in trap}
-        linhas = []
-        for r in range(n):
-            lin = []
-            for c in range(n):
-                if (r, c) == (n - 1, n - 1):
-                    lin.append("★")
-                elif (r, c) in obst:
-                    lin.append("■")
-                elif (r, c) in trap:
-                    lin.append("✖")
-                else:
-                    lin.append(SETAS[int(np.argmax(Q[r, c]))] if Q.ndim == 3 else SETAS[int(np.argmax(Q[r * n + c]))])
-            linhas.append(lin)
-        return pd.DataFrame(linhas, columns=[str(i + 1) for i in range(n)], index=[str(i + 1) for i in range(n)])
-
 
 def construir(tipo: str, objetos: dict, *, nome: str, algoritmo: str, origem: str, subtipo: str = "",
               metricas: dict = None, extra: dict = None) -> tuple:
@@ -184,7 +142,7 @@ def construir(tipo: str, objetos: dict, *, nome: str, algoritmo: str, origem: st
             "alvo": "", "features": [], "colunas_data": [], "num_cols": [], "cat_cols": [], "classes": None,
             "categorias_conhecidas": {}, "intervalos_numericos": {}, "parametros": {}, "cv": {}, "origem": origem,
             "metricas_teste": {k: float(v) for k, v in (metricas or {}).items() if isinstance(v, (int, float, np.number))},
-            "avisos": []}
+            "avisos": [], "pipeline_completo": True}
     if "class_names" in objetos:
         meta["classes"] = [str(c) for c in objetos["class_names"]]
     if "features" in objetos:

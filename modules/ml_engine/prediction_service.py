@@ -66,41 +66,19 @@ def _preparar_X(df: pd.DataFrame, meta: dict) -> pd.DataFrame:
     return limpar_tipos(X, num, cat)
 
 
-TIPOS_TABULARES = ("regressao", "classificacao", "agrupamento", "anomalias")
-
-
-def coluna_saida(meta: dict) -> str:
-    """Nome da coluna principal que `prever_tabela` acrescenta (a previsão, o grupo ou o veredicto)."""
-    t = meta.get("tipo")
-    if t == "agrupamento":
-        return "grupo"
-    if t == "anomalias":
-        return "resultado"
-    return f"previsao_{meta.get('alvo', 'alvo')}"
-
-
 def prever_tabela(modelo, meta: dict, df: pd.DataFrame) -> tuple:
     """Previsões para cada linha. Devolve (DataFrame com as colunas originais + previsão [+ probabilidades], relatório)."""
-    if meta.get("tipo") not in TIPOS_TABULARES:
+    if meta.get("tipo") not in ("regressao", "classificacao"):
         raise ErroPrevisao("Este modelo é uma série temporal: usa a previsão do futuro.")
     rel = verificar_entrada(df, meta)
     if rel["erros"]:
         raise ErroPrevisao(" ".join(rel["erros"]))
     X = _preparar_X(df, meta)
     saida = df.copy()
-    nome = coluna_saida(meta)
+    alvo = meta.get("alvo", "alvo")
+    nome = f"previsao_{alvo}"
     pred = modelo.predict(X)
-    if meta["tipo"] == "agrupamento":
-        saida[nome] = ["Ruído" if int(g) == -1 else f"Grupo {int(g)}" for g in np.asarray(pred)]
-    elif meta["tipo"] == "anomalias":
-        saida[nome] = np.where(np.asarray(pred) == -1, "Anomalia", "Normal")
-        try:
-            pont = modelo.pontuacao(X)
-            if pont is not None:
-                saida["pontuacao"] = np.round(pont, 4)
-        except Exception:
-            pass
-    elif meta["tipo"] == "classificacao":
+    if meta["tipo"] == "classificacao":
         classes = meta.get("classes") or []
         pred = np.asarray(pred).astype(int)
         saida[nome] = [classes[i] if 0 <= i < len(classes) else i for i in pred]
@@ -121,7 +99,8 @@ def prever_um(modelo, meta: dict, valores: dict) -> tuple:
     """Previsão para um único caso (dicionário coluna → valor). Devolve (previsao, detalhe, relatório)."""
     linha = pd.DataFrame([{c: valores.get(c, np.nan) for c in meta.get("features", [])}])
     saida, rel = prever_tabela(modelo, meta, linha)
-    previsao = saida[coluna_saida(meta)].iloc[0]
+    alvo = f"previsao_{meta.get('alvo', 'alvo')}"
+    previsao = saida[alvo].iloc[0]
     detalhe = {c: float(saida[c].iloc[0]) for c in saida.columns if c.startswith("prob_")}
     return previsao, detalhe, rel
 

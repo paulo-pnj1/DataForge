@@ -99,37 +99,3 @@ def test_descarregar_inclui_algoritmos_que_nao_se_guardam():
                              origem="t", X_ref=X, verificar=False)
     d = joblib.load(io.BytesIO(pm.bytes_para_descarregar(pac, meta)))
     assert d["formato"] == "dataforge-pacote-v1" and d["meta"]["algoritmo"] == "DBSCAN"
-
-
-def test_generico_texto_reducao_e_reforco(tmp_path):
-    from sklearn.decomposition import PCA
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.linear_model import LogisticRegression
-    from modules.ml_engine import pacote_generico as pg
-
-    textos = ["o jogo de futebol foi bom", "golo no estadio", "o banco subiu os juros", "a bolsa caiu hoje"] * 5
-    y = [0, 0, 1, 1] * 5
-    vec = TfidfVectorizer().fit(textos)
-    clf = LogisticRegression().fit(vec.transform(textos), y)
-    pac, meta = pg.construir("texto", {"vectorizer": vec, "model": clf, "class_names": ["desporto", "economia"]},
-                             nome="t", algoritmo="TF-IDF + LR", origem="t")
-    modelo, mt = _guardar_abrir(tmp_path, pac, meta)
-    assert mt["tipo"] == "texto"
-    classe, probas = modelo.prever_texto("golo no futebol")
-    assert classe == "desporto" and abs(sum(probas.values()) - 1) < 1e-9
-
-    X = pd.DataFrame(np.random.default_rng(0).normal(size=(50, 3)), columns=["a", "b", "c"])
-    sc = StandardScaler().fit(X.to_numpy())
-    pca = PCA(2).fit(sc.transform(X.to_numpy()))
-    pac, meta = pg.construir("reducao", {"model": pca, "scaler": sc, "features": ["a", "b", "c"]}, nome="p", algoritmo="PCA", origem="t")
-    modelo, _ = _guardar_abrir(tmp_path, pac, meta)
-    assert modelo.transformar(X.head(4)).shape == (4, 2)
-    with pytest.raises(pg.ErroPacote):
-        modelo.transformar(X[["a"]])
-
-    Q = np.zeros((9, 4))
-    Q[:, 3] = 1.0
-    pac, meta = pg.construir("reforco_q", {"Q": Q, "env_params": (3, [], [])}, nome="q", algoritmo="Q", origem="t")
-    modelo, _ = _guardar_abrir(tmp_path, pac, meta)
-    pol = modelo.politica()
-    assert pol.shape == (3, 3) and pol.iloc[0, 0] == "→" and pol.iloc[2, 2] == "★"

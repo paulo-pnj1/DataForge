@@ -9,9 +9,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from modules.ml_engine import ciclo_ml as cl, model_evaluation as ev, model_persistence as mp, prediction_service as ps
-from modules.ml_engine import importar_legado as il
 from modules.ml_engine import modelos_extra as mx
-from modules.ml_engine.modelo_legado import ErroLegado
 from modules.ml_engine.data_loader import ErroDados, carregar_ficheiro
 from modules.utils import ir_para, page_header, section_title
 
@@ -339,39 +337,8 @@ def painel_previsao(username: str, p: str = "tm"):
         _ficheiro(modelo, meta, p)
 
 
-def _importar(username: str):
-    with st.expander("Tens um modelo descarregado de antes (.pkl)? Importa-o aqui"):
-        st.caption("Serve para os ficheiros .pkl descarregados das páginas Classificação, Regressão e Redes Neurais antes de existir o botão «Guardar modelo». "
-                   "Por segurança só se reconstroem objectos do scikit-learn: se o ficheiro tiver outra coisa, não é aberto. Importa só ficheiros que descarregaste desta plataforma.")
-        f = st.file_uploader("Ficheiro .pkl", type=["pkl", "joblib"], key="tm_imp_file")
-        if f is None:
-            return
-        try:
-            info = il.inspeccionar(f.getvalue())
-        except ErroLegado as e:
-            st.error(str(e))
-            return
-        st.success(f"Modelo reconhecido: {info['algoritmo']} ({'classificação' if info['tipo'] == 'classificacao' else 'regressão'}).")
-        nome = st.text_input("Nome para guardar", value=f"{info['algoritmo']} importado", max_chars=80, key="tm_imp_nome")
-        alvo = st.text_input("O que prevê este modelo? (nome da coluna)", key="tm_imp_alvo")
-        feats = None
-        if not info["features"]:
-            txt = st.text_input(f"Colunas do treino, pela ordem e separadas por vírgulas ({info['n_features']} no total)", key="tm_imp_feats")
-            feats = [x.strip() for x in txt.split(",") if x.strip()]
-            st.caption("Este ficheiro não trazia os nomes das colunas. Só funciona se todas eram números (as redes neurais antigas não guardavam a codificação do texto).")
-        if st.button("Importar e guardar", type="primary", key="tm_imp_go"):
-            try:
-                objecto, meta = il.construir(info, nome, alvo, feats)
-                guardado = mp.guardar_modelo(username, objecto, meta)
-                st.session_state["tm_mod"] = guardado["id"]
-                st.success(f"Importado como «{guardado['nome']}» (versão {guardado['versao']}). Já aparece na lista de modelos acima.")
-            except (ErroLegado, mp.ErroPersistencia) as e:
-                st.error(str(e))
-
-
 def render_testar_modelos(username: str):
     page_header("Testar Modelos", "Experimenta qualquer modelo guardado com dados novos: um caso à mão ou um ficheiro inteiro.")
     st.caption("Os dados que usas aqui não entram no treino: servem só para ver o que o modelo responde.")
     section_title("O TEU MODELO")
     painel_previsao(username, "tm")
-    _importar(username)
