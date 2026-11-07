@@ -272,6 +272,9 @@ def _mostrar_comparacao(comp, rec, chave: str, username: str, origem: str):
         for a in r.avisos:
             st.warning(a)
         _bloco_guardar(comp, r, chave, username, origem)
+        if st.button("Avaliar e optimizar este modelo", key=f"{chave}_avaliar"):
+            from modules.laboratorio_avaliacao import abrir_no_laboratorio
+            abrir_no_laboratorio(comp.dados, r, origem, comp)
     for r in comp.falhas():
         st.caption(f"{r.nome}: {r.motivo}")
 

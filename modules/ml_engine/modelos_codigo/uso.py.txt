@@ -1,0 +1,7 @@
+# Exemplo de uso do modelo exportado do DataForge EDU.
+# Coloca este ficheiro na mesma pasta que o modelo.joblib.
+@@PREPARAR@@
+
+if __name__ == "__main__":
+    novos = pd.DataFrame([@@EXEMPLO@@])
+    print(prever(novos))

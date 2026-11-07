@@ -294,6 +294,10 @@ def _mostrar_resultado(r: dict):
     with c3:
         if st.button("Comparar algoritmos", key="pm_comp", width="stretch"):
             ir_para("comparador")
+    if st.button("Avaliar e optimizar este modelo (guardar, prever, monitorizar)", key="pm_avaliar", width="stretch"):
+        from modules.laboratorio_avaliacao import FONTES
+        st.session_state["av_fonte"] = FONTES[1]
+        ir_para("avaliacao_modelos")
 
 
 def render_primeiro_modelo(username: str):

@@ -1,0 +1,44 @@
+import joblib
+import numpy as np
+import pandas as pd
+
+CAMINHO_MODELO = "modelo.joblib"
+TIPO = @@TIPO@@
+ALVO = @@ALVO@@
+FEATURES = @@FEATURES@@
+NUM_COLS = @@NUM_COLS@@
+CAT_COLS = @@CAT_COLS@@
+COLUNAS_DATA = @@COLUNAS_DATA@@
+CLASSES = @@CLASSES@@
+
+# O ficheiro .joblib contém o Pipeline completo (imputação, escala, one-hot e algoritmo).
+# Só abras ficheiros joblib em que confias: abrir um executa código.
+modelo = joblib.load(CAMINHO_MODELO)
+
+
+def preparar_entrada(df):
+    """Mesmas transformações linha a linha que o DataForge fez antes do Pipeline."""
+    em_falta = [c for c in FEATURES if c not in df.columns]
+    if em_falta:
+        raise ValueError("Faltam colunas: " + ", ".join(em_falta))
+    X = df[FEATURES].copy()
+    for c in COLUNAS_DATA:
+        d = pd.to_datetime(X[c], errors="coerce")
+        X[c + "__ano"] = d.dt.year.astype(float)
+        X[c + "__mes"] = d.dt.month.astype(float)
+        X[c + "__dia"] = d.dt.day.astype(float)
+        X[c + "__dia_da_semana"] = d.dt.dayofweek.astype(float)
+        X = X.drop(columns=[c])
+    for c in NUM_COLS:
+        X[c] = pd.to_numeric(X[c], errors="coerce").astype(float).replace([np.inf, -np.inf], np.nan)
+    for c in CAT_COLS:
+        X[c] = X[c].astype(object).map(lambda v: np.nan if pd.isna(v) else str(v).strip()).astype(object)
+    return X[NUM_COLS + CAT_COLS]
+
+
+def prever(df):
+    """Devolve uma lista com a previsão de cada linha."""
+    pred = modelo.predict(preparar_entrada(df))
+    if CLASSES:
+        return [CLASSES[int(i)] for i in pred]
+    return [float(v) for v in pred]

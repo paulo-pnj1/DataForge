@@ -1,0 +1,27 @@
+# API REST com FastAPI.  pip install fastapi uvicorn joblib scikit-learn pandas
+# Executar:  uvicorn api:app --reload      Documentação automática em /docs
+@@PREPARAR@@
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import Any, Dict, List
+
+app = FastAPI(title="Modelo @@NOME@@")
+
+
+class Pedido(BaseModel):
+    casos: List[Dict[str, Any]]    # cada caso: {coluna: valor}
+
+
+@app.get("/saude")
+def saude():
+    return {"estado": "ok", "alvo": ALVO, "colunas": FEATURES}
+
+
+@app.post("/prever")
+def prever_casos(pedido: Pedido):
+    if not pedido.casos:
+        raise HTTPException(status_code=422, detail="Envia pelo menos um caso.")
+    try:
+        return {"previsoes": prever(pd.DataFrame(pedido.casos))}
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))

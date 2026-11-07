@@ -125,6 +125,28 @@ Página **Laboratório de ML** (menu do aluno › Ferramentas). Carrega um CSV/E
 - **Previsões** e **Modelos guardados**: modelos guardados por utilizador em `artifacts/modelos/` (joblib + metadados JSON + versões), com assinatura HMAC verificada antes de abrir. Define `modelos_key` em `secrets.toml` (ver `secrets.toml.example`). Em alojamentos com disco temporário os modelos podem desaparecer ao reiniciar.
 
 O código está em `modules/ml_engine/` (sem Streamlit, testável) e `modules/laboratorio.py` (interface).
+
+## Laboratório de Avaliação e Optimização (o ciclo completo depois do treino)
+
+Página **Avaliar e Optimizar** (menu do aluno › Ferramentas; também há botões no Laboratório de ML e em «O Meu Primeiro Modelo»).
+Guia o estudante por 8 etapas, cada uma com lição (o que é, porquê, como, como interpretar, exemplo) e um desafio:
+
+1. **Avaliar**: métricas certas para cada tipo de problema, matriz de confusão, relatório de classificação, cada métrica explicada com os números do aluno.
+2. **Generalização**: treino × teste × validação cruzada × referência simples, diagnóstico de sobreajuste/subajuste/bom ajustamento (só indícios; «inconclusivo» com poucos dados) e curva de aprendizagem.
+3. **Comparar** algoritmos com a mesma divisão e validação; melhor modelo por critério (critérios diferentes podem eleger modelos diferentes).
+4. **Optimizar** com `GridSearchCV` ou `RandomizedSearchCV` sobre o Pipeline completo, só com os dados de treino; antes × depois.
+5. **Guardar e exportar** (Pipeline + metadados): na conta (assinado, versionado) ou descarregar `.joblib`, `.json` ou `.zip`.
+6. **Prever** com casos novos (formulário ou CSV), com validação de colunas e tipos.
+7. **Implementação**: código gerado (Python, FastAPI, Streamlit, cliente HTTP) para o modelo do aluno.
+8. **Monitorização**: deriva (PSI) por variável e das previsões, e métricas em dados novos com valores reais.
+
+Lógica em `modules/ml_engine/ciclo_ml.py` (sem Streamlit; reutiliza `preparar_dados`, `treinar_modelo`, `comparar_modelos`, `model_persistence` e `prediction_service`),
+interface em `modules/laboratorio_avaliacao.py`, texto pedagógico em `modules/laboratorio_avaliacao_conteudo.py`, modelos de código em `modules/ml_engine/modelos_codigo/`.
+Testes: `tests/test_ciclo_ml.py`.
+
+## Previsor de Alunos (KNN)
+
+Página **Previsor de Alunos**: usa um modelo KNN já treinado (`artifacts/knn_model.pkl`, aberto só se o SHA-256 conferir). Ver `INSTRUCOES_PREVISOR.md`.
 Testes do motor: `pytest -q tests/test_data_loader.py tests/test_preprocessing.py tests/test_regression.py tests/test_classification.py tests/test_model_comparison.py tests/test_auto_ml.py tests/test_model_persistence.py tests/test_prediction_service.py tests/test_forecasting.py`
 
 ## Países (mundo lusófono)

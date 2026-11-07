@@ -1,0 +1,8 @@
+# Cliente: chama a API (ver api.py) a partir de outra aplicação.  pip install requests
+import requests
+
+URL = "http://127.0.0.1:8000/prever"
+casos = [@@EXEMPLO@@]
+resposta = requests.post(URL, json={"casos": casos}, timeout=30)
+resposta.raise_for_status()
+print(resposta.json()["previsoes"])

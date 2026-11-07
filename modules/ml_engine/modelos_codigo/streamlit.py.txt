@@ -1,0 +1,15 @@
+# Aplicação Web com Streamlit.  pip install streamlit joblib scikit-learn pandas
+# Executar:  streamlit run app_modelo.py
+import streamlit as st
+@@PREPARAR@@
+
+st.title("Modelo @@NOME@@")
+ficheiro = st.file_uploader("CSV com os casos novos", type=["csv"])
+if ficheiro is not None:
+    novos = pd.read_csv(ficheiro)
+    try:
+        novos["previsao_" + ALVO] = prever(novos)
+        st.dataframe(novos)
+        st.download_button("Descarregar", novos.to_csv(index=False).encode("utf-8"), "previsoes.csv", "text/csv")
+    except ValueError as e:
+        st.error(str(e))
