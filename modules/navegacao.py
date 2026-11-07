@@ -68,9 +68,9 @@ def menu_do_painel(painel: str, rotulo_revisao: str = "Revisão do dia") -> list
         ("Início",                   "dashboard",       "COMEÇAR AQUI",                     "home",     AZ),
         ("Escola de ML",             "escola",          None,                               "school",   VD),
         ("O Meu Primeiro Modelo",    "primeiro_modelo", None,                               "rocket",   VD),
-        ("Classificação",            "classificacao",   "MÓDULO 1 · PREVER",                "chart-bar", AZ),
+        ("Classificação",            "classificacao",   "MÓDULO 1 · SUPERVISIONADO",                "chart-bar", AZ),
         ("Regressão",                "regressao",       None,                               "trend-up", AZ),
-        ("Clustering",               "clustering",      "MÓDULO 2 · DESCOBRIR PADRÕES",     "circles",  AZ),
+        ("Clustering",               "clustering",      "MÓDULO 2 · NÃO SUPERVISIONADO",     "circles",  AZ),
         ("Redução Dimensionalidade", "reducao",         None,                               "network",  AZ),
         ("Detecção de Anomalias",    "anomalias",       None,                               "warning",  AZ),
         ("MLP / Redes Neurais",      "mlp",             "MÓDULO 3 · REDES E DEEP LEARNING", "brain",    AZ),
@@ -117,8 +117,8 @@ def agrupar_menu(menu: list) -> list:
 # Apoio didáctico do menu do aluno: o que cada módulo ensina e o que cada página faz, em linguagem simples.
 MODULOS_INFO = {
     "COMEÇAR AQUI": ("", "Primeiro percebe a ideia e treina o teu primeiro modelo."),
-    "MÓDULO 1 · PREVER": ("", "Tens exemplos com a resposta certa? O computador aprende com eles e prevê casos novos."),
-    "MÓDULO 2 · DESCOBRIR PADRÕES": ("", "Sem respostas prontas: o computador procura grupos e coisas estranhas nos dados."),
+    "MÓDULO 1 · SUPERVISIONADO": ("", "Tens exemplos com a resposta certa? O computador aprende com eles e prevê casos novos."),
+    "MÓDULO 2 · NÃO SUPERVISIONADO": ("", "Sem respostas prontas: o computador procura grupos e coisas estranhas nos dados."),
     "MÓDULO 3 · REDES E DEEP LEARNING": ("", "Modelos inspirados no cérebro: imagens, texto, séries no tempo e criação de dados novos."),
     "MÓDULO 4 · REFORÇO": ("", "Um agente aprende por tentativa e erro, ganhando prémios e perdendo pontos."),
     "FERRAMENTAS": ("", "Para tirar dúvidas, escolher o algoritmo e comparar resultados."),
