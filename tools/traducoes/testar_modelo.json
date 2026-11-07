@@ -32,5 +32,8 @@
  "Este tipo de modelo ainda não se pode guardar.": "This type of model cannot be saved yet.",
  "Este algoritmo de clustering não consegue colocar pontos novos num grupo (só agrupa os dados com que foi treinado). Experimenta K-Means ou Mistura Gaussiana, que sabem fazê-lo.": "This clustering algorithm cannot place new points in a group (it only groups the data it was trained on). Try K-Means or Gaussian Mixture, which can.",
  "Este detector (Local Outlier Factor, tal como está configurado) só avalia os dados do treino, por isso não pode ser usado em dados novos. Experimenta Isolation Forest, One-Class SVM ou Elliptic Envelope.": "This detector (Local Outlier Factor, as configured) only scores the training data, so it cannot be used on new data. Try Isolation Forest, One-Class SVM or Elliptic Envelope.",
- "Este modelo não tem previsão (predict).": "This model has no predict method."
+ "Este modelo não tem previsão (predict).": "This model has no predict method.",
+ "⬇️ Descarregar o modelo treinado (.joblib)": "⬇️ Download the trained model (.joblib)",
+ "Contém o algoritmo e a preparação dos dados. Só abras ficheiros .joblib que tu mesmo descarregaste: abrir um executa código.": "Contains the algorithm and the data preparation. Only open .joblib files you downloaded yourself: opening one runs code.",
+ "Não consegui preparar o ficheiro para descarregar este modelo.": "I could not prepare the file to download this model."
 }

@@ -122,13 +122,13 @@ def _num(x):
 
 def construir(estimador, *, tarefa: str, features, alvo: str, algoritmo: str, nome: str, origem: str,
               X_ref: pd.DataFrame, scaler=None, encoders=None, le_target=None, colunas_dummy=None,
-              metricas=None, parametros=None, n_treino=None, n_teste=None) -> tuple:
+              metricas=None, parametros=None, n_treino=None, n_teste=None, verificar: bool = True) -> tuple:
     """Devolve (pacote, meta) prontos para `model_persistence.guardar_modelo`.
 
     `X_ref`: as variáveis de treino SEM normalizar, com as colunas originais (categorias já codificadas se
     `encoders` existir; texto original se `colunas_dummy` existir). Serve para os intervalos e valores de substituição.
     """
-    motivo = pode_guardar(estimador, tarefa)
+    motivo = pode_guardar(estimador, tarefa) if verificar else ""
     if motivo:
         raise ErroEmpacotar(motivo)
     features = list(features)
@@ -170,6 +170,16 @@ def construir(estimador, *, tarefa: str, features, alvo: str, algoritmo: str, no
         meta["n_grupos"] = int(len(set(labels.tolist())) - (1 if labels is not None and -1 in set(labels.tolist()) else 0)) \
             if labels is not None else None
     return pacote, meta
+
+
+def bytes_para_descarregar(pacote, meta: dict) -> bytes:
+    """Ficheiro .joblib com o modelo completo (preparação + algoritmo) e os metadados, para usar fora do DataForge:
+    `d = joblib.load(f); d["modelo"].predict(tabela_com_as_colunas_originais)`."""
+    import io
+    import joblib
+    buf = io.BytesIO()
+    joblib.dump({"modelo": pacote, "meta": meta, "formato": "dataforge-pacote-v1"}, buf, compress=3)
+    return buf.getvalue()
 
 
 def metricas_simples(d: dict) -> dict:

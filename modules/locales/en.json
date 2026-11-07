@@ -858,6 +858,7 @@
   "Continuar para Treino": "Continue to Training",
   "Contributo para a decisão (peso × situação)": "Contribution to the decision (weight × situation)",
   "Controlo total. Configura tudo manualmente e experimenta sem restrições.": "Full control. Configure everything manually and experiment without restrictions.",
+  "Contém o algoritmo e a preparação dos dados. Só abras ficheiros .joblib que tu mesmo descarregaste: abrir um executa código.": "Contains the algorithm and the data preparation. Only open .joblib files you downloaded yourself: opening one runs code.",
   "Conversas anteriores": "Previous conversations",
   "Convidar a equipa": "Invite the team",
   "Convidar pessoas": "Invite people",
@@ -1881,6 +1882,7 @@
   "Não consegui ler o ficheiro: {}": "I could not read the file: {}",
   "Não consegui ligar à IA. Tenta daqui a pouco.": "I could not connect to the AI. Try again shortly.",
   "Não consegui preparar este modelo. (Detalhe: {})": "I couldn't prepare this model. (Detail: {})",
+  "Não consegui preparar o ficheiro para descarregar este modelo.": "I could not prepare the file to download this model.",
   "Não consegui preparar os ficheiros para descarregar.": "I couldn't prepare the files for download.",
   "Não consegui prever com este ficheiro.": "I could not predict with this file.",
   "Não consegui treinar este problema. Se for o Titanic, precisas de internet na primeira vez; tenta outro problema. (Detalhe:": "I could not train this problem. If it is the Titanic, you need internet the first time; try another problem. (Detail:",
@@ -3684,6 +3686,7 @@
   "← Todas as lições": "← All lessons",
   "● Inicio (0,0)": "● Start (0,0)",
   "✕ Armadilha": "✕ Trap",
+  "⬇️ Descarregar o modelo treinado (.joblib)": "⬇️ Download the trained model (.joblib)",
   "💾 Guardar este modelo para usar mais tarde": "💾 Save this model to use later"
  },
  "inline": [

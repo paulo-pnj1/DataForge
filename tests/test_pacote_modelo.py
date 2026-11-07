@@ -88,3 +88,14 @@ def test_modo_get_dummies(tmp_path):
                              origem="t", X_ref=raw, colunas_dummy=list(X.columns))
     modelo, mt = _guardar_abrir(tmp_path, pac, meta)
     assert ps.prever_um(modelo, mt, {"sexo": "f", "idade": 20})[0] == "sim"
+
+
+def test_descarregar_inclui_algoritmos_que_nao_se_guardam():
+    import io
+    import joblib
+    X = pd.DataFrame({"a": [1.0, 2.0, 3.0, 10.0, 11.0, 12.0], "b": [1.0, 2.0, 1.5, 9.0, 10.0, 11.0]})
+    db = DBSCAN(eps=3, min_samples=2).fit(X.to_numpy())
+    pac, meta = pm.construir(db, tarefa="agrupamento", features=["a", "b"], alvo="g", algoritmo="DBSCAN", nome="d",
+                             origem="t", X_ref=X, verificar=False)
+    d = joblib.load(io.BytesIO(pm.bytes_para_descarregar(pac, meta)))
+    assert d["formato"] == "dataforge-pacote-v1" and d["meta"]["algoritmo"] == "DBSCAN"

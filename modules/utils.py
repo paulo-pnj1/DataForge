@@ -1005,6 +1005,11 @@ def inject_css():
 _CSS_NATIVOS = """
 <style>
 [data-testid="stHeader"] button, [data-testid="stToolbar"] * { color: var(--df-text) !important; }
+/* Alertas (st.success/info/warning/error): o Streamlit novo já não usa o atributo kind=..., por isso ficavam com o fundo claro
+   do tema base e texto claro (ilegível no escuro). Fundo e texto seguem sempre o tema escolhido. */
+[data-testid="stAlert"], [data-testid="stAlertContainer"], [data-testid="stAlert"] [data-baseweb="notification"] {
+    background: var(--df-surface2) !important; color: var(--df-text) !important; border: 1px solid var(--df-border) !important; }
+[data-testid="stAlert"] *, [data-testid="stAlertContainer"] * { color: var(--df-text) !important; background: transparent !important; }
 [data-testid="stCode"] pre, .stCode pre { background: var(--df-surface2) !important; }
 [data-testid="stCode"] code, [data-testid="stCode"] code span, .stCode code span { color: var(--df-text) !important; }
 
