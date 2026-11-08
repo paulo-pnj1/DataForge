@@ -329,6 +329,9 @@ if pagina != "escola" and "licao" in st.query_params:
     del st.query_params["licao"]
 
 st.session_state.pop("_ia_pagina", None)      # cada página regista de novo o que o aluno está a ver (painel da IA)
+from modules import ecra_ia as _ecra_ia
+if painel == "aluno":
+    _ecra_ia.iniciar()                        # o tutor passa a «ler» os controlos de qualquer página
 try:
 
     if pagina == "dashboard":
@@ -496,12 +499,25 @@ try:
         st.rerun()
 
     # Tutor de IA depois de cada treino (só no painel do aluno; só aparece se houver um resultado para explicar)
-    if painel == "aluno" and pagina in TUTOR_PAGINAS:
-        from modules.tutor_ia import SUGESTOES_TREINO, _contexto_da_pagina, _estado_da_pagina, registar_painel
-        _c = _contexto_da_pagina(pagina)
-        if _c:
-            registar_painel(f"pag_{pagina}", f"{next((l for l, k, _, _ in MENU if k == pagina), pagina)}: {_c[0]}", _c[1],
-                            SUGESTOES_TREINO, padrao_primeiro=True, estado=_estado_da_pagina(pagina))
+    if painel == "aluno":
+        try:
+            from modules.tutor_ia import SUGESTOES_TREINO, _contexto_da_pagina, _estado_da_pagina, registar_painel
+            _tela = _ecra_ia.parar()          # texto com o que o aluno tem no ecrã (títulos, controlos e valores)
+            _rot = next((l for l, k, _, _ in MENU if k == pagina), pagina)
+            _c = _contexto_da_pagina(pagina) if pagina in TUTOR_PAGINAS else None
+            _reg = st.session_state.get("_ia_pagina")
+            if _c:
+                registar_painel(f"pag_{pagina}", f"{_rot}: {_c[0]}", _c[1], SUGESTOES_TREINO, padrao_primeiro=True,
+                                estado=(_estado_da_pagina(pagina) + "\n" + _tela).strip()[:1800])
+            elif _reg:                        # a página já registou o seu contexto (ex.: lição): juntar-lhe o ecrã
+                _reg["estado"] = ((_reg.get("estado") or "") + "\n" + _tela).strip()[:1800]
+            elif _tela:
+                registar_painel(f"tela_{pagina}", _rot,
+                                f"O aluno está na página: {_rot}. Ainda não há um resultado de treino para explicar.",
+                                ["Explica-me cada controlo desta página", "Por onde devo começar?",
+                                 "O que faz o algoritmo escolhido?"], estado=_tela)
+        except Exception:
+            pass                              # o tutor nunca pode partir uma página
     if painel == "aluno":
         from modules.tutor_ia import render_painel_ia
         render_painel_ia(username, pagina, next((l for l, k, _, _ in MENU if k == pagina), pagina))
