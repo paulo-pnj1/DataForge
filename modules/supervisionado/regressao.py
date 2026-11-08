@@ -13,6 +13,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 from sklearn.model_selection import train_test_split, cross_val_score, KFold
+from modules.dados_vista import tabela_treino_teste, mostrar_treino_teste
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.linear_model import (
@@ -298,7 +299,8 @@ def render_regressao(username: str):
         return
 
     with st.expander("Pré-visualização"):
-        st.dataframe(df.head(8), width='stretch')
+        from modules.dados_vista import ver_dataset
+        ver_dataset(df, "reg", escolha if fonte == "Dataset embutido" else "dataset_carregado")
 
     cols = df.columns.tolist()
     c1, c2, c3 = st.columns(3)
@@ -369,6 +371,8 @@ def _treinar_regressao(df, features, target, algo, params,
     else:
         df = df.fillna(df.median(numeric_only=True))
 
+    df_limpo = df.copy()        # com o texto original (antes de codificar): serve para mostrar Treino/Teste ao aluno
+
     encoders = {}
     for c in df[features].select_dtypes(include="object").columns:
         le = LabelEncoder()
@@ -386,7 +390,8 @@ def _treinar_regressao(df, features, target, algo, params,
         scaler = MinMaxScaler()
         X = scaler.fit_transform(X)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+    X_train, X_test, y_train, y_test, _idx_treino, idx_teste = train_test_split(
+        X, y, np.arange(len(y)), test_size=test_size, random_state=42)      # mesma divisão de sempre, mas a guardar quais linhas
 
     model = build_model_reg(algo, params)
     if model is None:
@@ -423,6 +428,7 @@ def _treinar_regressao(df, features, target, algo, params,
         "y_test": y_test, "y_pred": y_pred, "cv_scores": cv_scores,
         "r2": r2, "rmse": rmse, "mae": mae, "mse": mse,
         "modelo_pkl": buf.getvalue(), "novo": True, "df_features": df[features].copy(),
+        "tabela_split": tabela_treino_teste(df_limpo, idx_teste, target, y_pred),
     }
 
 
@@ -489,6 +495,8 @@ def _mostrar_resultados_regressao(res, username=None):
         _mostrar_fig(_plot_real_vs_pred(y_test, y_pred))
     with t2:
         _mostrar_fig(_plot_residuos(y_test, y_pred))
+
+    mostrar_treino_teste(res.get("tabela_split"), "reg", st.session_state.get("reg_ds", "dataset"))
 
     # Guardar na conta e testar com dados novos (qualquer algoritmo)
     if username:

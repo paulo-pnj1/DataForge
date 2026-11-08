@@ -143,6 +143,8 @@ def render_mlp(username: str):
                 df = pd.read_csv(f) if f else None
 
             if df is not None:
+                from modules.dados_vista import ver_dataset
+                ver_dataset(df, "mlp_c", st.session_state.get("mlp_c_ds", "dataset") if fonte == "Embutido" else "dataset_carregado", expander=True)
                 cols = df.columns.tolist()
                 target = st.selectbox("Target (coluna alvo)", cols, index=len(cols)-1, key="mlp_c_tgt")
                 features = st.multiselect("Features", [c for c in cols if c != target],
@@ -203,6 +205,8 @@ def render_mlp(username: str):
                 df2 = pd.read_csv(f2) if f2 else None
 
             if df2 is not None:
+                from modules.dados_vista import ver_dataset
+                ver_dataset(df2, "mlp_r", st.session_state.get("mlp_r_ds", "dataset") if fonte2 == "Embutido" else "dataset_carregado", expander=True)
                 cols2   = df2.columns.tolist()
                 target2 = st.selectbox("Target", cols2, index=len(cols2)-1, key="mlp_r_tgt")
                 feats2  = st.multiselect("Features", [c for c in cols2 if c != target2],

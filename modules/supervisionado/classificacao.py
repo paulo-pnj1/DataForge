@@ -14,6 +14,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold
+from modules.dados_vista import tabela_treino_teste, mostrar_treino_teste
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score,
@@ -430,6 +431,7 @@ def _step1_dataset(username: str):
 
     if fonte == "Dataset embutido":
         escolha = st.selectbox("Escolhe o dataset", catalogo)
+        st.session_state["clf_ds_nome"] = escolha
         df, desc, _ = carregar_dataset_embutido(escolha)
         if desc:
             info_box(f"**{escolha.split('-')[0].strip()}:** {desc}")
@@ -446,7 +448,8 @@ def _step1_dataset(username: str):
 
     if df is not None:
         with st.expander("Pré-visualização dos dados"):
-            st.dataframe(df.head(10), width='stretch')
+            from modules.dados_vista import ver_dataset
+            ver_dataset(df, "clf", escolha if fonte == "Dataset embutido" else "dataset_carregado", amostra=10)
             c1, c2, c3 = st.columns(3)
             c1.metric("Linhas", df.shape[0])
             c2.metric("Colunas", df.shape[1])
@@ -595,6 +598,8 @@ def _render_modo_livre(username: str):
 
     if df is None:
         return
+    from modules.dados_vista import ver_dataset
+    ver_dataset(df, "clf_livre", st.session_state.get("livre_ds", "dataset") if fonte == "Dataset embutido" else "dataset_carregado", expander=True)
 
     cols = df.columns.tolist()
     c1, c2, c3 = st.columns(3)
@@ -665,6 +670,8 @@ def _executar_treino(df, features, target, algo, params,
         for c in df.columns:
             df[c] = df[c].fillna(df[c].mode()[0])
 
+    df_limpo = df.copy()        # com o texto original (antes de codificar): serve para mostrar Treino/Teste ao aluno
+
     # Encoding categóricas
     encoders = {}
     for c in df[features].select_dtypes(include="object").columns:
@@ -691,8 +698,8 @@ def _executar_treino(df, features, target, algo, params,
         scaler = MinMaxScaler()
         X = scaler.fit_transform(X)
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, random_state=42, stratify=y if len(np.unique(y)) < 20 else None
+    X_train, X_test, y_train, y_test, _idx_treino, idx_teste = train_test_split(
+        X, y, np.arange(len(y)), test_size=test_size, random_state=42, stratify=y if len(np.unique(y)) < 20 else None
     )
 
     model = build_model(algo, params)
@@ -745,6 +752,9 @@ def _executar_treino(df, features, target, algo, params,
         "feature_names": features, "scaler": scaler, "encoders": encoders,
         "le_target": le_target, "X_train": X_train, "y_train": y_train,
         "X": X, "y": y, "df_features": df[features],
+        "tabela_split": tabela_treino_teste(
+            df_limpo, idx_teste, target, le_target.inverse_transform(y_pred) if le_target else y_pred),
+        "nome_dataset": st.session_state.get("clf_ds_nome", "dataset"),
         "setup": {"target": str(target), "nulos": nulos, "scaler": scaler_o, "test_size": test_size, "cv_k": cv_k, "n_linhas": int(len(df))},
     }
 
@@ -868,6 +878,7 @@ def _render_resultados(r: dict, algo: str, username: str):
         data=buf, file_name=f"{algo.replace(' ','_').lower()}_model.pkl",
         mime="application/octet-stream"
     )
+    mostrar_treino_teste(r.get("tabela_split"), "clf", r.get("nome_dataset", "dataset"))
     sucesso_box(f"Modelo treinado com sucesso! +10 pontos adicionados ao teu perfil. ")
 
 

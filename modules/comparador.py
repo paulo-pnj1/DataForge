@@ -827,6 +827,8 @@ def render_comparador(username: str):
                     mostrar_diagnostico(df, expandido=False)
 
             if df is not None:
+                from modules.dados_vista import ver_dataset
+                ver_dataset(df, "cmp", nm, expander=True)
                 cols = df.columns.tolist()
                 target = st.selectbox("Alvo (o que queres prever)", cols, index=len(cols) - 1, key=f"cmp_tgt_{nm}")
                 features = st.multiselect("Colunas a usar", [c for c in cols if c != target],

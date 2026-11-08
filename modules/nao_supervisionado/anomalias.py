@@ -55,6 +55,8 @@ def render_anomalias(username: str):
             df = pd.read_csv(f) if f else None
 
         if df is not None:
+            from modules.dados_vista import ver_dataset
+            ver_dataset(df, "an", st.session_state.get("an_ds", "dataset") if fonte == "Embutido" else "dataset_carregado", expander=True)
             num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
             features = st.multiselect("Features", num_cols,
                                       default=num_cols[:min(4, len(num_cols))], key="an_feats")

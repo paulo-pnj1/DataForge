@@ -198,6 +198,8 @@ def render_reducao(username: str):
             df = pd.read_csv(f) if f else None
 
         if df is not None:
+            from modules.dados_vista import ver_dataset
+            ver_dataset(df, "rd", st.session_state.get("rd_ds", "dataset") if fonte == "Embutido" else "dataset_carregado", expander=True)
             num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
             cat_cols = df.select_dtypes(include=["object","category"]).columns.tolist()
 

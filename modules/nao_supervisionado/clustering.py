@@ -194,12 +194,16 @@ def render_clustering(username: str):
                                 unsafe_allow_html=True)
                     st.dataframe(df.head(5), width='stretch')
                     st.session_state.cl_df = df
+                    from modules.dados_vista import ver_dataset
+                    ver_dataset(df, "cl", nome_ds, expander=True)
             else:
                 f = st.file_uploader("Ficheiro CSV", type=["csv"], key="cl_upload")
                 if f:
                     df = pd.read_csv(f)
                     st.dataframe(df.head(5), width='stretch')
                     st.session_state.cl_df = df
+                    from modules.dados_vista import ver_dataset
+                    ver_dataset(df, "clup", "dataset_carregado", expander=True)
 
             if st.button("Próximo →", key="cl_s1", width='stretch'):
                 if "cl_df" not in st.session_state:
@@ -434,6 +438,8 @@ def render_clustering(username: str):
                 df_l = pd.read_csv(f_l) if f_l else None
 
             if df_l is not None:
+                from modules.dados_vista import ver_dataset
+                ver_dataset(df_l, "cl_l", st.session_state.get("cl_l_ds", "dataset") if fonte_l == "Embutido" else "dataset_carregado", expander=True)
                 num_l = df_l.select_dtypes(include=[np.number]).columns.tolist()
                 feats_l = st.multiselect("Features", num_l, default=num_l[:min(4,len(num_l))], key="cl_l_feats")
                 algo_l_label = st.selectbox("Algoritmo", list(ALGORITMOS.keys()), key="cl_l_algo")
