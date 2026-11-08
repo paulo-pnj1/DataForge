@@ -44,6 +44,7 @@ from modules.utils import (
     save_user_progress, add_pontos, save_historico_modelo
 )
 from modules.diagnostico import mostrar_diagnostico
+from modules.diagnostico_modelo import mostrar_diagnostico_classificacao, metricas_treino_teste_clf, diagnosticar_classificacao
 from modules.explicacoes import explicar_classificacao, AJUDA_METRICAS
 
 try:
@@ -709,6 +710,7 @@ def _executar_treino(df, features, target, algo, params,
 
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
+    y_pred_treino = model.predict(X_train)      # para o Diagnóstico do Modelo (treino × teste)
 
     # Métricas
     acc  = accuracy_score(y_test, y_pred)
@@ -756,6 +758,7 @@ def _executar_treino(df, features, target, algo, params,
             df_limpo, idx_teste, target, le_target.inverse_transform(y_pred) if le_target else y_pred),
         "nome_dataset": st.session_state.get("clf_ds_nome", "dataset"),
         "setup": {"target": str(target), "nulos": nulos, "scaler": scaler_o, "test_size": test_size, "cv_k": cv_k, "n_linhas": int(len(df))},
+        "diag": metricas_treino_teste_clf(y_train, y_pred_treino, y_test, y_pred),     # treino × teste
     }
 
 
@@ -779,6 +782,14 @@ def _descrever_para_tutor(r: dict, algo: str) -> tuple:
          + (f"Classes por ordem: {', '.join(classes[:cm.shape[0]])}. Matriz: {cm.tolist()}." if cm.shape[0] <= 10 else ""),
          "ABA «Curva ROC»: eixo horizontal «Taxa de Falsos Positivos», vertical «Taxa de Verdadeiros Positivos»; a diagonal tracejada é o palpite ao acaso; "
          "quanto mais a curva sobe para o canto superior esquerdo, melhor (AUC mais perto de 1)." + (f" AUC = {r['auc']:.3f}." if r.get("auc") is not None else "")]
+    if r.get("diag"):
+        _d = r["diag"]
+        _g = diagnosticar_classificacao(_d["acc_treino"], _d["acc_teste"], _d["f1_treino"], _d["f1_teste"], _d["n_treino"], _d["n_teste"])
+        if _g["estado"] != "inconclusivo":
+            L.append(f"Secção «Diagnóstico do Modelo»: Accuracy treino {_g['acc_treino']:.1%} e teste {_g['acc_teste']:.1%}; F1 treino {_g['f1_treino']:.1%} e teste {_g['f1_teste']:.1%}; "
+                     f"diferença de Accuracy {_g['dif_acc'] * 100:+.1f} pontos percentuais; diagnóstico: {_g['rotulo']}. "
+                     "Overfitting = memoriza o treino, Underfitting = não aprendeu o padrão, Boa Generalização = aprendeu a regra geral. "
+                     "Mostra 4 caixas (Accuracy e F1 do treino e do teste), 3 caixas (diferenças e diagnóstico), uma explicação e barras treino × teste.")
     m = r["model"]
     imp = getattr(m, "feature_importances_", None)
     if imp is None and hasattr(m, "coef_"):
@@ -813,6 +824,12 @@ def _render_resultados(r: dict, algo: str, username: str):
     # Diagnóstico automático + explicação em linguagem simples
     _diagnostico_automatico(r)
     explicar_classificacao(r)
+
+    # Diagnóstico do Modelo: treino × teste (resultados guardados antes desta secção existir não têm «diag»)
+    if r.get("diag"):
+        _d = r["diag"]
+        mostrar_diagnostico_classificacao(_d["acc_treino"], _d["acc_teste"], _d["f1_treino"], _d["f1_teste"],
+                                          _d["n_treino"], _d["n_teste"])
 
     # Validação Cruzada
     section_title("VALIDAÇÃO CRUZADA")

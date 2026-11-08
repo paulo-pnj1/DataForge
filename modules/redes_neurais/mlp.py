@@ -14,6 +14,7 @@ from sklearn.metrics import (accuracy_score, f1_score, classification_report,
                               confusion_matrix, r2_score, mean_squared_error, mean_absolute_error)
 import pickle, io
 
+from modules.diagnostico_modelo import mostrar_diagnostico_modelo, metricas_treino_teste
 from modules.utils import (
     inject_css, page_header, section_title, teoria_box,
     aviso_box, sucesso_box, erro_box, info_box, progresso_bar,
@@ -391,6 +392,7 @@ def _train_mlp_reg(df, features, target, hidden, activation, solver, lr, max_ite
             )
             model.fit(X_train_sc, y_train)
             y_pred = model.predict(X_test_sc)
+            y_pred_treino = model.predict(X_train_sc)      # para o «Diagnóstico do Modelo»: treino × teste
 
             r2   = r2_score(y_test, y_pred)
             rmse = np.sqrt(mean_squared_error(y_test, y_pred))
@@ -401,6 +403,7 @@ def _train_mlp_reg(df, features, target, hidden, activation, solver, lr, max_ite
                 "y_test": y_test.to_numpy() if hasattr(y_test, "to_numpy") else y_test, "y_pred": y_pred,
                 "loss_curve": model.loss_curve_,
                 "n_iter": model.n_iter_,
+                "diag": metricas_treino_teste(y_train, y_pred_treino, y_test, y_pred),
                 "model": model, "scaler": scaler, "encoders": encoders, "df_features": X,
                 "setup": {"features": list(features), "target": str(target), "hidden": list(hidden), "activation": str(activation),
                           "solver": str(solver), "lr": lr, "max_iter": max_iter, "test_size": test_size, "n_test": int(len(y_test))}
@@ -427,6 +430,12 @@ def _show_mlp_reg_result(username=None):
 
     st.plotly_chart(_loss_curve(res["loss_curve"]), width='stretch')
 
+    _diag = None
+    if res.get("diag"):      # resultados guardados antes desta secção existir não têm «diag»
+        _d = res["diag"]
+        _diag = mostrar_diagnostico_modelo(_d["r2_treino"], _d["r2_teste"], _d["mae_treino"], _d["mae_teste"],
+                                           _d["n_treino"], _d["n_teste"], alvo=res.get("setup", {}).get("target", ""))
+
     try:    # o tutor de IA precisa de saber o que está nos gráficos
         from modules.tutor_ia import registar_ecra, intervalo
         registar_ecra("Resultado do MLP (regressão)", [
@@ -434,6 +443,8 @@ def _show_mlp_reg_result(username=None):
             f"Resultado no teste: R² {res['r2']:.4f} (1 = perfeito, 0 = tão mau como prever sempre a média), RMSE {res['rmse']:.4f}, "
             f"MAE {res['mae']:.4f} (erro médio, na mesma unidade do alvo), {res['n_iter']} épocas. Há 4 caixas com estes números.",
             _loss_para_tutor(res),
+            (f"Secção «Diagnóstico do Modelo»: R² treino {_diag['r2_treino']:.4f} e teste {_diag['r2_teste']:.4f}; MAE treino {_diag['mae_treino']:.4f} e teste {_diag['mae_teste']:.4f}; "
+             f"diferença de R² {_diag['dif_r2']:+.4f}; diagnóstico: {_diag['rotulo']}. Overfitting = memoriza o treino, Underfitting = não aprendeu o padrão, Boa Generalização = aprendeu a regra geral.") if _diag and _diag["estado"] != "inconclusivo" else "",
             "GRÁFICO «Real vs Previsto»: cada ponto azul é uma linha do teste; eixo horizontal «Real» (o valor verdadeiro), eixo vertical «Previsto» "
             f"(o que a rede previu). A linha vermelha tracejada «Perfeito» é onde previsto = real: quanto mais perto dela, melhor. "
             f"Real {intervalo(res['y_test'])}, Previsto {intervalo(res['y_pred'])}."],

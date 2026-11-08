@@ -17,6 +17,7 @@ from sklearn.metrics import (
 from sklearn.model_selection import cross_val_score, train_test_split
 
 from modules.i18n import tr
+from modules.diagnostico_modelo import mostrar_diagnostico_modelo, metricas_treino_teste
 from modules.explicacoes import (
     em_cada_10, explicar_classificacao, explicar_regressao, frase_acerto, nivel_qualidade, nivel_r2,
 )
@@ -158,6 +159,7 @@ def _treinar(nome: str, username: str) -> dict:
             "mae": mean_absolute_error(y_te, y_pred),
             "mae_base": mean_absolute_error(y_te, y_base),
             "cv_scores": cross_val_score(modelo, X, y, cv=5, scoring="r2"),
+            "diag": metricas_treino_teste(y_tr, modelo.predict(X_tr), y_te, y_pred),     # treino × teste
         })
         principal = res["r2"]
         historico = {"tipo": "regressao", "algoritmo": "Random Forest (Primeiro Modelo)",
@@ -265,6 +267,10 @@ def _mostrar_resultado(r: dict):
         explicar_classificacao(r)
     else:
         explicar_regressao(r["y_te"], r["y_pred"], r["r2"], r["rmse"], r["mae"], r["cv_scores"], tr(cfg["pergunta"]).rstrip("?").lower())
+        if r.get("diag"):
+            _d = r["diag"]
+            mostrar_diagnostico_modelo(_d["r2_treino"], _d["r2_teste"], _d["mae_treino"], _d["mae_teste"],
+                                       _d["n_treino"], _d["n_teste"], alvo=cfg.get("alvo", ""))
 
     try:    # o tutor de IA precisa de saber o que está nos gráficos
         from modules.tutor_ia import acrescentar_ecra

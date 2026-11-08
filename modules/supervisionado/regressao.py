@@ -39,6 +39,7 @@ from modules.utils import (
     add_pontos, save_historico_modelo
 )
 from modules.diagnostico import mostrar_diagnostico
+from modules.diagnostico_modelo import mostrar_diagnostico_modelo, metricas_treino_teste
 from modules.explicacoes import explicar_regressao, AJUDA_METRICAS
 
 try:
@@ -400,6 +401,7 @@ def _treinar_regressao(df, features, target, algo, params,
 
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
+    y_pred_treino = model.predict(X_train)      # para o «Diagnóstico do Modelo»: comparar treino × teste
 
     mse  = mean_squared_error(y_test, y_pred)
     rmse = np.sqrt(mse)
@@ -428,6 +430,7 @@ def _treinar_regressao(df, features, target, algo, params,
         "y_test": y_test, "y_pred": y_pred, "cv_scores": cv_scores,
         "r2": r2, "rmse": rmse, "mae": mae, "mse": mse,
         "modelo_pkl": buf.getvalue(), "novo": True, "df_features": df[features].copy(),
+        "diag": metricas_treino_teste(y_train, y_pred_treino, y_test, y_pred),
         "tabela_split": tabela_treino_teste(df_limpo, idx_teste, target, y_pred),
     }
 
@@ -466,6 +469,13 @@ def _mostrar_resultados_regressao(res, username=None):
 
     explicar_regressao(y_test, y_pred, r2, rmse, mae, cv_scores, target)
 
+    # Diagnóstico do Modelo: treino × teste (resultados guardados antes desta secção existir não têm «diag»)
+    _diag = None
+    if res.get("diag"):
+        _d = res["diag"]
+        _diag = mostrar_diagnostico_modelo(_d["r2_treino"], _d["r2_teste"], _d["mae_treino"], _d["mae_teste"],
+                                           _d["n_treino"], _d["n_teste"], alvo=target)
+
     section_title("VALIDAÇÃO CRUZADA")
     c1, c2 = st.columns(2)
     c1.metric("R² médio (CV)", f"{cv_scores.mean():.4f}")
@@ -479,6 +489,8 @@ def _mostrar_resultados_regressao(res, username=None):
             f"Página: Regressão. Algoritmo: {algo}. Alvo a prever (número): «{target}». Features ({len(features)}): {', '.join(str(f) for f in features[:20])}. "
             f"{n_linhas} linhas; {test_size:.0%} para teste; nulos: {nulos}; escala: {scaler_o}; validação cruzada com {cv_k} partes.",
             f"Há 4 caixas: R² {r2:.4f} (1 = perfeito, 0 = tão mau como prever sempre a média), RMSE {rmse:.4f}, MAE {mae:.4f} (erros na mesma unidade de «{target}») e MSE {mse:.4f}.",
+            (f"Secção «Diagnóstico do Modelo»: R² treino {_diag['r2_treino']:.4f} e teste {_diag['r2_teste']:.4f}; MAE treino {_diag['mae_treino']:.4f} e teste {_diag['mae_teste']:.4f}; "
+             f"diferença de R² {_diag['dif_r2']:+.4f}; diagnóstico: {_diag['rotulo']}. Overfitting = memoriza o treino, Underfitting = não aprendeu o padrão, Boa Generalização = aprendeu a regra geral.") if _diag and _diag["estado"] != "inconclusivo" else "",
             f"GRÁFICO «Validação Cruzada»: barras com o R² de cada fold ({', '.join(f'{v:.3f}' for v in cv_scores)}), linha verde = média {cv_scores.mean():.3f}.",
             f"ABA «Real vs Previsto»: cada ponto é um caso do teste; eixo horizontal «Valor Real», vertical «Valor Previsto»; linha tracejada verde «Perfeito» é onde previsto = real. "
             f"Real {intervalo(y_test)}, Previsto {intervalo(y_pred)}.",

@@ -30,6 +30,10 @@ from modules.utils import (
 )
 from modules.settings import PONTOS_COMPARACAO, PONTOS_PALPITE
 from modules.diagnostico import mostrar_diagnostico
+from modules.i18n import tr
+from modules.diagnostico_modelo import (INCONCLUSIVO, diagnosticar_classificacao, diagnosticar_modelo,
+                                        metricas_treino_teste, metricas_treino_teste_clf,
+                                        mostrar_diagnostico_classificacao, mostrar_diagnostico_modelo)
 
 try:
     from xgboost import XGBClassifier, XGBRegressor
@@ -236,7 +240,7 @@ def _run_comparison(df, features, target, algos, models_dict, tipo, test_size, c
         cv = (StratifiedKFold(cv_folds, shuffle=True, random_state=42) if clf
               else KFold(cv_folds, shuffle=True, random_state=42))
 
-        resultados, preds, modelos = [], {}, {}
+        resultados, preds, modelos, diag = [], {}, {}, {}
         barra = st.progress(0)
         for i, nome in enumerate(algos):
             with st.spinner(f"A treinar {nome}..."):
@@ -245,7 +249,10 @@ def _run_comparison(df, features, target, algos, models_dict, tipo, test_size, c
                 m.fit(X_tr, y_tr)
                 tempo = time.perf_counter() - t0
                 y_pred = m.predict(X_te)
+                y_pred_tr = m.predict(X_tr)       # para o Diagnóstico do Modelo (treino × teste)
                 treino = float(m.score(X_tr, y_tr))
+                diag[nome] = (metricas_treino_teste_clf(y_tr, y_pred_tr, y_te, y_pred) if clf
+                              else metricas_treino_teste(y_tr, y_pred_tr, y_te, y_pred))
                 kb = len(pickle.dumps(m)) / 1024
                 cv_val = float(cross_val_score(_pipe(models_dict[nome]), X, y, cv=cv,
                                                scoring="accuracy" if clf else "r2").mean())
@@ -272,7 +279,7 @@ def _run_comparison(df, features, target, algos, models_dict, tipo, test_size, c
             "palpite": palpite, "features": list(X.columns), "classes": classes,
             "encoders": encoders, "cat_cols": list(encoders),
             "X": X, "y": y, "X_tr": X_tr, "X_te": X_te, "y_tr": y_tr, "y_te": y_te,
-            "preds": preds, "modelos": modelos, "cv": cv,
+            "preds": preds, "modelos": modelos, "cv": cv, "diag": diag,
             "n_linhas": len(X), "n_feat": X.shape[1], "corr_media": corr_media,
         }
         add_pontos(username, PONTOS_COMPARACAO, f"Comparação de {len(algos)} modelos")
@@ -454,6 +461,94 @@ def _gerar_pdf(res, an):
 # ══════════════════════════════════════════════════════
 # TABS
 # ══════════════════════════════════════════════════════
+def _diagnosticos(res) -> dict:
+    """Diagnóstico treino × teste de cada algoritmo. Comparações guardadas antes desta secção existir não têm «diag»."""
+    clf = res["tipo"] == "Classificação"
+    out = {}
+    for n in res["algos"]:
+        x = (res.get("diag") or {}).get(n)
+        if not x:
+            continue
+        out[n] = (diagnosticar_classificacao(x["acc_treino"], x["acc_teste"], x["f1_treino"], x["f1_teste"], x["n_treino"], x["n_teste"])
+                  if clf else
+                  diagnosticar_modelo(x["r2_treino"], x["r2_teste"], x["mae_treino"], x["mae_teste"], x["n_treino"], x["n_teste"]))
+    return out
+
+
+def _diagnostico_para_tutor(res, dg) -> str:
+    """O que o aluno vê na secção «Diagnóstico do Modelo» (só números e rótulos, nunca linhas de dados)."""
+    clf = res["tipo"] == "Classificação"
+    linhas = []
+    for n, d in dg.items():
+        if d["estado"] == INCONCLUSIVO:
+            linhas.append(f"- {n}: inconclusivo (faltam métricas)")
+        elif clf:
+            linhas.append(f"- {n}: Accuracy treino {d['acc_treino']:.1%} e teste {d['acc_teste']:.1%}; F1 treino {d['f1_treino']:.1%} e teste {d['f1_teste']:.1%}; "
+                          f"diferença de Accuracy {d['dif_acc'] * 100:+.1f} pontos percentuais; diagnóstico: {d['rotulo']}")
+        else:
+            linhas.append(f"- {n}: R² treino {d['r2_treino']:.4f} e teste {d['r2_teste']:.4f}; MAE treino {d['mae_treino']:.4f} e teste {d['mae_teste']:.4f}; "
+                          f"diferença de R² {d['dif_r2']:+.4f}; diagnóstico: {d['rotulo']}")
+    graf = ("duas figuras de barras agrupadas Treino × Teste (Accuracy à esquerda, F1 à direita), uma barra dupla por algoritmo"
+            if clf else "duas figuras de barras agrupadas Treino × Teste (R² à esquerda, MAE à direita), uma barra dupla por algoritmo")
+    return ("\nSecção «Diagnóstico do Modelo» (Overfitting = memoriza o treino, Underfitting = não aprendeu o padrão, Boa Generalização = aprendeu a regra geral). "
+            f"Tabela com uma linha por algoritmo, {graf} e um separador por algoritmo com a explicação:\n" + "\n".join(linhas))
+
+
+def _secao_diagnostico(res, dg):
+    """Secção «Diagnóstico do Modelo»: a mesma da Classificação (Accuracy e F1) e da Regressão (R² e MAE), um separador por algoritmo."""
+    if not dg:
+        return
+    clf = res["tipo"] == "Classificação"
+    nomes = list(dg)
+    section_title("Diagnóstico do Modelo")
+    st.caption("Compara a nota de cada algoritmo nos dados com que treinou e nos dados que nunca viu. "
+               "Assim vês quem aprendeu a regra geral e quem está só a memorizar os exemplos.")
+
+    def pct(v):
+        return "—" if v is None else f"{v:.1%}"
+
+    def num(v):
+        return "—" if v is None else f"{v:.4f}"
+
+    linhas = []
+    for n in nomes:
+        d = dg[n]
+        if clf:
+            dif = "—" if d["dif_acc"] is None else f"{d['dif_acc'] * 100:+.1f} p.p."
+            linhas.append({"Algoritmo": n, "Accuracy do treino": pct(d["acc_treino"]), "Accuracy do teste": pct(d["acc_teste"]),
+                           "F1 do treino": pct(d["f1_treino"]), "F1 do teste": pct(d["f1_teste"]),
+                           "Diferença de Accuracy (treino − teste)": dif, "Diagnóstico": tr(d["rotulo"])})
+        else:
+            dif = "—" if d["dif_r2"] is None else f"{d['dif_r2']:+.4f}"
+            linhas.append({"Algoritmo": n, "R² do treino": num(d["r2_treino"]), "R² do teste": num(d["r2_teste"]),
+                           "MAE do treino": num(d["mae_treino"]), "MAE do teste": num(d["mae_teste"]),
+                           "Diferença de R² (treino − teste)": dif, "Diagnóstico": tr(d["rotulo"])})
+    st.dataframe(pd.DataFrame(linhas), width="stretch", hide_index=True)
+
+    paineis = ((("Accuracy (maior é melhor)", "acc_treino", "acc_teste"), ("F1 (maior é melhor)", "f1_treino", "f1_teste")) if clf
+               else (("R² (maior é melhor)", "r2_treino", "r2_teste"), ("MAE (menor é melhor)", "mae_treino", "mae_teste")))
+    cols = st.columns(2)
+    for col, (titulo, k_tr, k_te) in zip(cols, paineis):
+        fig = go.Figure()
+        fig.add_bar(x=nomes, y=[dg[n][k_tr] for n in nomes], name="Treino", marker_color=PALETTE[0])
+        fig.add_bar(x=nomes, y=[dg[n][k_te] for n in nomes], name="Teste", marker_color=PALETTE[2])
+        fig.update_layout(title=titulo, barmode="group",
+                          plot_bgcolor=C_SURFACE, paper_bgcolor=C_SURFACE, font=dict(color="#FFFFFF"),
+                          yaxis=dict(gridcolor=C_BORDER), legend=dict(font=dict(color="#FFFFFF")), height=320)
+        col.plotly_chart(fig, width="stretch")
+
+    st.caption("Escolhe um algoritmo para ver a explicação e o que podes fazer.")
+    for aba, n in zip(st.tabs(nomes), nomes):
+        with aba:
+            x = res["diag"][n]
+            if clf:
+                mostrar_diagnostico_classificacao(x["acc_treino"], x["acc_teste"], x["f1_treino"], x["f1_teste"],
+                                                  x["n_treino"], x["n_teste"], titulo=False)
+            else:
+                mostrar_diagnostico_modelo(x["r2_treino"], x["r2_teste"], x["mae_treino"], x["mae_teste"],
+                                           x["n_treino"], x["n_teste"], alvo=res["alvo"], titulo=False)
+
+
 def _tab_resultado(res, an):
     tipo = res["tipo"]
     df = an["df"]
@@ -479,6 +574,7 @@ def _tab_resultado(res, an):
         "Tamanho (KB)": st.column_config.NumberColumn("Tamanho (KB)", help="Espaço que o modelo ocupa guardado."),
     }
     st.dataframe(df.style.format("{:.4f}"), width="stretch", column_config=cfg)
+    dg = _diagnosticos(res)
 
     # O que o aluno está a ver, para o tutor de IA (só nomes de algoritmos e métricas, nunca linhas de dados)
     try:
@@ -490,7 +586,7 @@ def _tab_resultado(res, an):
         linhas_tab = [f"- {n}: " + ", ".join(f"{c} = {float(df.loc[n, c]):.4f}" for c in df.columns) for n in nomes]
         registar("Comparação de algoritmos", f"Tipo: {tipo}\nVeredicto mostrado: {an['veredicto']}\n"
                  "Tabela de resultados (uma linha por algoritmo):\n" + "\n".join(linhas_tab)
-                 + "\nGráficos no ecrã: " + "; ".join(graficos) + ".")
+                 + "\nGráficos no ecrã: " + "; ".join(graficos) + "." + (_diagnostico_para_tutor(res, dg) if dg else ""))
     except Exception:
         pass
 
@@ -503,6 +599,7 @@ def _tab_resultado(res, an):
     else:
         st.plotly_chart(_bar_comparison(nomes, df["R²"].tolist(), "R² - prova", "R²"), width="stretch")
         st.plotly_chart(_bar_comparison(nomes, df["RMSE"].tolist(), "RMSE - quanto menor, melhor", "RMSE"), width="stretch")
+    _secao_diagnostico(res, dg)
     teoria_box("Como decidir?",
                "Olha primeiro para a coluna <b>CV</b>: é a média de várias provas, por isso é mais honesta do que uma só nota. "
                "Se dois modelos estiverem quase empatados, escolhe o <b>mais simples e mais rápido</b>.")
