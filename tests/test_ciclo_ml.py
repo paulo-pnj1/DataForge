@@ -340,3 +340,87 @@ def test_metricas_com_valores_reais(clf, rg):
     m3 = cl.metricas_com_valores_reais(meta2, r2.pipeline.predict(d2.X_test), d2.y_test)
     assert m3["metricas"]["r2"] == pytest.approx(r2.metricas["r2"])
     assert cl.metricas_com_valores_reais(meta2, [1.0, 2.0, 3.0], [1.0, None, 3.5])["n"] == 2
+
+
+# ── Retreino, alerta de deriva e pacote para publicar ──
+def test_retreinar_compara_antigo_e_novo_na_mesma_parte(clf):
+    d, r = clf
+    meta = cl.meta_ciclo(d, r, "Base")
+    assert meta["test_size"] == d.test_size
+    out = cl.retreinar(meta, tabela_classificacao(300, seed=7), r.pipeline)
+    assert out["resultado"].estado == "ok" and out["principal"] == "f1"
+    assert out["antigo"] and set(out["antigo"]) == set(out["novo"])
+    assert out["meta"]["origem"] == "retreino com dados novos" and out["meta"]["algoritmo_id"] == meta["algoritmo_id"]
+    assert out["meta"]["parametros"] == meta["parametros"]               # mesmos hiperparâmetros
+
+
+def test_retreinar_pede_a_resposta_real_e_avisa_de_poucos_dados(clf):
+    d, r = clf
+    meta = cl.meta_ciclo(d, r, "Base")
+    with pytest.raises(cl.ErroCiclo, match="Faltam"):
+        cl.retreinar(meta, tabela_classificacao(300, seed=7).drop(columns=["classe"]), r.pipeline)
+    pequeno = cl.retreinar(meta, tabela_classificacao(60, seed=7), r.pipeline)
+    assert any("menos" in a or "linhas utilizáveis" in a for a in pequeno["avisos"])
+
+
+def test_retreinar_regressao(rg):
+    d, r = rg
+    out = cl.retreinar(cl.meta_ciclo(d, r, "Reg"), tabela_regressao(300, seed=3), r.pipeline)
+    assert out["principal"] == "r2" and out["novo"]["r2"] > 0.8 and out["melhorou"] in (True, False)
+
+
+def test_alerta_de_deriva_estavel_e_forte(clf):
+    d, r = clf
+    meta = cl.meta_ciclo(d, r, "Base")
+    parecido = tabela_classificacao(300, seed=11).drop(columns=["classe"])
+    assert cl.alerta_deriva(meta, parecido)["nivel"] == "estável"
+    mudado = parecido.copy()
+    mudado["a"] = mudado["a"] + 5
+    alerta = cl.alerta_deriva(meta, mudado)
+    assert alerta["nivel"] == "forte" and "a" in alerta["fortes"] and "Deriva forte" in alerta["mensagem"]
+
+
+def test_alerta_de_deriva_sem_perfil_devolve_none(clf):
+    d, r = clf
+    meta = cl.meta_ciclo(d, r, "Base")
+    meta.pop("referencia_monitorizacao")
+    assert cl.alerta_deriva(meta, tabela_classificacao(50).drop(columns=["classe"])) is None
+
+
+def test_pacote_para_publicar_tem_docker_e_versoes_fixas(clf):
+    d, r = clf
+    meta = cl.meta_ciclo(d, r, "Pub")
+    z = zipfile.ZipFile(io.BytesIO(cl.exportar_pacote_deploy(r.pipeline, meta)))
+    assert {"modelo.joblib", "metadados.json", "usar_modelo.py", "LEEME.txt", "api.py", "Dockerfile", "requirements.txt",
+            ".dockerignore", "PUBLICAR.md"} == set(z.namelist())
+    req = z.read("requirements.txt").decode()
+    assert f"scikit-learn=={__import__('sklearn').__version__}" in req and "fastapi" in req
+    docker = z.read("Dockerfile").decode()
+    assert docker.startswith("FROM python:") and "modelo.joblib" in docker and "USER app" in docker and "${PORT}" in docker
+    ast.parse(z.read("api.py").decode())                                  # o código gerado é Python válido
+    assert "DATAFORGE_API_KEY" in z.read("api.py").decode()
+    assert "DATAFORGE_API_KEY" in z.read("PUBLICAR.md").decode()
+    assert set(cl.exportar_pacote(r.pipeline, meta) and zipfile.ZipFile(io.BytesIO(cl.exportar_pacote(r.pipeline, meta))).namelist()) \
+        == {"modelo.joblib", "metadados.json", "usar_modelo.py", "LEEME.txt"}   # o pacote simples não mudou
+
+
+def test_api_publicada_exige_a_chave_quando_definida(clf, tmp_path, monkeypatch):
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+    d, r = clf
+    meta = cl.meta_ciclo(d, r, "Pub")
+    zipfile.ZipFile(io.BytesIO(cl.exportar_pacote_deploy(r.pipeline, meta))).extractall(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.setenv("DATAFORGE_API_KEY", "segredo")
+    sys.modules.pop("api", None)
+    api = __import__("api")
+    c = TestClient(api.app)
+    caso = cl._exemplo_linha(meta)
+    assert c.get("/saude").status_code == 200
+    assert c.post("/prever", json={"casos": [caso]}).status_code == 401
+    assert c.post("/prever", json={"casos": [caso]}, headers={"X-API-Key": "errada"}).status_code == 401
+    ok = c.post("/prever", json={"casos": [caso]}, headers={"X-API-Key": "segredo"})
+    assert ok.status_code == 200 and len(ok.json()["previsoes"]) == 1
+    sys.modules.pop("api", None)

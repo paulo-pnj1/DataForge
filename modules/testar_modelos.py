@@ -134,6 +134,9 @@ def _ficheiro(modelo, meta: dict, p: str):
         st.warning(a)
     nome = f"previsao_{meta['alvo']}"
     st.success(f"{len(saida)} previsões feitas.")
+    alerta = cl.alerta_deriva(meta, novo, saida[nome].tolist())
+    if alerta and alerta["nivel"] != "estável":
+        (st.error if alerta["nivel"] == "forte" else st.warning)(alerta["mensagem"])
     st.dataframe(saida.head(200), width="stretch")
     if meta["tipo"] == "classificacao":
         vc = saida[nome].astype(str).value_counts()

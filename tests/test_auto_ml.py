@@ -57,3 +57,20 @@ def test_nao_usa_o_teste_para_escolher():
     for r in res.comparacao.resultados:
         r.metricas = {k: (v * 1000 if isinstance(v, float) else v) for k, v in r.metricas.items()}
     assert recomendar(res.comparacao).modelo_id == esperado
+
+
+def test_automl_com_afinacao_decide_so_pela_validacao_cruzada():
+    res = auto_ml.executar_automl(tabela_regressao(), "y", max_modelos=4, orcamento_s=120, afinar=True, n_afinar=2, n_iter=4)
+    assert res.recomendacao.modelo_id and res.afinacao
+    assert any("Afinação" in p for p in res.passos)
+    for linha in res.afinacao:
+        if linha["Usou os afinados"]:
+            assert linha["Depois (CV)"] < linha["Antes (CV)"]          # regressão: o critério por omissão é o RMSE (menor é melhor)
+        else:
+            assert linha["Estado"] != "Afinado"
+
+
+def test_automl_sem_afinacao_nao_afina_nada():
+    res = auto_ml.executar_automl(tabela_classificacao(), "classe", max_modelos=3)
+    assert res.afinacao == []
+    assert not any("Afinação" in p for p in res.passos)

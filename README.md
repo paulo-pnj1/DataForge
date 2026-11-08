@@ -120,11 +120,21 @@ Página **Laboratório de ML** (menu do aluno › Ferramentas). Carrega um CSV/E
 
 - **Biblioteca**: 16 algoritmos de regressão, 13 de classificação e 11 de séries temporais, com descrição e disponibilidade (XGBoost, LightGBM, statsmodels e PyTorch são opcionais: se faltarem, o algoritmo aparece como «indisponível» e nada parte).
 - **Treinar e comparar**: pré-processamento em `Pipeline` (ajustado só com o treino), validação cruzada, tabela comparativa ordenável, gráficos (real × previsto, matriz de confusão, ROC, Precision-Recall) e recomendação justificada. A recomendação usa só a validação cruzada do treino; o teste nunca decide.
-- **AutoML**: escolhe os algoritmos compatíveis, com limite de modelos e de tempo. Não afina hiperparâmetros. «Melhor» = melhor entre os avaliados.
+- **AutoML**: escolhe os algoritmos compatíveis, com limite de modelos e de tempo. Por omissão não afina hiperparâmetros; ligando «Afinar os melhores» faz uma procura aleatória nos finalistas, decidida só pela validação cruzada do treino (o teste nunca decide). «Melhor» = melhor entre os avaliados.
 - **Séries temporais**: ordem cronológica, divisão treino/validação/teste temporal, validação progressiva, referências ingénuas, MAE/RMSE/MAPE/MASE; intervalos só nos modelos que os dão (ARIMA/SARIMAX).
 - **Previsões** e **Modelos guardados**: modelos guardados por utilizador em `artifacts/modelos/` (joblib + metadados JSON + versões), com assinatura HMAC verificada antes de abrir. Define `modelos_key` em `secrets.toml` (ver `secrets.toml.example`). Em alojamentos com disco temporário os modelos podem desaparecer ao reiniciar.
 
 O código está em `modules/ml_engine/` (sem Streamlit, testável) e `modules/laboratorio.py` (interface).
+
+### Automatizações do ciclo (dados, limpeza, exploração, afinação, produção)
+
+- **Dados por link:** além de ficheiros, o Laboratório lê um link público (CSV, Excel, Google Sheets com «Qualquer pessoa com o link», GitHub). O servidor só abre `http/https` nas portas 80 e 443 e só para endereços públicos (nunca localhost nem redes internas; cada redirecionamento é validado) e corta o descarregamento ao tamanho máximo.
+- **SQL (opcional, desligado por omissão):** com o segredo `permitir_sql = true` aparece a leitura de bases PostgreSQL, MySQL/MariaDB ou SQL Server, só consultas `SELECT`/`WITH`, em servidores públicos. Usa sempre uma conta de base de dados só de leitura. Precisa do `sqlalchemy` e do driver da base (por exemplo `psycopg2-binary`).
+- **Limpeza sugerida:** o estudante aceita ou recusa cada proposta (texto das categorias, números e datas escritos como texto, linhas repetidas), com exemplos «antes/depois». Só entram correções que não usam outras linhas, por isso não há fuga de informação. **Limitar valores extremos ficou de fora** de propósito: os limites teriam de ser aprendidos só com o treino e o modelo exportado tem de abrir só com scikit-learn.
+- **Exploração gráfica:** resumo por coluna, distribuições, mapa de correlações e ligação de cada coluna ao alvo (|Spearman|, η, V de Cramér), com aviso de possível fuga de informação. Funciona sem Streamlit em `modules/ml_engine/eda.py`.
+- **Produção:** o pacote «para publicar» traz `api.py` (com chave de acesso opcional `DATAFORGE_API_KEY`), `Dockerfile`, `requirements.txt` com as versões do treino e `PUBLICAR.md` (Render e Hugging Face Spaces). A plataforma continua a **não** fazer o deploy.
+- **Retreino:** na etapa de monitorização, com um ficheiro novo que traga a resposta real, treina-se de novo o mesmo algoritmo com os mesmos hiperparâmetros e compara-se com o modelo atual na mesma parte dos dados novos. Pode passar-se a avaliar o retreinado e guardá-lo como nova versão.
+- **Alerta de deriva:** ao prever com um ficheiro, o aviso de deriva (PSI) aparece logo, sem ser preciso abrir a monitorização.
 
 ## Laboratório de Avaliação e Optimização (o ciclo completo depois do treino)
 

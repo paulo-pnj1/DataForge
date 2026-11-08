@@ -1,8 +1,10 @@
-"""AutoML: selecção automática do melhor modelo ENTRE os avaliados, em duas fases e sem tocar no teste.
+"""AutoML: selecção automática do melhor modelo ENTRE os avaliados, sem tocar no teste para escolher.
 
 1. Triagem: validação cruzada rápida (numa amostra do treino) de todos os algoritmos compatíveis.
-2. Avaliação completa dos melhores da triagem (treino completo, validação cruzada e teste final) e recomendação.
-Não faz ajuste automático de hiperparâmetros (por isso não há risco de «viciar» o conjunto de teste).
+2. (Opcional) Afinação: procura aleatória de hiperparâmetros nos melhores da triagem, SÓ com a validação cruzada do treino.
+   O modelo afinado só substitui o original se for melhor nessa validação cruzada; o teste nunca decide.
+3. Avaliação completa dos melhores (treino completo, validação cruzada e teste final) e recomendação.
+Sem afinação (o comportamento por omissão) não há qualquer ajuste de hiperparâmetros.
 """
 import time
 import warnings
@@ -14,6 +16,8 @@ from sklearn.base import clone
 from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
 from sklearn.pipeline import Pipeline
 
+from modules.ml_engine import ciclo_ml as cl
+from modules.ml_engine import model_evaluation as ev
 from modules.ml_engine import model_registry as reg
 from modules.ml_engine.data_loader import ErroDados
 from modules.ml_engine.data_validation import RelatorioValidacao, sugerir_tipo_problema, validar_dados
@@ -43,6 +47,7 @@ class ResultadoAutoML:
     avisos: list = field(default_factory=list)
     puladas: list = field(default_factory=list)       # [(nome, motivo)]
     tempo_total: float = 0.0
+    afinacao: list = field(default_factory=list)      # uma linha por finalista afinado (vazia se a afinação ficou desligada)
 
 
 def candidatos(dados: DadosPreparados) -> tuple:
@@ -113,9 +118,55 @@ def _triagem(ids: list, dados: DadosPreparados, folds: int, random_state: int, o
     return df
 
 
+def _afinar_finalistas(finalistas: list, dados: DadosPreparados, criterio, cv_folds: int, n_afinar: int, n_iter: int,
+                       orcamento_s: float, cancelar=None, progresso=None) -> tuple:
+    """Procura aleatória de hiperparâmetros nos `n_afinar` primeiros finalistas. Devolve ({id: parâmetros afinados}, tabela).
+
+    Regra: os parâmetros afinados só são usados se a validação cruzada do TREINO for melhor do que a do original.
+    O teste nunca entra na decisão (o `otimizar` só o calcula para mostrar no fim).
+    """
+    usar, linhas = {}, []
+    crit = criterio if criterio in cl.SCORING[dados.tipo] else cl.SCORING_PADRAO[dados.tipo]
+    maior = ev.direccao(dados.tipo, crit)
+    cands = finalistas[:max(0, int(n_afinar))]
+    t0 = time.perf_counter()
+    for i, mid in enumerate(cands):
+        info = reg.obter(mid)
+        linha = {"Modelo": info.nome, "id": mid, "Estado": "Afinado", "Antes (CV)": None, "Depois (CV)": None,
+                 "Usou os afinados": False, "Parâmetros": None}
+        gasto = time.perf_counter() - t0
+        if cancelar and cancelar():
+            linha["Estado"] = "Ignorado: cancelado"
+        elif gasto > orcamento_s:
+            linha["Estado"] = "Ignorado: limite de tempo da afinação"
+        elif not info.parametros:
+            linha["Estado"] = "Sem parâmetros para afinar"
+        else:
+            if progresso:
+                progresso(i, len(cands), f"A afinar {info.nome}")
+            try:
+                o = cl.otimizar(mid, dados, cl.espaco_padrao(info), "random", crit, n_iter, cv_folds,
+                                orcamento_s=max(5.0, (orcamento_s - gasto) / max(1, len(cands) - i)))
+                a, d = o.cv_original, o.cv_otimizado
+                linha["Antes (CV)"], linha["Depois (CV)"] = a, d
+                linha["Parâmetros"] = {k: v for k, v in o.melhores_params.items() if o.params_originais.get(k) != v}
+                if a is not None and d is not None and ((d > a) if maior else (d < a)):
+                    usar[mid] = o.melhores_params
+                    linha["Usou os afinados"] = True
+                else:
+                    linha["Estado"] = "Sem ganho na validação cruzada: ficou o original"
+            except (cl.ErroCiclo, ErroDados) as e:
+                linha["Estado"] = "Não afinado: " + str(e)
+            except Exception as e:
+                linha["Estado"] = "Falhou: " + _curto(e)
+        linhas.append(linha)
+    return usar, linhas
+
+
 def executar_automl(df: pd.DataFrame, alvo: str, tipo: str = None, features: list = None, max_modelos: int = 6,
                     orcamento_s: float = 120.0, cv_folds: int = 3, test_size: float = 0.2, random_state: int = 42,
-                    criterio: str = None, progresso=None, cancelar=None) -> ResultadoAutoML:
+                    criterio: str = None, progresso=None, cancelar=None, afinar: bool = False, n_afinar: int = 2,
+                    n_iter: int = 8) -> ResultadoAutoML:
     """Fluxo completo do AutoML. Levanta `ErroDados` só se os dados impedirem qualquer treino."""
     t0 = time.perf_counter()
     passos = []
@@ -147,12 +198,21 @@ def executar_automl(df: pd.DataFrame, alvo: str, tipo: str = None, features: lis
     finalistas = validos["id"].head(max(1, max_modelos)).tolist()
     passos.append(f"Os {len(finalistas)} melhores da triagem seguem para o treino completo.")
 
+    afinados, afinacao = {}, []
+    if afinar:
+        orc_afin = max(10.0, orcamento_s * 0.35)
+        afinados, afinacao = _afinar_finalistas(finalistas, dados, criterio, cv_folds, n_afinar, n_iter, orc_afin, cancelar, progresso)
+        passos.append(f"Afinação de hiperparâmetros (procura aleatória, só validação cruzada do treino): "
+                      f"{len(afinados)} de {len(afinacao)} finalistas ficaram com parâmetros afinados.")
+
     restante = max(5.0, orcamento_s - (time.perf_counter() - t0))
-    comp = comparar_modelos(finalistas, dados, None, cv_folds, random_state, orcamento_s=restante, progresso=progresso, cancelar=cancelar)
+    comp = comparar_modelos(finalistas, dados, afinados or None, cv_folds, random_state, orcamento_s=restante, progresso=progresso, cancelar=cancelar)
     passos.append("Treino completo, validação cruzada e avaliação final no teste.")
     rec = recomendar(comp, criterio)
+    if rec.modelo_id in afinados:
+        rec.justificacao += " Os hiperparâmetros deste modelo foram afinados na validação cruzada do treino (o teste não decidiu nada)."
     passos.append(f"Recomendação: {rec.nome or 'nenhuma'}.")
     res = ResultadoAutoML(tipo_final, dados, val, tri.drop(columns=["_compl"], errors="ignore"), comp, rec, passos,
-                          avisos=list(dict.fromkeys(dados.avisos + val.avisos)), puladas=puladas)
+                          avisos=list(dict.fromkeys(dados.avisos + val.avisos)), puladas=puladas, afinacao=afinacao)
     res.tempo_total = time.perf_counter() - t0
     return res

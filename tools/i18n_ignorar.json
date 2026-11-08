@@ -85,5 +85,15 @@
  "Óleo 1L",
  "Falha na etapa %s do laboratório de avaliação",
  "Falha ao guardar o modelo (%s)",
- "Falha ao preparar o modelo para descarregar (%s)"
+ "Falha ao preparar o modelo para descarregar (%s)",
+ "%{y} × %{x}: %{z:.2f}",
+ "CHAVE_API = os.environ.get(\"DATAFORGE_API_KEY\", \"\")   # se estiver definida, /prever exige o cabeçalho X-API-Key",
+ "COPY modelo.joblib api.py ./",
+ "RUN pip install --no-cache-dir -r requirements.txt",
+ "docker build -t meu-modelo .",
+ "docker run -p 7860:7860 -e DATAFORGE_API_KEY=escolhe-uma-chave meu-modelo",
+ "import os",
+ "raise HTTPException(status_code=401, detail=\"Chave de acesso em falta ou errada.\")",
+ "V de Cramér",
+ "Ficheiros: `api.py` (a API), `modelo.joblib` (o modelo), `requirements.txt` (versões fixas, iguais às do treino) e `Dockerfile`."
 ]

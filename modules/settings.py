@@ -38,3 +38,8 @@ def contas_demo() -> bool:
 
 def app_url() -> str:
     return str(secret("app_url", "") or "").rstrip("/")
+
+
+def permitir_sql() -> bool:
+    """Carregar dados por consulta SQL no Laboratório. Desligado por omissão: só o administrador o liga (segredo `permitir_sql`)."""
+    return str(secret("permitir_sql", "") or "").lower() in ("1", "true", "sim", "yes")

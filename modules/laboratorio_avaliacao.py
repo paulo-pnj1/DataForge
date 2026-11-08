@@ -39,7 +39,7 @@ def abrir_no_laboratorio(dados, resultado, origem: str, comp=None):
 def definir_modelo(dados, resultado, origem: str, comp=None, otimizacao=None):
     st.session_state["av_modelo"] = {"dados": dados, "resultado": resultado, "origem": origem, "comp": comp,
                                      "otimizacao": otimizacao, "nome": f"{resultado.nome} – {dados.alvo}"}
-    for k in ("av_curva", "av_comp", "av_otim", "av_prev"):
+    for k in ("av_curva", "av_comp", "av_otim", "av_prev", "av_retreino"):
         st.session_state.pop(k, None)
 
 
@@ -434,6 +434,9 @@ def _etapa_guardar(av, username):
         c2.download_button("Metadados (.json)", json.dumps(meta, ensure_ascii=False, indent=1, default=str).encode("utf-8"),
                            file_name="metadados.json", mime="application/json", key="av_dl_json")
         c3.download_button("Pacote completo (.zip)", cl.exportar_pacote(r.pipeline, meta), file_name="modelo_dataforge.zip", mime="application/zip", key="av_dl_zip")
+        st.download_button("Pacote para publicar a API (.zip com Docker)", cl.exportar_pacote_deploy(r.pipeline, meta),
+                           file_name="modelo_para_publicar.zip", mime="application/zip", key="av_dl_deploy",
+                           help="O pacote completo mais api.py, Dockerfile, requirements.txt com as versões do treino e um guia de publicação.")
     except Exception:
         st.error("Não consegui preparar os ficheiros para descarregar.")
     st.warning("Abrir um ficheiro joblib executa código. Só abras ficheiros que tu mesmo exportaste ou de quem confias. "
@@ -516,6 +519,9 @@ def _etapa_prever(av, username):
             st.warning(a)
         alvo = f"previsao_{meta['alvo']}"
         st.success(f"{len(saida)} previsões feitas.")
+        alerta = cl.alerta_deriva(meta, novo, saida[alvo].tolist())
+        if alerta and alerta["nivel"] != "estável":
+            (st.error if alerta["nivel"] == "forte" else st.warning)(alerta["mensagem"])
         st.dataframe(saida.head(200), width="stretch")
         if meta["tipo"] == "classificacao":
             vc = saida[alvo].astype(str).value_counts()
@@ -532,9 +538,26 @@ def _etapa_prever(av, username):
 # ══════════════════════════════════════════════════════════════════════════════
 def _etapa_implementar(av):
     meta = _meta(av)
-    st.info("Isto é educativo: gera código que podes correr e adaptar. A plataforma não coloca o teu modelo em produção.")
-    tipos = {"uso": "Usar em Python", "fastapi": "API REST (FastAPI)", "streamlit": "Aplicação Web (Streamlit)", "cliente": "Integrar noutra aplicação (cliente HTTP)"}
+    st.info("Isto é educativo: gera código que podes correr e adaptar, e um pacote Docker para tu publicares. "
+            "A plataforma não coloca o teu modelo em produção.")
+    tipos = {"uso": "Usar em Python", "fastapi": "API REST (FastAPI)", "streamlit": "Aplicação Web (Streamlit)", "cliente": "Integrar noutra aplicação (cliente HTTP)",
+             "docker": "Publicar com Docker (Dockerfile, requirements e guia)"}
     t = st.radio("O que queres ver?", list(tipos), format_func=tipos.get, key="av_i_tipo")
+    if t == "docker":
+        try:
+            ficheiros = cl.gerar_deploy(meta)
+            pacote = cl.exportar_pacote_deploy(av["resultado"].pipeline, meta)
+        except cl.ErroCiclo as e:
+            st.error(str(e))
+            return
+        for nome, linguagem in (("Dockerfile", "dockerfile"), ("requirements.txt", "text"), ("api.py", "python"), ("PUBLICAR.md", "markdown")):
+            with st.expander(nome, expanded=nome == "Dockerfile"):
+                st.code(ficheiros[nome], language=linguagem)
+        st.download_button("Descarregar o pacote para publicar (.zip)", pacote, file_name="modelo_para_publicar.zip", mime="application/zip", key="av_i_dl_docker")
+        st.caption("O pacote traz o modelo, a API com chave de acesso opcional (variável DATAFORGE_API_KEY) e as versões das bibliotecas iguais às do treino. "
+                   "O guia explica como publicar no Render ou no Hugging Face Spaces.")
+        _marcar("implementar")
+        return
     try:
         codigo = cl.gerar_codigo(meta, t)
     except cl.ErroCiclo as e:
@@ -556,6 +579,41 @@ def _etapa_implementar(av):
 # ══════════════════════════════════════════════════════════════════════════════
 # Etapa 8 — Monitorização
 # ══════════════════════════════════════════════════════════════════════════════
+def _retreinar(av, meta, novo, ficheiro):
+    """Retreina o mesmo algoritmo, com os mesmos hiperparâmetros, nos dados novos (que trazem a resposta real)."""
+    st.markdown("#### Retreinar com estes dados novos")
+    st.caption("Treina de novo o mesmo algoritmo com os mesmos hiperparâmetros, só com este ficheiro. O teste é uma parte destes dados que o "
+               "modelo novo não viu, e o modelo atual é avaliado nessa mesma parte, para a comparação ser justa.")
+    chave = (ficheiro.name, ficheiro.size, id(av["resultado"]))
+    if st.button("Retreinar com este ficheiro", key="av_m_retreinar"):
+        try:
+            with st.spinner("A treinar…"):
+                rt = cl.retreinar(meta, novo, av["resultado"].pipeline)
+            rt["_chave"] = chave
+            st.session_state["av_retreino"] = rt
+        except cl.ErroCiclo as e:
+            st.session_state.pop("av_retreino", None)
+            st.error(str(e))
+    rt = st.session_state.get("av_retreino")
+    if not rt or rt.get("_chave") != chave:
+        return
+    for a in rt["avisos"]:
+        st.warning(a)
+    tipo, p = meta["tipo"], rt["principal"]
+    linhas = [{"Métrica": ev.rotulo(tipo, k), "Modelo atual": (rt["antigo"] or {}).get(k), "Modelo retreinado": v} for k, v in rt["novo"].items()]
+    st.dataframe(pd.DataFrame(linhas).style.format({"Modelo atual": "{:.4f}", "Modelo retreinado": "{:.4f}"}, na_rep="—"), width="stretch", hide_index=True)
+    if rt["melhorou"] is True:
+        st.success(f"O modelo retreinado ficou melhor nos dados novos ({ev.rotulo(tipo, p)}: {_fmt(p, rt['antigo'][p])} → {_fmt(p, rt['novo'][p])}).")
+    elif rt["melhorou"] is False:
+        st.info("O modelo retreinado não ficou melhor do que o atual nestes dados. Antes de trocar, junta mais dados ou confirma se a deriva é mesmo um problema.")
+    else:
+        st.caption("Não há comparação com o modelo atual.")
+    if st.button("Passar a avaliar o modelo retreinado", key="av_m_usar_retreino"):
+        definir_modelo(rt["dados"], rt["resultado"], "retreino com dados novos")
+        st.rerun()
+    st.caption("Depois podes guardá-lo como uma nova versão na etapa «Guardar e exportar».")
+
+
 def _etapa_monitorizar(av):
     meta = _meta(av)
     st.markdown("**O que se acompanha depois de implementar:**")
@@ -616,6 +674,8 @@ def _etapa_monitorizar(av):
             st.warning(str(e))
     else:
         st.caption(f"Para medir as métricas, inclui no ficheiro uma coluna «{meta['alvo']}» com o valor real de cada caso.")
+    if candidatas:
+        _retreinar(av, meta, novo, f)
     fortes = [] if not len(tab) else tab[tab["Nível"] == "forte"]["Variável"].tolist()
     if fortes:
         st.warning("Deriva forte em: " + ", ".join(fortes) + ". Convém investigar e, se as métricas com valores reais piorarem, reavaliar ou treinar de novo.")

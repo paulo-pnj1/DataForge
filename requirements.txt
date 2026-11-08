@@ -28,6 +28,7 @@ reportlab>=4.0.0
 
 # ── Base de dados local ────────────────────────────────
 tinydb>=4.8.0
+sqlalchemy>=2.0.0          # só para ler dados por SQL (opcional; ver segredo permitir_sql)
 
 # ── Utilitários ────────────────────────────────────────
 requests>=2.31.0

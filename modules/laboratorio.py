@@ -14,7 +14,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from modules.ml_engine import auto_ml, data_loader, datasets_demo as demo, forecasting as fc, model_evaluation as ev, model_persistence as mp
+from modules import settings
+from modules.ml_engine import auto_ml, data_loader, datasets_demo as demo, eda, forecasting as fc, limpeza, model_evaluation as ev, model_persistence as mp
 from modules.ml_engine import model_registry as reg, prediction_service as ps
 from modules.ml_engine.data_validation import sugerir_tipo_problema, validar_dados
 from modules.ml_engine.model_comparison import comparar_modelos, recomendar
@@ -30,6 +31,145 @@ NOMES_TIPO = {"regressao": "Regressão (prever um número)", "classificacao": "C
 def _limpar_resultados():
     for k in ("lab_comp", "lab_comp_chave", "lab_auto", "lab_serie_comp", "lab_serie_chave"):
         st.session_state.pop(k, None)
+
+
+def _definir_dados(df, ident, amostrado=None):
+    """Põe uns dados novos na sessão (link ou SQL) e esquece resultados e limpeza dos dados anteriores."""
+    st.session_state.update(lab_id=ident, lab_df=df, lab_amostrado=amostrado, lab_limpeza=None,
+                            lab_up_n=st.session_state.get("lab_up_n", 0) + 1)
+    _limpar_resultados()
+
+
+def _ident_conteudo(prefixo: str, df) -> str:
+    """Identificador que depende do CONTEÚDO (se os dados do link mudarem, as comparações guardadas deixam de servir)."""
+    h = int(pd.util.hash_pandas_object(df, index=False).sum()) & 0xFFFFFFFFFFFF
+    return f"{prefixo}:{h:012x}:{len(df)}x{df.shape[1]}"
+
+
+def _bloco_link_e_sql():
+    """Carregar de um link público (CSV, Excel, Google Sheets, GitHub) e, se o administrador o ativou, de uma consulta SQL."""
+    with st.expander("Ou carrega por link (CSV, Excel, Google Sheets, GitHub)"):
+        st.caption("O link tem de ser público (no Google Sheets: «Partilhar > Qualquer pessoa com o link»). "
+                   "O DataForge só lê os dados; não guarda o link.")
+        url = st.text_input("Link", key="lab_url", placeholder="https://docs.google.com/spreadsheets/d/…")
+        if st.button("Carregar do link", key="lab_url_go"):
+            try:
+                with st.spinner("A descarregar…"):
+                    df = data_loader.carregar_url(url)
+                df, amostrado = data_loader.amostrar(df)
+            except data_loader.ErroDados as e:
+                st.error(str(e))
+                return
+            except Exception:
+                st.error("Não consegui ler os dados deste link. Confirma que é um CSV, um Excel ou uma folha Google pública.")
+                return
+            _definir_dados(df, _ident_conteudo("url", df), amostrado)
+            st.rerun()
+    if settings.permitir_sql():
+        with st.expander("Ou lê de uma base de dados (SQL, só leitura)"):
+            st.caption("PostgreSQL, MySQL/MariaDB ou SQL Server, num servidor público. Só consultas SELECT. "
+                       "Usa uma conta da base de dados só de leitura. A ligação não é guardada pela plataforma.")
+            ligacao = st.text_input("Ligação", type="password", key="lab_sql_con", placeholder="postgresql://utilizador:senha@servidor/base")
+            consulta = st.text_area("Consulta (SELECT)", key="lab_sql_q", placeholder="SELECT * FROM vendas")
+            if st.button("Executar a consulta", key="lab_sql_go"):
+                try:
+                    with st.spinner("A consultar…"):
+                        df = data_loader.carregar_sql(ligacao, consulta)
+                    df, amostrado = data_loader.amostrar(df)
+                except data_loader.ErroDados as e:
+                    st.error(str(e))
+                    return
+                _definir_dados(df, _ident_conteudo("sql", df), amostrado)
+                st.rerun()
+
+
+def _df_ativo():
+    """(tabela, identificador) a usar: os dados carregados, ou a versão limpa se o estudante aceitou propostas de limpeza."""
+    df, ident = st.session_state.get("lab_df"), st.session_state.get("lab_id")
+    lim = st.session_state.get("lab_limpeza")
+    if df is not None and lim and lim.get("ident") == ident:
+        return lim["df"], f"{ident}|limpo|{'+'.join(lim['ids'])}"
+    return df, ident
+
+
+def _bloco_limpeza(df, ident):
+    """Propostas de limpeza: o estudante aceita ou recusa cada uma. Só entram correções sem fuga de informação."""
+    lim = st.session_state.get("lab_limpeza")
+    ativa = bool(lim and lim.get("ident") == ident)
+    with st.expander("Limpeza sugerida" + (" (aplicada)" if ativa else ""), expanded=False):
+        if ativa:
+            st.success("Estás a usar os dados limpos.")
+            for n in lim["notas"]:
+                st.markdown("- " + n)
+            st.caption(f"{len(lim['df'])} linhas × {lim['df'].shape[1]} colunas (originais: {len(df)} linhas).")
+            if st.button("Voltar aos dados originais", key="lab_lim_voltar"):
+                st.session_state["lab_limpeza"] = None
+                _limpar_resultados()
+                st.rerun()
+            return
+        propostas = limpeza.propor_limpeza(df)
+        if not propostas:
+            st.caption("Não encontrei nada que valha a pena arrumar automaticamente (texto, números ou datas escritos como texto, linhas repetidas).")
+            return
+        st.caption("O DataForge propõe; tu decides. Só se propõem correções que não olham para outras linhas, por isso não há "
+                   "fuga de informação para o teste. Colunas vazias, constantes e identificadores já saem sozinhas das variáveis.")
+        escolhidas = []
+        for p in propostas:
+            if st.checkbox(f"{p.titulo} ({p.afeta} {'linhas' if p.id == 'duplicados' else 'valores'})", value=True, key=f"lab_lim_{p.id}"):
+                escolhidas.append(p.id)
+            st.caption(p.explicacao + (" Colunas: " + ", ".join(map(str, p.colunas)) + "." if p.colunas else ""))
+            if p.exemplos:
+                st.dataframe(pd.DataFrame(p.exemplos, columns=["Antes", "Depois"]), width="stretch", hide_index=True)
+        if st.button("Aplicar as selecionadas", type="primary", key="lab_lim_go", disabled=not escolhidas):
+            novo, notas = limpeza.aplicar_propostas(df, propostas, escolhidas)
+            st.session_state["lab_limpeza"] = {"ident": ident, "df": novo, "ids": escolhidas, "notas": notas}
+            _limpar_resultados()
+            st.rerun()
+
+
+def _bloco_exploracao(df):
+    """Exploração gráfica automática: resumo, distribuições, correlações e relação com o alvo."""
+    with st.expander("Explorar os dados (gráficos)"):
+        d, aviso = eda.amostra_para_graficos(df)
+        if aviso:
+            st.caption(aviso)
+        st.markdown("**Resumo de cada coluna**")
+        st.dataframe(eda.resumo_colunas(df), width="stretch", hide_index=True)
+        t_dist, t_corr, t_alvo = st.tabs(["Distribuições", "Correlações", "Relação com o alvo"])
+        with t_dist:
+            uteis = [c for c, _ in eda.figuras_distribuicao(d, max_colunas=6)]
+            esc = st.multiselect("Colunas a ver", list(df.columns), default=uteis, key="lab_eda_cols")
+            for c, fig in eda.figuras_distribuicao(d, esc[:eda.MAX_COLUNAS_HISTOGRAMAS], eda.MAX_COLUNAS_HISTOGRAMAS):
+                st.plotly_chart(fig, width="stretch", key=f"lab_eda_d_{c}")
+            if len(esc) > eda.MAX_COLUNAS_HISTOGRAMAS:
+                st.caption(f"Mostram-se só as primeiras {eda.MAX_COLUNAS_HISTOGRAMAS} colunas escolhidas.")
+        with t_corr:
+            corr = eda.matriz_correlacao(d)
+            if corr.empty:
+                st.info("São precisas pelo menos duas colunas numéricas (com valores diferentes) para ver correlações.")
+            else:
+                st.plotly_chart(eda.figura_correlacao(corr), width="stretch", key="lab_eda_corr")
+                for a, b, v in eda.pares_muito_correlacionados(corr):
+                    st.warning(f"«{a}» e «{b}» andam quase juntas (correlação {v:.2f}): trazem quase a mesma informação.")
+                st.caption("A correlação de Pearson só vê relações em linha reta e não prova causa e efeito.")
+        with t_alvo:
+            alvo = st.selectbox("Variável-alvo (o que queres prever)", list(df.columns), index=df.shape[1] - 1, key="lab_eda_alvo")
+            tipo = sugerir_tipo_problema(df, alvo)[0]
+            try:
+                tab = eda.forca_associacao(d, alvo, tipo)
+            except ValueError as e:
+                st.error(str(e))
+                return
+            if tab.empty:
+                st.info("Não consegui medir a ligação de nenhuma coluna ao alvo (poucos dados ou colunas sem variação).")
+                return
+            st.plotly_chart(eda.figura_forca(tab, alvo), width="stretch", key="lab_eda_forca")
+            st.dataframe(tab.style.format({"Força": "{:.2f}"}), width="stretch", hide_index=True)
+            for _, linha in tab[tab["Observação"].str.startswith("Quase igual")].iterrows():
+                st.warning(f"«{linha['Coluna']}»: {linha['Observação']}")
+            ver = st.selectbox("Ver o alvo em função de…", tab["Coluna"].tolist(), key="lab_eda_ver")
+            st.plotly_chart(eda.figura_alvo_por_coluna(d, ver, alvo, tipo), width="stretch", key="lab_eda_ver_fig")
+            st.caption("A força é um indício: mede cada coluna sozinha. Uma coluna fraca sozinha pode ajudar em conjunto com outras.")
 
 
 def _bloco_exemplos():
@@ -63,8 +203,18 @@ def _fonte_dados():
                                 key=f"lab_upload_{st.session_state.get('lab_up_n', 0)}",
                                 help="Máximo 50 MB. A primeira linha tem de ter os nomes das colunas.")
     _bloco_exemplos()
+    _bloco_link_e_sql()
     if ficheiro is None:
         ident_atual = st.session_state.get("lab_id") or ""
+        if ident_atual.startswith(("url:", "sql:")) and st.session_state.get("lab_df") is not None:
+            df = st.session_state["lab_df"]
+            st.success("A usar os dados carregados " + ("do link." if ident_atual.startswith("url:") else "da base de dados."))
+            if st.session_state.get("lab_amostrado"):
+                st.warning(st.session_state["lab_amostrado"])
+            st.caption(f"{len(df)} linhas × {df.shape[1]} colunas")
+            with st.expander("Ver as primeiras linhas"):
+                st.dataframe(df.head(20), width="stretch")
+            return df, ident_atual
         if ident_atual.startswith("demo:") and st.session_state.get("lab_df") is not None:
             df = st.session_state["lab_df"]
             _, id_demo, _ = ident_atual.split(":")
@@ -96,7 +246,7 @@ def _fonte_dados():
             st.error("Não consegui ler este ficheiro. Confirma que é um CSV ou Excel válido.")
             return None, None
         df, amostrado = data_loader.amostrar(df)
-        st.session_state.update(lab_id=ident, lab_df=df, lab_amostrado=amostrado)
+        st.session_state.update(lab_id=ident, lab_df=df, lab_amostrado=amostrado, lab_limpeza=None)
         _limpar_resultados()
     df = st.session_state["lab_df"]
     if st.session_state.get("lab_amostrado"):
@@ -369,7 +519,8 @@ def _tab_treinar(df, ident, username):
 
 def _tab_automl(df, ident, username):
     st.markdown("O AutoML escolhe os algoritmos compatíveis com os teus dados, compara-os com validação cruzada **só nos dados de treino** e "
-                "recomenda o mais simples entre os que ficam equivalentes ao melhor. Não afina parâmetros nem usa o teste para escolher.")
+                "recomenda o mais simples entre os que ficam equivalentes ao melhor. Nunca usa o teste para escolher. "
+                "Por omissão não afina parâmetros; podes ligar a afinação abaixo.")
     e = _escolhas_problema(df, "lab_au")
     if not e:
         return
@@ -377,11 +528,18 @@ def _tab_automl(df, ident, username):
     max_m = int(c1.number_input("Máximo de modelos", 2, MAX_MODELOS_COMPARACAO, 6, key="lab_au_max"))
     orc = int(c2.number_input("Tempo máximo (s)", 20, 900, 120, 10, key="lab_au_orc"))
     cv = int(c3.selectbox("Blocos de validação cruzada", [3, 5], key="lab_au_cv"))
+    c4, c5, c6 = st.columns(3)
+    afinar = c4.checkbox("Afinar os melhores", key="lab_au_afinar",
+                         help="Procura aleatória de hiperparâmetros nos melhores da triagem, só com a validação cruzada do treino. "
+                              "Demora mais. Os parâmetros afinados só são usados se melhorarem a validação cruzada.")
+    n_afinar = int(c5.number_input("Quantos modelos afinar", 1, 4, 2, key="lab_au_nafinar", disabled=not afinar))
+    n_iter = int(c6.number_input("Combinações por modelo", 3, 30, 8, key="lab_au_niter", disabled=not afinar))
     if st.button("Executar AutoML", type="primary", key="lab_au_go"):
         barra = st.progress(0.0, text="A preparar…")
         try:
             res = auto_ml.executar_automl(df, e["alvo"], e["tipo"], e["feats"], max_m, orc, cv, e["teste"], e["seed"],
-                                          progresso=lambda i, n, nome: barra.progress(min(i / max(n, 1), 1.0), text=f"{nome} ({i + 1}/{n})"))
+                                          progresso=lambda i, n, nome: barra.progress(min(i / max(n, 1), 1.0), text=f"{nome} ({i + 1}/{n})"),
+                                          afinar=afinar, n_afinar=n_afinar, n_iter=n_iter)
             st.session_state["lab_auto"] = res
         except ErroDados as ex:
             st.error(str(ex))
@@ -392,6 +550,12 @@ def _tab_automl(df, ident, username):
     st.markdown("#### O que o AutoML fez")
     for p in res.passos:
         st.markdown("- " + p)
+    if res.afinacao:
+        with st.expander("Afinação de hiperparâmetros"):
+            tab = pd.DataFrame(res.afinacao).drop(columns=["id"])
+            tab["Parâmetros"] = tab["Parâmetros"].map(lambda v: json.dumps(v, ensure_ascii=False) if v else "—")
+            st.dataframe(tab, width="stretch", hide_index=True)
+            st.caption("«Antes» e «Depois» são a nota média na validação cruzada do treino. O teste não decidiu nada.")
     if res.puladas:
         with st.expander(f"{len(res.puladas)} algoritmos não usados"):
             for n, m in res.puladas:
@@ -552,9 +716,11 @@ def render_laboratorio(username: str):
     with t[1]:
         df, ident = _fonte_dados()
         if df is not None:
+            _bloco_limpeza(df, ident)
+            df, ident = _df_ativo()
+            _bloco_exploracao(df)
             _tab_treinar(df, ident, username)
-    df = st.session_state.get("lab_df")
-    ident = st.session_state.get("lab_id")
+    df, ident = _df_ativo()
     with t[2]:
         if df is None:
             st.info("Carrega um ficheiro (ou escolhe um dataset de exemplo) no separador «Treinar e comparar».")

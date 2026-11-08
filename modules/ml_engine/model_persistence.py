@@ -123,7 +123,7 @@ def meta_tabular(dados, resultado, nome: str, origem: str = "") -> dict:
         "intervalos_numericos": dados.intervalos_numericos, "parametros": resultado.params,
         "metricas_teste": resultado.metricas, "cv": {k: list(v) for k, v in (resultado.cv or {}).items()},
         "n_treino": dados.n_treino, "n_teste": dados.n_teste, "random_state": dados.random_state,
-        "origem": origem, "avisos": list(resultado.avisos or []),
+        "test_size": dados.test_size, "origem": origem, "avisos": list(resultado.avisos or []),
     })
 
 

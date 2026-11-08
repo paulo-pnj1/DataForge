@@ -12,6 +12,7 @@ Regras que este módulo garante:
 """
 import io
 import json
+import platform
 import time
 import warnings
 import zipfile
@@ -30,7 +31,7 @@ from modules.ml_engine import model_persistence as mp
 from modules.ml_engine import model_registry as reg
 from modules.ml_engine import prediction_service as ps
 from modules.ml_engine.model_training import OK, ResultadoModelo, _vaga, treinar_modelo, treinar_referencia
-from modules.ml_engine.preprocessing import DadosPreparados, construir_preprocessador
+from modules.ml_engine.preprocessing import DadosPreparados, ErroDados, construir_preprocessador, preparar_dados
 
 PASTA_CODIGO = Path(__file__).resolve().parent / "modelos_codigo"
 LIMITE_COMBINACOES = 60          # combinações testadas, no máximo
@@ -277,6 +278,7 @@ SCORING = {
     "regressao": {"rmse": "neg_root_mean_squared_error", "mae": "neg_mean_absolute_error", "r2": "r2"},
     "classificacao": {"f1": "f1_macro", "accuracy": "accuracy", "precision": "precision_macro", "recall": "recall_macro"},
 }
+SCORING_PADRAO = {"regressao": "rmse", "classificacao": "f1"}      # critério por omissão em cada tipo de problema
 
 
 class _AlgoritmoBase(BaseEstimator):
@@ -836,6 +838,181 @@ def metricas_com_valores_reais(meta: dict, previsoes, reais) -> dict:
     idx = {c: i for i, c in enumerate(classes)}
     m = ev.metricas_classificacao(ys.map(idx).to_numpy(), ps_.map(idx).to_numpy(), None, len(classes))
     return {"metricas": {k: m[k] for k in ("accuracy", "precision", "recall", "f1")}, "n": int(len(ys)), "avisos": avisos}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Alerta de deriva ao prever (não espera que alguém abra a etapa de monitorização)
+# ══════════════════════════════════════════════════════════════════════════════
+def alerta_deriva(meta: dict, df_novo: pd.DataFrame, previsoes=None):
+    """Resumo curto da deriva para avisar logo que se prevê com dados novos.
+
+    Devolve {nivel: 'estável'|'moderada'|'forte', fortes, moderadas, previsoes_nivel, mensagem} ou None se o modelo foi
+    guardado sem o perfil dos dados de treino (nesse caso não há com que comparar).
+    """
+    try:
+        res = analisar_deriva(meta, df_novo, previsoes)
+    except ErroCiclo:
+        return None
+    tab = res["variaveis"]
+    fortes = [] if tab.empty else tab[tab["Nível"] == "forte"]["Variável"].tolist()
+    moderadas = [] if tab.empty else tab[tab["Nível"] == "moderada"]["Variável"].tolist()
+    pv = (res["previsoes"] or {}).get("nivel", "estável")
+    nivel = "forte" if (fortes or pv == "forte") else ("moderada" if (moderadas or pv == "moderada") else "estável")
+    partes = []
+    if fortes:
+        partes.append("Deriva forte em: " + ", ".join(fortes) + ".")
+    if moderadas:
+        partes.append("Deriva moderada em: " + ", ".join(moderadas) + ".")
+    if pv in ("forte", "moderada"):
+        partes.append(f"A distribuição das previsões também mudou ({pv}).")
+    if nivel == "forte":
+        partes.append("Estes dados são bem diferentes dos do treino, por isso as previsões podem falhar mais. "
+                      "Vê a etapa de monitorização e, se tiveres os valores reais, treina de novo.")
+    if len(df_novo) < 30 and nivel != "estável":
+        partes.append(f"Só há {len(df_novo)} linhas: o PSI varia muito com tão poucos dados, confirma antes de concluir.")
+    return {"nivel": nivel, "fortes": fortes, "moderadas": moderadas, "previsoes_nivel": pv, "mensagem": " ".join(partes)}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Retreino com dados novos (mesmo algoritmo, mesmos hiperparâmetros, mesmas regras de divisão)
+# ══════════════════════════════════════════════════════════════════════════════
+def retreinar(meta: dict, df_novo: pd.DataFrame, modelo_antigo=None, cv_folds: int = 3, nome: str = None) -> dict:
+    """Treina de novo o mesmo algoritmo (com os mesmos hiperparâmetros) numa tabela com dados novos E com a resposta real.
+
+    O teste do modelo novo é uma parte dos dados NOVOS que o modelo novo não viu. O modelo antigo é avaliado nessa mesma parte,
+    para a comparação ser justa. Devolve {dados, resultado, meta, antigo, novo, principal, melhorou, avisos}.
+    """
+    if meta.get("tipo") not in ("regressao", "classificacao"):
+        raise ErroCiclo("Só se retreinam modelos de classificação e regressão.")
+    alvo, feats = meta.get("alvo"), list(meta.get("features") or [])
+    faltam = [c for c in feats + [alvo] if c not in df_novo.columns]
+    if faltam:
+        raise ErroCiclo("Para retreinar o ficheiro precisa das colunas do treino e da resposta real. Faltam: " + ", ".join(map(str, faltam)) + ".")
+    mid = meta.get("algoritmo_id")
+    try:
+        reg.obter(mid)
+    except KeyError:
+        raise ErroCiclo("Este modelo foi guardado com um algoritmo que já não existe no catálogo, por isso não dá para retreinar.")
+    try:
+        dados = preparar_dados(df_novo, alvo, meta["tipo"], feats, float(meta.get("test_size") or 0.2), int(meta.get("random_state") or 42))
+    except ErroDados as e:
+        raise ErroCiclo(str(e))
+    r = treinar_modelo(mid, dados, meta.get("parametros"), dados.random_state, cv_folds)
+    if r.estado != OK:
+        raise ErroCiclo(r.motivo or "Não foi possível treinar de novo com estes dados.")
+    chaves = ("r2", "mae", "rmse") if dados.tipo == "regressao" else ("accuracy", "precision", "recall", "f1")
+    principal = "r2" if dados.tipo == "regressao" else "f1"
+    novo = {k: r.metricas.get(k) for k in chaves}
+    avisos = list(dados.avisos)
+    antigo = None
+    if modelo_antigo is not None:
+        try:
+            pred = np.asarray(modelo_antigo.predict(dados.X_test)).ravel()
+            if dados.tipo == "regressao":
+                m = ev.metricas_regressao(dados.y_test, pred)
+                antigo = {k: m[k] for k in chaves}
+            else:
+                antigas = meta.get("classes") or []
+                previstas = [antigas[int(i)] for i in pred]
+                reais = [dados.classes[int(i)] for i in dados.y_test]
+                m = metricas_com_valores_reais(meta, previstas, reais)
+                antigo = {k: m["metricas"].get(k) for k in chaves}
+                avisos += m["avisos"]
+        except Exception:
+            avisos.append("Não consegui avaliar o modelo antigo nestes dados (as colunas ou as classes mudaram), por isso não há comparação.")
+    melhorou = None
+    if antigo and antigo.get(principal) is not None and novo.get(principal) is not None:
+        melhorou = novo[principal] > antigo[principal]
+    n_antigo = meta.get("n_treino")
+    if n_antigo and dados.n_usadas < n_antigo:
+        avisos.append(f"O ficheiro novo tem {dados.n_usadas} linhas utilizáveis e o treino original teve {n_antigo}. "
+                      "O modelo retreinado só aprende com o ficheiro novo: com menos dados pode ficar pior, mesmo que os dados sejam mais recentes.")
+    nome = nome or f"{meta.get('nome') or 'modelo'} (retreinado)"
+    novo_meta = meta_ciclo(dados, r, nome, "retreino com dados novos")
+    return {"dados": dados, "resultado": r, "meta": novo_meta, "antigo": antigo, "novo": novo, "principal": principal,
+            "melhorou": melhorou, "avisos": list(dict.fromkeys(avisos))}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Pacote para publicar (Docker): API + Dockerfile + requirements com versões fixas
+# ══════════════════════════════════════════════════════════════════════════════
+def _requisitos(meta: dict) -> str:
+    v = meta.get("versoes_bibliotecas") or mp._versoes()
+    linhas = ["fastapi>=0.110", "uvicorn>=0.29", "pydantic>=2"]
+    nomes = {"scikit-learn": "sklearn", "pandas": "pandas", "numpy": "numpy", "joblib": "joblib"}
+    alg = str(meta.get("algoritmo_id") or "")
+    if alg.startswith("xgb"):
+        nomes["xgboost"] = "xgboost"
+    if alg.startswith("lgbm"):
+        nomes["lightgbm"] = "lightgbm"
+    for pacote, chave in nomes.items():
+        linhas.append(f"{pacote}=={v[chave]}" if v.get(chave) else pacote)
+    return "\n".join(linhas) + "\n"
+
+
+def _api_publicavel(meta: dict) -> str:
+    """O código FastAPI de `gerar_codigo`, com chave de acesso opcional (variável DATAFORGE_API_KEY) em /prever."""
+    codigo = gerar_codigo(meta, "fastapi")
+    if '@app.post("/prever")' not in codigo:
+        return codigo
+    codigo = codigo.replace("from fastapi import FastAPI, HTTPException",
+                            "import hmac\nimport os\nfrom fastapi import Depends, FastAPI, Header, HTTPException", 1)
+    codigo = codigo.replace('@app.post("/prever")', '@app.post("/prever", dependencies=[Depends(verificar_chave)])', 1)
+    seguranca = ('\n\nCHAVE_API = os.environ.get("DATAFORGE_API_KEY", "")   # se estiver definida, /prever exige o cabeçalho X-API-Key\n\n\n'
+                 'def verificar_chave(x_api_key: str = Header(default="")):\n'
+                 '    if CHAVE_API and not hmac.compare_digest(x_api_key, CHAVE_API):\n'
+                 '        raise HTTPException(status_code=401, detail="Chave de acesso em falta ou errada.")\n')
+    return codigo.replace("\n\nclass Pedido(BaseModel):", seguranca + "\n\nclass Pedido(BaseModel):", 1)
+
+
+def gerar_deploy(meta: dict) -> dict:
+    """{nome do ficheiro: texto} para publicar a API do modelo com Docker (Render, Hugging Face Spaces, VPS)."""
+    if meta.get("tipo") not in ("regressao", "classificacao"):
+        raise ErroCiclo("Só se gera o pacote de publicação para modelos de classificação e regressão.")
+    py = ".".join(platform.python_version_tuple()[:2])
+    dockerfile = (f"FROM python:{py}-slim\n"
+                  "WORKDIR /app\n"
+                  "ENV PYTHONUNBUFFERED=1 PORT=7860\n"
+                  "COPY requirements.txt .\n"
+                  "RUN pip install --no-cache-dir -r requirements.txt\n"
+                  "COPY modelo.joblib api.py ./\n"
+                  "RUN useradd -m app && chown -R app /app\n"
+                  "USER app\n"
+                  "EXPOSE 7860\n"
+                  'CMD ["sh", "-c", "uvicorn api:app --host 0.0.0.0 --port ${PORT}"]\n')
+    leia = (f"# Publicar o modelo «{meta.get('nome') or 'modelo'}»\n\n"
+            "Ficheiros: `api.py` (a API), `modelo.joblib` (o modelo), `requirements.txt` (versões fixas, iguais às do treino) e `Dockerfile`.\n\n"
+            "## Testar no teu computador (precisa do Docker)\n"
+            "```\ndocker build -t meu-modelo .\n"
+            "docker run -p 7860:7860 -e DATAFORGE_API_KEY=escolhe-uma-chave meu-modelo\n```\n"
+            "Abre http://localhost:7860/docs. Para prever: pedido POST a /prever com o cabeçalho `X-API-Key`.\n\n"
+            "## Render (serviço web com Docker)\n"
+            "1. Põe estes ficheiros num repositório do GitHub.\n"
+            "2. No Render: New > Web Service > liga o repositório (ambiente Docker).\n"
+            "3. Em Environment cria `DATAFORGE_API_KEY` com uma chave tua. O Render define `PORT` sozinho.\n\n"
+            "## Hugging Face Spaces\n"
+            "1. Cria um Space do tipo Docker e envia estes ficheiros.\n"
+            "2. Em Settings > Variables and secrets cria o segredo `DATAFORGE_API_KEY`. A porta 7860 já está configurada.\n\n"
+            "## Antes de deixar isto aberto à internet\n"
+            "- Sem `DATAFORGE_API_KEY` a API fica aberta a toda a gente. Define sempre uma chave.\n"
+            "- Os planos gratuitos mudam e podem adormecer o serviço: confirma as regras atuais no site de cada serviço.\n"
+            "- Só publiques ficheiros joblib que tu mesmo exportaste: abrir um joblib executa código.\n"
+            "- Acompanha o modelo com dados novos (deriva) e treina de novo quando as métricas piorarem.\n")
+    return {"api.py": _api_publicavel(meta), "Dockerfile": dockerfile, "requirements.txt": _requisitos(meta),
+            ".dockerignore": "__pycache__/\n*.pyc\n.git/\n", "PUBLICAR.md": leia}
+
+
+def exportar_pacote_deploy(pipeline, meta: dict) -> bytes:
+    """ZIP do pacote normal + os ficheiros para publicar a API com Docker."""
+    base = zipfile.ZipFile(io.BytesIO(exportar_pacote(pipeline, meta)))
+    extra = gerar_deploy(meta)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for nome in base.namelist():
+            z.writestr(nome, base.read(nome))
+        for nome, texto in extra.items():
+            z.writestr(nome, texto)
+    return buf.getvalue()
 
 
 def contexto_tutor(meta_ou_dados: dict) -> str:
