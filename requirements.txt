@@ -28,7 +28,10 @@ reportlab>=4.0.0
 
 # ── Base de dados local ────────────────────────────────
 tinydb>=4.8.0
-sqlalchemy>=2.0.0          # só para ler dados por SQL (opcional; ver segredo permitir_sql)
+
+# ── Leitura de dados por SQL (opcional; ver segredo permitir_sql) ──
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9        # driver PostgreSQL / Supabase
 
 # ── Utilitários ────────────────────────────────────────
 requests>=2.31.0
